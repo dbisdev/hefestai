@@ -1,0 +1,24 @@
+{
+  "name": "loremaster",
+  "version": "1.0.0",
+  "description": "Loremaster - Professional fullstack application",
+  "license": "ISC",
+  "author": "DavidBis",
+  "private": true,
+  "workspaces": [
+    "src/frontend",
+    "src/services/genkit-ai"
+  ],
+  "scripts": {
+    "dev:frontend": "npm run dev --workspace=src/frontend",
+    "dev:genkit": "npm run dev --workspace=src/services/genkit-ai",
+    "dev:db": "docker-compose -f docker-compose.dev.yml up -d",
+    "dev:db:stop": "docker-compose -f docker-compose.dev.yml down",
+    "build:frontend": "npm run build --workspace=src/frontend",
+    "build:genkit": "npm run build --workspace=src/services/genkit-ai",
+    "docker:up": "docker-compose up -d",
+    "docker:down": "docker-compose down",
+    "docker:build": "docker-compose build",
+    "install:all": "npm install && cd src/backend && dotnet restore"
+  }
+}

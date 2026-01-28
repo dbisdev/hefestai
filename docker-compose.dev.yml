@@ -1,0 +1,38 @@
+version: '3.8'
+
+# =============================================================================
+# DEVELOPMENT DOCKER COMPOSE
+# =============================================================================
+# Only runs PostgreSQL with pgvector for local development.
+# Run frontend, backend, and genkit locally with hot-reloading.
+#
+# Usage:
+#   docker-compose -f docker-compose.dev.yml up -d
+#
+# Then run locally:
+#   - Backend: cd src/backend && dotnet run
+#   - Genkit:  cd src/genkit-service && npm run dev
+#   - Frontend: cd src/frontend && npm run dev
+
+services:
+  postgres:
+    image: pgvector/pgvector:pg16
+    container_name: loremaster-db-dev
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+      POSTGRES_DB: loremaster
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_dev_data:/var/lib/postgresql/data
+      - ./docker/init.sql:/docker-entrypoint-initdb.d/init.sql
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+volumes:
+  postgres_dev_data:

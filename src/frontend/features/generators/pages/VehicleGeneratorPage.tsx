@@ -1,0 +1,197 @@
+/**
+ * Vehicle Generator Page
+ * AI-powered vehicle generation for starships, rovers, and mechs
+ */
+
+import React, { useState } from 'react';
+import { TerminalLayout } from '@shared/components/layout';
+import { Button } from '@shared/components/ui';
+import { aiService, entityService } from '@core/services/api';
+import type { VehicleData } from '@core/types';
+
+interface VehicleGeneratorPageProps {
+  onBack: () => void;
+}
+
+const VEHICLE_PLACEHOLDER_IMAGE = "https://lh3.googleusercontent.com/aida-public/AB6AXuDwdfYYr9eKFLnajyN2Ac6wDARXA_-mfibVDogKPYkAVDBc8v4xmz5S0onKageqWHbJkwaMQal6d_37piOBkfBRODrtpzVCAORmDmN9Lhms-1nWa0CAGhzL-5Cn16UzV3rpA-y-YrjlCMY3FBwJuARw1b7kBd9u5-Ix8KNLLf33w-D8gYTS1IH94XfBXDAo-nEqDs-LwRpisgMDqMM3vEgtruTqz-qjLsv8dR7IrSoRWDYyOqfAh36rTTDQBiDtNWaL6sCxsMV7POo";
+
+const VEHICLE_TYPE_OPTIONS = [
+  { value: 'starship', label: 'Nave Espacial' },
+  { value: 'rover', label: 'Rover Terrestre' },
+  { value: 'mech', label: 'Mech de Combate' },
+];
+
+const CHASSIS_CLASS_OPTIONS = [
+  { value: 'interceptor', label: 'Interceptor Ligero' },
+  { value: 'freighter', label: 'Carguero Pesado' },
+  { value: 'explorer', label: 'Explorador de Larga Distancia' },
+];
+
+export const VehicleGeneratorPage: React.FC<VehicleGeneratorPageProps> = ({ onBack }) => {
+  const [logs, setLogs] = useState(['> Awaiting construction parameters...']);
+  const [isGenerating, setIsGenerating] = useState(false);
+  const [isSaving, setIsSaving] = useState(false);
+  const [generatedVehi, setGeneratedVehi] = useState<VehicleData | null>(null);
+
+  const [form, setForm] = useState({
+    type: 'starship',
+    class: 'interceptor',
+    engine: 'fusion'
+  });
+
+  const addLog = (msg: string) => {
+    setLogs(prev => [...prev, `> ${msg}`].slice(-6));
+  };
+
+  const handleGenerate = async () => {
+    setIsGenerating(true);
+    addLog(`Initializing assembly for ${form.class}...`);
+
+    try {
+      const result = await aiService.generateVehicle({
+        type: form.type,
+        class: form.class,
+        engine: form.engine
+      });
+
+      const data = JSON.parse(result.vehicleJson) as VehicleData;
+      setGeneratedVehi(data);
+      addLog(`Assembly complete: ${data.name}`);
+    } catch (e: unknown) {
+      const message = e instanceof Error ? e.message : 'Unknown error';
+      addLog(`Error during assembly: ${message}`);
+    } finally {
+      setIsGenerating(false);
+    }
+  };
+
+  const handleSave = async () => {
+    if (!generatedVehi) return;
+    setIsSaving(true);
+    try {
+      await entityService.create({
+        name: generatedVehi.name,
+        type: `MODELO: ${form.class.toUpperCase()}`,
+        meta: `TIPO: ${form.type.toUpperCase()}`,
+        category: 'VEHICLES',
+        description: generatedVehi.specs,
+        image: VEHICLE_PLACEHOLDER_IMAGE,
+        stats: generatedVehi.stats
+      });
+      addLog('Data committed to shipyard database.');
+      setTimeout(onBack, 1500);
+    } catch (e: unknown) {
+      const message = e instanceof Error ? e.message : 'Unknown error';
+      addLog(`Database write failed: ${message}`);
+    } finally {
+      setIsSaving(false);
+    }
+  };
+
+  return (
+    <TerminalLayout 
+      title="Shipyard_Forge // V.1.0" 
+      subtitle="Ensamblaje de Vehículos Persistentes"
+      actions={
+        <button onClick={onBack} className="text-primary/60 hover:text-primary transition-colors flex items-center gap-1 text-xs font-mono uppercase">
+          <span className="material-icons text-sm">arrow_back</span> VOLVER
+        </button>
+      }
+    >
+      <div className="flex flex-col lg:flex-row gap-8 h-full font-mono">
+        {/* Form Panel */}
+        <div className="flex-1 flex flex-col gap-6 overflow-y-auto">
+          <div className="space-y-4">
+            <div>
+              <label className="text-primary text-[10px] uppercase block mb-1">Tipo de Vehículo</label>
+              <select 
+                className="w-full bg-surface-dark border border-primary/30 p-2 text-sm text-white" 
+                value={form.type} 
+                onChange={e => setForm({...form, type: e.target.value})}
+              >
+                {VEHICLE_TYPE_OPTIONS.map(opt => (
+                  <option key={opt.value} value={opt.value}>{opt.label}</option>
+                ))}
+              </select>
+            </div>
+            <div>
+              <label className="text-primary text-[10px] uppercase block mb-1">Clase de Chasis</label>
+              <select 
+                className="w-full bg-surface-dark border border-primary/30 p-2 text-sm text-white"
+                value={form.class} 
+                onChange={e => setForm({...form, class: e.target.value})}
+              >
+                {CHASSIS_CLASS_OPTIONS.map(opt => (
+                  <option key={opt.value} value={opt.value}>{opt.label}</option>
+                ))}
+              </select>
+            </div>
+          </div>
+
+          {/* Action Buttons */}
+          <div className="mt-auto flex gap-4">
+            <Button
+              onClick={handleGenerate}
+              disabled={isGenerating}
+              variant="secondary"
+              fullWidth
+              size="lg"
+              isLoading={isGenerating}
+            >
+              {isGenerating ? 'ENSAMBLANDO...' : 'ENSAMBLAR'}
+            </Button>
+            <Button
+              onClick={handleSave}
+              disabled={!generatedVehi || isSaving}
+              variant="primary"
+              fullWidth
+              size="lg"
+              isLoading={isSaving}
+            >
+              GUARDAR_VEHÍCULO
+            </Button>
+          </div>
+        </div>
+
+        {/* Preview Panel */}
+        <div className="flex-1 flex flex-col gap-4">
+          <div className="relative flex-1 border border-primary/30 bg-black clip-tech-br overflow-hidden">
+            <img 
+              src={VEHICLE_PLACEHOLDER_IMAGE} 
+              className="w-full h-full object-cover grayscale opacity-60" 
+              alt="Vehicle Preview"
+            />
+            <div className="absolute inset-0 flex flex-col justify-end p-4 bg-gradient-to-t from-black to-transparent">
+              <h3 className="text-primary font-bold">{generatedVehi?.name || '---'}</h3>
+              <p className="text-[10px] text-primary/70">{generatedVehi?.specs}</p>
+            </div>
+          </div>
+          
+          {/* Log Panel */}
+          <div className="h-20 bg-black/80 border border-primary/20 p-2 text-[10px] text-primary/60 overflow-y-auto">
+            {logs.map((l, i) => <p key={i}>{l}</p>)}
+          </div>
+          
+          {/* Stats Panel */}
+          {generatedVehi && (
+            <div className="grid grid-cols-3 gap-2">
+              {[
+                { label: 'SPEED', val: generatedVehi.stats?.SPEED },
+                { label: 'ARMOR', val: generatedVehi.stats?.ARMOR },
+                { label: 'CARGO', val: generatedVehi.stats?.CARGO }
+              ].map(stat => (
+                <div key={stat.label} className="bg-surface-dark border border-primary/20 p-2 text-center relative overflow-hidden">
+                  <p className="text-[9px] text-primary/40 uppercase mb-1">{stat.label}</p>
+                  <p className="text-lg font-bold text-primary font-mono">{stat.val}</p>
+                  <div className="absolute bottom-0 left-0 h-0.5 bg-primary/20" style={{ width: `${stat.val}%` }}></div>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+      </div>
+    </TerminalLayout>
+  );
+};
+
+export default VehicleGeneratorPage;

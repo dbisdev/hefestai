@@ -1,0 +1,53 @@
+# Dependencies
+node_modules/
+dist/
+.pnp
+.pnp.js
+
+# Build outputs
+bin/
+obj/
+out/
+build/
+
+# IDE
+.idea/
+.vscode/
+*.suo
+*.user
+*.userosscache
+*.sln.docstates
+.vs/
+
+# Environment files
+.env
+.env.local
+.env.*.local
+*.env
+.env.example
+
+# Logs
+logs/
+*.log
+npm-debug.log*
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# Testing
+coverage/
+*.lcov
+
+# Temporary files
+*.tmp
+*.temp
+.cache/
+
+# Docker
+docker-compose.override.yml
+
+# Secrets (never commit)
+*.pem
+*.key
+secrets/

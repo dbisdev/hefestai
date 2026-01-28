@@ -1,0 +1,52 @@
+# Fly.io configuration for Loremaster Genkit Service
+# =============================================================================
+# DEPLOYMENT STEPS:
+# 1. Create the app: fly apps create loremaster-genkit
+# 2. Set secrets (see below)
+# 3. Deploy: fly deploy --config src/genkit-service/fly.toml
+# =============================================================================
+#
+# REQUIRED SECRETS (set with: fly secrets set KEY=VALUE):
+# - GOOGLE_GENAI_API_KEY: Google AI API key for Gemini models
+#   Get from: https://aistudio.google.com/apikey
+# - SERVICE_JWT_SECRET: Must match the backend's ServiceJwt__Secret
+
+app = "loremaster-genkit"
+primary_region = "mad"
+
+[build]
+  dockerfile = "Dockerfile"
+
+[env]
+  NODE_ENV = "production"
+  PORT = "3000"
+  # Rate limiting for production
+  RATE_LIMIT_WINDOW_MS = "60000"
+  RATE_LIMIT_MAX_REQUESTS = "100"
+
+[http_service]
+  internal_port = 3000
+  force_https = true
+  auto_stop_machines = true
+  auto_start_machines = true
+  min_machines_running = 0
+  processes = ["app"]
+
+  [http_service.concurrency]
+    type = "connections"
+    hard_limit = 50
+    soft_limit = 40
+
+[[vm]]
+  memory = "512mb"
+  cpu_kind = "shared"
+  cpus = 1
+
+[checks]
+  [checks.health]
+    type = "http"
+    port = 3000
+    path = "/health"
+    interval = "30s"
+    timeout = "5s"
+    grace_period = "10s"
