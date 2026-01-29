@@ -8,6 +8,7 @@ using Microsoft.AspNetCore.Diagnostics.HealthChecks;
 using Microsoft.AspNetCore.RateLimiting;
 using Microsoft.OpenApi.Models;
 using Serilog;
+using System.Reflection;
 using System.Threading.RateLimiting;
 
 // Configure Serilog early
@@ -139,10 +140,15 @@ try
     {
         c.SwaggerDoc("v1", new OpenApiInfo 
         { 
-            Title = "Loremaster API", 
+            Title = "HefestAi API", 
             Version = "v1",
-            Description = "API for Loremaster application - AI-powered worldbuilding and lore management"
+            Description = "API for HefestAi application - AI-powered worldbuilding and lore management"
         });
+
+        // Set the comments path for the Swagger JSON and UI.
+        var xmlFile = $"{Assembly.GetExecutingAssembly().GetName().Name}.xml";
+        var xmlPath = Path.Combine(AppContext.BaseDirectory, xmlFile);
+        c.IncludeXmlComments(xmlPath);
         
         c.AddSecurityDefinition("Bearer", new OpenApiSecurityScheme
         {
@@ -231,7 +237,7 @@ try
         app.UseSwagger();
         app.UseSwaggerUI(c =>
         {
-            c.SwaggerEndpoint("/swagger/v1/swagger.json", "Loremaster API v1");
+            c.SwaggerEndpoint("/swagger/v1/swagger.json", "HefestAi API v1");
             c.RoutePrefix = "swagger";
         });
     }
@@ -279,7 +285,7 @@ try
     app.MapControllers()
         .RequireRateLimiting("per-user");
 
-    Log.Information("Loremaster API started successfully");
+    Log.Information("HefestAi API started successfully");
     app.Run();
 }
 catch (Exception ex)
