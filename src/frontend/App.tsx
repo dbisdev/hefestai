@@ -1,22 +1,31 @@
 /**
  * Main Application Component
- * Uses AuthProvider for global authentication state
+ * Uses AuthProvider and CampaignProvider for global state
  * Implements screen-based navigation with smooth transitions
  */
 
 import React, { useState, useEffect, useCallback } from 'react';
-import { AuthProvider, useAuth } from '@core/context/AuthContext';
+import { AuthProvider, useAuth, CampaignProvider } from '@core/context';
 import { LoginPage, SignupPage } from '@features/auth';
 import { GalleryPage } from '@features/gallery';
-import { CharacterGeneratorPage, SolarSystemGeneratorPage, VehicleGeneratorPage } from '@features/generators';
+import { 
+  CharacterGeneratorPage, 
+  SolarSystemGeneratorPage, 
+  VehicleGeneratorPage,
+  NpcGeneratorPage,
+  EnemyGeneratorPage,
+  MissionGeneratorPage,
+  EncounterGeneratorPage,
+  CampaignGeneratorPage
+} from '@features/generators';
 import { AccessDenied, ErrorScreen } from '@shared/components/feedback';
 import { Screen } from '@core/types';
 
 /**
- * Main App Content - requires AuthProvider
+ * Main App Content - requires AuthProvider and CampaignProvider
  */
 const AppContent: React.FC = () => {
-  const { user, isLoading, logout, login, register } = useAuth();
+  const { user, isLoading, logout } = useAuth();
   const [displayScreen, setDisplayScreen] = useState<Screen>(Screen.LOGIN);
   const [transitionStage, setTransitionStage] = useState<'idle' | 'out' | 'in'>('idle');
 
@@ -29,7 +38,17 @@ const AppContent: React.FC = () => {
 
   // Redirect to login if user logs out while on a protected screen
   useEffect(() => {
-    const protectedScreens = [Screen.GALLERY, Screen.CHAR_GEN, Screen.SOLAR_GEN, Screen.VEHI_GEN];
+    const protectedScreens = [
+      Screen.GALLERY, 
+      Screen.CHAR_GEN, 
+      Screen.SOLAR_GEN, 
+      Screen.VEHI_GEN,
+      Screen.NPC_GEN,
+      Screen.ENEMY_GEN,
+      Screen.MISSION_GEN,
+      Screen.ENCOUNTER_GEN,
+      Screen.CAMPAIGN_GEN
+    ];
     if (!user && !isLoading && protectedScreens.includes(displayScreen)) {
       setDisplayScreen(Screen.LOGIN);
       setTransitionStage('idle');
@@ -65,8 +84,20 @@ const AppContent: React.FC = () => {
   const handleNavigate = useCallback((screen: Screen) => {
     const isMaster = user?.role === 'MASTER';
     
-    // Check if player is trying to access generator screens
-    if (!isMaster && [Screen.CHAR_GEN, Screen.SOLAR_GEN, Screen.VEHI_GEN].includes(screen)) {
+    // List of generator screens that require Master role
+    // Note: CAMPAIGN_GEN is accessible to all authenticated users
+    const masterOnlyScreens = [
+      Screen.CHAR_GEN, 
+      Screen.SOLAR_GEN, 
+      Screen.VEHI_GEN,
+      Screen.NPC_GEN,
+      Screen.ENEMY_GEN,
+      Screen.MISSION_GEN,
+      Screen.ENCOUNTER_GEN
+    ];
+    
+    // Check if player is trying to access master-only screens
+    if (!isMaster && masterOnlyScreens.includes(screen)) {
       navigate(Screen.ACCESS_DENIED);
     } else {
       navigate(screen);
@@ -128,6 +159,30 @@ const AppContent: React.FC = () => {
           ? <VehicleGeneratorPage onBack={() => navigate(Screen.GALLERY)} /> 
           : <AccessDenied onBack={() => navigate(Screen.GALLERY)} />;
       
+      case Screen.NPC_GEN:
+        return isMaster 
+          ? <NpcGeneratorPage onBack={() => navigate(Screen.GALLERY)} /> 
+          : <AccessDenied onBack={() => navigate(Screen.GALLERY)} />;
+      
+      case Screen.ENEMY_GEN:
+        return isMaster 
+          ? <EnemyGeneratorPage onBack={() => navigate(Screen.GALLERY)} /> 
+          : <AccessDenied onBack={() => navigate(Screen.GALLERY)} />;
+      
+      case Screen.MISSION_GEN:
+        return isMaster 
+          ? <MissionGeneratorPage onBack={() => navigate(Screen.GALLERY)} /> 
+          : <AccessDenied onBack={() => navigate(Screen.GALLERY)} />;
+      
+      case Screen.ENCOUNTER_GEN:
+        return isMaster 
+          ? <EncounterGeneratorPage onBack={() => navigate(Screen.GALLERY)} /> 
+          : <AccessDenied onBack={() => navigate(Screen.GALLERY)} />;
+      
+      // Campaign creation is available to all authenticated users
+      case Screen.CAMPAIGN_GEN:
+        return <CampaignGeneratorPage onBack={() => navigate(Screen.GALLERY)} />;
+      
       case Screen.ERROR:
         return <ErrorScreen onReboot={() => navigate(Screen.LOGIN)} />;
       
@@ -157,12 +212,14 @@ const AppContent: React.FC = () => {
 };
 
 /**
- * Root App Component with AuthProvider
+ * Root App Component with AuthProvider and CampaignProvider
  */
 const App: React.FC = () => {
   return (
     <AuthProvider>
-      <AppContent />
+      <CampaignProvider>
+        <AppContent />
+      </CampaignProvider>
     </AuthProvider>
   );
 };

@@ -1,12 +1,14 @@
 /**
  * Character Generator Page
  * AI-powered character generation with cyberpunk terminal aesthetics
+ * Uses campaign context for entity creation
  */
 
 import React, { useState } from 'react';
 import { TerminalLayout } from '@shared/components/layout';
-import { Select, Button } from '@shared/components/ui';
+import { Button } from '@shared/components/ui';
 import { aiService, entityService } from '@core/services/api';
+import { useCampaign } from '@core/context';
 import type { CharacterData } from '@core/types';
 
 interface CharacterGeneratorPageProps {
@@ -34,6 +36,8 @@ const ROLE_OPTIONS = [
 const MORPHOLOGY_OPTIONS = ['MASCULINE', 'FEMININE', 'NEUTRAL'] as const;
 
 export const CharacterGeneratorPage: React.FC<CharacterGeneratorPageProps> = ({ onBack }) => {
+  const { activeCampaignId, activeCampaign } = useCampaign();
+  
   const [logs, setLogs] = useState([
     '> System initialization sequence started...',
     '> [SUCCESS] Neural link established.',
@@ -51,10 +55,16 @@ export const CharacterGeneratorPage: React.FC<CharacterGeneratorPageProps> = ({ 
     attire: 'Techwear'
   });
 
+  /**
+   * Adds a log entry to the terminal display
+   */
   const addLog = (msg: string) => {
     setLogs(prev => [...prev, `> ${msg}`].slice(-6));
   };
 
+  /**
+   * Handles character generation via AI service
+   */
   const handleGenerate = async () => {
     if (!form.species || !form.role) {
       addLog('ERROR: PARAMETERS MISSING');
@@ -99,20 +109,36 @@ export const CharacterGeneratorPage: React.FC<CharacterGeneratorPageProps> = ({ 
     }
   };
 
+  /**
+   * Saves the generated character to the active campaign
+   */
   const handleSave = async () => {
     if (!generatedChar) return;
+    
+    if (!activeCampaignId) {
+      addLog('ERROR: NO CAMPAIGN SELECTED');
+      return;
+    }
+
     setIsSaving(true);
     addLog('WRITING TO PERSISTENT STORAGE...');
     
     try {
-      await entityService.create({
+      await entityService.create(activeCampaignId, {
+        entityType: 'character',
         name: generatedChar.name,
-        type: `CLASE: ${form.role.toUpperCase()}`,
-        meta: `SPEC: ${form.species.toUpperCase()}`,
-        category: 'CHARACTERS',
         description: generatedChar.bio,
-        image: charImage,
-        stats: generatedChar.stats
+        imageUrl: charImage !== UNKNOWN_CHAR_IMAGE ? charImage : undefined,
+        attributes: {
+          species: form.species.toUpperCase(),
+          role: form.role.toUpperCase(),
+          morphology: form.morphology,
+          ...generatedChar.stats
+        },
+        metadata: {
+          generatedAt: new Date().toISOString(),
+          generator: 'character_synth_v2'
+        }
       });
       addLog('SUCCESS: DATA COMMITTED TO NUCLEUS');
       setTimeout(onBack, 1000);
@@ -127,7 +153,7 @@ export const CharacterGeneratorPage: React.FC<CharacterGeneratorPageProps> = ({ 
   return (
     <TerminalLayout 
       title="Character_Synth // V.2.0" 
-      subtitle="Sintetizador Biométrico y Generación de Imagen"
+      subtitle={`Campaña: ${activeCampaign?.name || 'N/A'} // Sintetizador Biométrico`}
       actions={
         <button onClick={onBack} className="text-primary/60 hover:text-primary transition-colors flex items-center gap-1 text-xs font-mono uppercase">
           <span className="material-icons text-sm">arrow_back</span> VOLVER
@@ -137,6 +163,14 @@ export const CharacterGeneratorPage: React.FC<CharacterGeneratorPageProps> = ({ 
       <div className="flex flex-col lg:flex-row gap-8 h-full font-mono">
         {/* Form Panel */}
         <div className="flex-1 flex flex-col gap-6 overflow-y-auto pr-2">
+          {/* No Campaign Warning */}
+          {!activeCampaignId && (
+            <div className="border border-yellow-500/50 bg-yellow-500/10 p-3 text-[10px] text-yellow-500 uppercase">
+              <span className="material-icons text-sm mr-1 align-middle">warning</span>
+              Selecciona una campaña para guardar entidades
+            </div>
+          )}
+
           <div className="space-y-6">
             <div>
               <label className="text-primary text-[10px] uppercase tracking-widest mb-2 flex items-center gap-2">
@@ -204,7 +238,7 @@ export const CharacterGeneratorPage: React.FC<CharacterGeneratorPageProps> = ({ 
             </Button>
             <Button
               onClick={handleSave}
-              disabled={!generatedChar || isSaving || isGenerating}
+              disabled={!generatedChar || isSaving || isGenerating || !activeCampaignId}
               variant="primary"
               size="lg"
               isLoading={isSaving}

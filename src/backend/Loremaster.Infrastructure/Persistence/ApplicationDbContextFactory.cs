@@ -27,6 +27,7 @@ public class ApplicationDbContextFactory : IDesignTimeDbContextFactory<Applicati
         // Configure NpgsqlDataSource with PostgreSQL enum mappings
         var dataSourceBuilder = new NpgsqlDataSourceBuilder(connectionString);
         dataSourceBuilder.MapEnum<UserRole>("user_role");
+        dataSourceBuilder.MapEnum<CampaignRole>("campaign_role");
         var dataSource = dataSourceBuilder.Build();
 
         var optionsBuilder = new DbContextOptionsBuilder<ApplicationDbContext>();

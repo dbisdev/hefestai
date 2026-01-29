@@ -38,6 +38,7 @@ public static class DependencyInjection
         // Configure NpgsqlDataSource with PostgreSQL enum mappings
         var dataSourceBuilder = new NpgsqlDataSourceBuilder(connectionString);
         dataSourceBuilder.MapEnum<UserRole>("user_role");
+        dataSourceBuilder.MapEnum<CampaignRole>("campaign_role");
         var dataSource = dataSourceBuilder.Build();
         
         services.AddDbContext<ApplicationDbContext>((sp, options) =>

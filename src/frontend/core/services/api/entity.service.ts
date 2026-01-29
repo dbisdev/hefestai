@@ -1,84 +1,115 @@
 /**
  * Entity Service
- * Single Responsibility: Entity CRUD operations
+ * Single Responsibility: LoreEntity CRUD operations (campaign-scoped)
+ * All entity operations require a campaignId context
  */
 
 import { httpClient } from './client';
-import type { Entity, EntityDto, CreateEntityInput, UpdateEntityInput, EntityCategory } from '../../types';
+import type {
+  LoreEntity,
+  CreateLoreEntityInput,
+  UpdateLoreEntityInput,
+  ChangeVisibilityInput,
+  EntityCategory,
+} from '../../types';
 
 /**
- * Map API DTO to Entity
+ * Build the base URL for campaign-scoped entity endpoints
  */
-function mapEntityFromDto(dto: EntityDto): Entity {
-  return {
-    id: dto.id,
-    name: dto.name,
-    type: dto.type,
-    meta: dto.meta,
-    image: dto.image,
-    category: dto.category as EntityCategory,
-    description: dto.description,
-    stats: dto.stats,
-    creatorId: dto.creatorId,
-  };
+function buildEntityUrl(campaignId: string, entityId?: string): string {
+  const base = `/campaigns/${campaignId}/entities`;
+  return entityId ? `${base}/${entityId}` : base;
 }
 
 export const entityService = {
   /**
-   * Get all visible entities for the current user
+   * Get all visible entities in a campaign for the current user
+   * @param campaignId - The campaign ID to fetch entities from
+   * @param entityType - Optional filter by entity type
+   * @param visibility - Optional filter by visibility level
    */
-  async getAll(): Promise<Entity[]> {
-    const data = await httpClient.get<EntityDto[]>('/entities');
-    return data.map(mapEntityFromDto);
+  async getByCampaign(
+    campaignId: string,
+    entityType?: EntityCategory,
+    visibility?: number
+  ): Promise<LoreEntity[]> {
+    const params = new URLSearchParams();
+    if (entityType) params.append('entityType', entityType);
+    if (visibility !== undefined) params.append('visibility', visibility.toString());
+    
+    const queryString = params.toString();
+    const url = buildEntityUrl(campaignId) + (queryString ? `?${queryString}` : '');
+    
+    return httpClient.get<LoreEntity[]>(url);
   },
 
   /**
-   * Get entities by category
+   * Get a single entity by ID within a campaign
    */
-  async getByCategory(category: EntityCategory): Promise<Entity[]> {
-    const data = await httpClient.get<EntityDto[]>(`/entities?category=${category}`);
-    return data.map(mapEntityFromDto);
+  async getById(campaignId: string, entityId: string): Promise<LoreEntity> {
+    return httpClient.get<LoreEntity>(buildEntityUrl(campaignId, entityId));
   },
 
   /**
-   * Get a single entity by ID
+   * Create a new entity in a campaign
    */
-  async getById(id: string): Promise<Entity> {
-    const data = await httpClient.get<EntityDto>(`/entities/${id}`);
-    return mapEntityFromDto(data);
-  },
-
-  /**
-   * Create a new entity
-   */
-  async create(input: CreateEntityInput): Promise<Entity> {
-    const data = await httpClient.post<EntityDto>('/entities', input);
-    return mapEntityFromDto(data);
+  async create(campaignId: string, input: CreateLoreEntityInput): Promise<LoreEntity> {
+    return httpClient.post<LoreEntity>(buildEntityUrl(campaignId), input);
   },
 
   /**
    * Update an existing entity
    */
-  async update(input: UpdateEntityInput): Promise<Entity> {
-    const { id, ...updateData } = input;
-    const data = await httpClient.put<EntityDto>(`/entities/${id}`, updateData);
-    return mapEntityFromDto(data);
+  async update(
+    campaignId: string,
+    entityId: string,
+    input: UpdateLoreEntityInput
+  ): Promise<LoreEntity> {
+    return httpClient.put<LoreEntity>(buildEntityUrl(campaignId, entityId), input);
   },
 
   /**
-   * Save entity (create or update)
+   * Delete an entity (soft delete)
    */
-  async save(entity: Omit<Entity, 'id' | 'creatorId'> & { id?: string }): Promise<Entity> {
-    if (entity.id) {
-      return this.update({ ...entity, id: entity.id });
-    }
-    return this.create(entity as CreateEntityInput);
+  async delete(campaignId: string, entityId: string): Promise<void> {
+    await httpClient.delete(buildEntityUrl(campaignId, entityId));
   },
 
   /**
-   * Delete an entity
+   * Change entity visibility
    */
-  async delete(id: string): Promise<void> {
-    await httpClient.delete(`/entities/${id}`);
+  async changeVisibility(
+    campaignId: string,
+    entityId: string,
+    input: ChangeVisibilityInput
+  ): Promise<LoreEntity> {
+    return httpClient.patch<LoreEntity>(
+      `${buildEntityUrl(campaignId, entityId)}/visibility`,
+      input
+    );
+  },
+
+  // ============================================
+  // Legacy methods for backwards compatibility
+  // These will fail without a campaign context
+  // TODO: Remove after migration is complete
+  // ============================================
+
+  /**
+   * @deprecated Use getByCampaign instead
+   * This method will fail - entities require campaign context
+   */
+  async getAll(): Promise<LoreEntity[]> {
+    console.warn('entityService.getAll() is deprecated. Use getByCampaign(campaignId) instead.');
+    // Return empty array to prevent crashes during migration
+    return [];
+  },
+
+  /**
+   * @deprecated Use getById(campaignId, entityId) instead
+   */
+  async getByIdLegacy(id: string): Promise<LoreEntity> {
+    console.warn('entityService.getByIdLegacy() is deprecated. Use getById(campaignId, entityId) instead.');
+    throw new Error('Entity operations require a campaign context. Please select a campaign first.');
   },
 };

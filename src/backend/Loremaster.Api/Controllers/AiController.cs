@@ -188,6 +188,243 @@ Example format:
     }
 
     /// <summary>
+    /// Generate an NPC (Non-Player Character) with personality and background
+    /// </summary>
+    [HttpPost("generate/npc")]
+    [ProducesResponseType(typeof(NpcGenerationResponse), StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status500InternalServerError)]
+    public async Task<ActionResult<NpcGenerationResponse>> GenerateNpc(
+        [FromBody] NpcGenerationRequest request,
+        CancellationToken cancellationToken)
+    {
+        try
+        {
+            _logger.LogInformation("Generating NPC: Species={Species}, Occupation={Occupation}, Personality={Personality}", 
+                request.Species, request.Occupation, request.Personality);
+
+            var prompt = $@"Create a sci-fi NPC (non-player character) for a tabletop RPG:
+Species: {request.Species}
+Occupation: {request.Occupation}
+Personality: {request.Personality}
+Setting: {request.Setting}
+
+Respond with a JSON object containing:
+- name: A unique sci-fi name fitting their species
+- occupation: Their job/role description
+- personality: A brief personality summary
+- background: A 2-3 sentence backstory explaining who they are and their motivations
+- stats: An object with CHA (charisma, 1-100), INT (intelligence, 1-100), WIS (wisdom, 1-100)
+
+Example format:
+{{""name"":""Vex Morrow"",""occupation"":""Information Broker"",""personality"":""Cunning but fair"",""background"":""Former corporate spy..."",""stats"":{{""CHA"":85,""INT"":75,""WIS"":60}}}}";
+
+            var textResult = await _aiService.GenerateJsonAsync(
+                prompt,
+                "You are a sci-fi RPG character creator. Create interesting NPCs with depth. Respond only with valid JSON.",
+                0.8f,
+                512,
+                cancellationToken);
+
+            // Generate image for the NPC
+            var imagePrompt = $"High-quality futuristic sci-fi portrait of a {request.Species} {request.Occupation}, {request.Personality} expression. Cinematic lighting, cyberpunk aesthetic, detailed face, professional concept art, neutral background, 8k resolution.";
+            
+            var imageResult = await _aiService.GenerateImageAsync(imagePrompt, cancellationToken);
+
+            return Ok(new NpcGenerationResponse
+            {
+                Success = true,
+                NpcJson = textResult.Json,
+                ImageBase64 = imageResult.ImageBase64,
+                ImageUrl = imageResult.ImageUrl
+            });
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Failed to generate NPC");
+            return StatusCode(500, new NpcGenerationResponse
+            {
+                Success = false,
+                Error = ex.Message
+            });
+        }
+    }
+
+    /// <summary>
+    /// Generate an enemy/hostile creature with combat stats
+    /// </summary>
+    [HttpPost("generate/enemy")]
+    [ProducesResponseType(typeof(EnemyGenerationResponse), StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status500InternalServerError)]
+    public async Task<ActionResult<EnemyGenerationResponse>> GenerateEnemy(
+        [FromBody] EnemyGenerationRequest request,
+        CancellationToken cancellationToken)
+    {
+        try
+        {
+            _logger.LogInformation("Generating enemy: Species={Species}, ThreatLevel={ThreatLevel}, Behavior={Behavior}", 
+                request.Species, request.ThreatLevel, request.Behavior);
+
+            var prompt = $@"Create a hostile sci-fi creature/enemy for a tabletop RPG:
+Species Type: {request.Species}
+Threat Level: {request.ThreatLevel}
+Behavior Pattern: {request.Behavior}
+Environment: {request.Environment}
+
+Respond with a JSON object containing:
+- name: A threatening designation or creature name
+- species: The creature type/classification
+- threatLevel: The danger level ({request.ThreatLevel})
+- abilities: A description of 2-3 special abilities or attacks
+- weakness: One exploitable vulnerability
+- stats: An object with HP (health, 50-500 based on threat), ATK (attack power, 1-100), DEF (defense, 1-100), SPD (speed, 1-100)
+
+Example format:
+{{""name"":""Void Stalker"",""species"":""Alien Predator"",""threatLevel"":""dangerous"",""abilities"":""Cloaking field, venomous claws..."",""weakness"":""Sensitive to bright light"",""stats"":{{""HP"":150,""ATK"":75,""DEF"":40,""SPD"":90}}}}";
+
+            var textResult = await _aiService.GenerateJsonAsync(
+                prompt,
+                "You are a sci-fi monster designer. Create terrifying but balanced enemies. Respond only with valid JSON.",
+                0.8f,
+                512,
+                cancellationToken);
+
+            // Generate image for the enemy
+            var imagePrompt = $"Terrifying sci-fi creature concept art, {request.Species}, {request.Behavior} posture, menacing, dark atmosphere, highly detailed, horror sci-fi aesthetic, professional illustration, dramatic lighting, 8k resolution.";
+            
+            var imageResult = await _aiService.GenerateImageAsync(imagePrompt, cancellationToken);
+
+            return Ok(new EnemyGenerationResponse
+            {
+                Success = true,
+                EnemyJson = textResult.Json,
+                ImageBase64 = imageResult.ImageBase64,
+                ImageUrl = imageResult.ImageUrl
+            });
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Failed to generate enemy");
+            return StatusCode(500, new EnemyGenerationResponse
+            {
+                Success = false,
+                Error = ex.Message
+            });
+        }
+    }
+
+    /// <summary>
+    /// Generate a mission/quest with objectives and rewards
+    /// </summary>
+    [HttpPost("generate/mission")]
+    [ProducesResponseType(typeof(MissionGenerationResponse), StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status500InternalServerError)]
+    public async Task<ActionResult<MissionGenerationResponse>> GenerateMission(
+        [FromBody] MissionGenerationRequest request,
+        CancellationToken cancellationToken)
+    {
+        try
+        {
+            _logger.LogInformation("Generating mission: Type={MissionType}, Difficulty={Difficulty}", 
+                request.MissionType, request.Difficulty);
+
+            var prompt = $@"Create a sci-fi RPG mission/quest:
+Mission Type: {request.MissionType}
+Difficulty: {request.Difficulty}
+Environment: {request.Environment}
+Faction Involved: {request.FactionInvolved}
+
+Respond with a JSON object containing:
+- name: A code name or operation title (e.g., ""Operation Silent Dawn"")
+- briefing: A 2-3 sentence mission briefing explaining the situation
+- objective: The primary goal in one clear sentence
+- rewards: Expected compensation/rewards for completion
+- difficulty: The difficulty level ({request.Difficulty})
+- estimatedDuration: Approximate time to complete (e.g., ""2-3 hours"")
+
+Example format:
+{{""name"":""Operation Blackout"",""briefing"":""Corporate forces have seized..."",""objective"":""Infiltrate the facility and retrieve the data core"",""rewards"":""5000 credits + reputation boost"",""difficulty"":""HARD"",""estimatedDuration"":""3-4 hours""}}";
+
+            var textResult = await _aiService.GenerateJsonAsync(
+                prompt,
+                "You are a sci-fi mission designer. Create engaging quests with clear objectives. Respond only with valid JSON.",
+                0.8f,
+                512,
+                cancellationToken);
+
+            return Ok(new MissionGenerationResponse
+            {
+                Success = true,
+                MissionJson = textResult.Json
+            });
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Failed to generate mission");
+            return StatusCode(500, new MissionGenerationResponse
+            {
+                Success = false,
+                Error = ex.Message
+            });
+        }
+    }
+
+    /// <summary>
+    /// Generate a combat encounter with participants and environment
+    /// </summary>
+    [HttpPost("generate/encounter")]
+    [ProducesResponseType(typeof(EncounterGenerationResponse), StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status500InternalServerError)]
+    public async Task<ActionResult<EncounterGenerationResponse>> GenerateEncounter(
+        [FromBody] EncounterGenerationRequest request,
+        CancellationToken cancellationToken)
+    {
+        try
+        {
+            _logger.LogInformation("Generating encounter: Type={EncounterType}, Difficulty={Difficulty}, EnemyCount={EnemyCount}", 
+                request.EncounterType, request.Difficulty, request.EnemyCount);
+
+            var prompt = $@"Create a sci-fi RPG combat/tactical encounter:
+Encounter Type: {request.EncounterType}
+Difficulty: {request.Difficulty}
+Environment: {request.Environment}
+Enemy Count: {request.EnemyCount}
+
+Respond with a JSON object containing:
+- name: An evocative encounter name (e.g., ""Ambush at Sector 7"")
+- description: A 2-3 sentence description of the situation and how the encounter begins
+- environment: Detailed description of the tactical environment and any hazards
+- participants: An array of enemy types/names involved in this encounter
+- difficulty: The challenge level ({request.Difficulty})
+- loot: Potential rewards if the encounter is won
+
+Example format:
+{{""name"":""Cargo Bay Showdown"",""description"":""The party enters the cargo bay to find..."",""environment"":""Large open space with shipping containers providing cover"",""participants"":[""Security Droid x2"",""Corporate Enforcer""],""difficulty"":""MEDIUM"",""loot"":""Prototype weapon, 1200 credits""}}";
+
+            var textResult = await _aiService.GenerateJsonAsync(
+                prompt,
+                "You are a sci-fi encounter designer. Create tactical and exciting combat scenarios. Respond only with valid JSON.",
+                0.8f,
+                512,
+                cancellationToken);
+
+            return Ok(new EncounterGenerationResponse
+            {
+                Success = true,
+                EncounterJson = textResult.Json
+            });
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Failed to generate encounter");
+            return StatusCode(500, new EncounterGenerationResponse
+            {
+                Success = false,
+                Error = ex.Message
+            });
+        }
+    }
+
+    /// <summary>
     /// Test the Genkit AI service connection
     /// </summary>
     [HttpPost("test")]
@@ -325,4 +562,72 @@ public record HealthResponse
     public bool IsHealthy { get; init; }
     public string Service { get; init; } = null!;
     public DateTime Timestamp { get; init; }
+}
+
+// NPC Generation DTOs
+public record NpcGenerationRequest
+{
+    public string Species { get; init; } = "human";
+    public string Occupation { get; init; } = "merchant";
+    public string Personality { get; init; } = "friendly";
+    public string Setting { get; init; } = "space-station";
+}
+
+public record NpcGenerationResponse
+{
+    public bool Success { get; init; }
+    public string? NpcJson { get; init; }
+    public string? ImageBase64 { get; init; }
+    public string? ImageUrl { get; init; }
+    public string? Error { get; init; }
+}
+
+// Enemy Generation DTOs
+public record EnemyGenerationRequest
+{
+    public string Species { get; init; } = "alien-beast";
+    public string ThreatLevel { get; init; } = "moderate";
+    public string Behavior { get; init; } = "aggressive";
+    public string Environment { get; init; } = "space-station";
+}
+
+public record EnemyGenerationResponse
+{
+    public bool Success { get; init; }
+    public string? EnemyJson { get; init; }
+    public string? ImageBase64 { get; init; }
+    public string? ImageUrl { get; init; }
+    public string? Error { get; init; }
+}
+
+// Mission Generation DTOs
+public record MissionGenerationRequest
+{
+    public string MissionType { get; init; } = "extraction";
+    public string Difficulty { get; init; } = "MEDIUM";
+    public string Environment { get; init; } = "space-station";
+    public string FactionInvolved { get; init; } = "corporate";
+}
+
+public record MissionGenerationResponse
+{
+    public bool Success { get; init; }
+    public string? MissionJson { get; init; }
+    public string? Error { get; init; }
+}
+
+// Encounter Generation DTOs
+public record EncounterGenerationRequest
+{
+    public string EncounterType { get; init; } = "combat";
+    public string Difficulty { get; init; } = "MEDIUM";
+    public string Environment { get; init; } = "open-area";
+    public string EnemyCount { get; init; } = "squad";
+}
+
+public record EncounterGenerationResponse
+{
+    public bool Success { get; init; }
+    public string? EncounterJson { get; init; }
+    public string? Error { get; init; }
 }

@@ -55,6 +55,7 @@ public class ApplicationDbContext : DbContext, IApplicationDbContext, IUnitOfWor
         
         // Register PostgreSQL enum types
         modelBuilder.HasPostgresEnum<UserRole>("user_role");
+        modelBuilder.HasPostgresEnum<CampaignRole>("campaign_role");
 
         base.OnModelCreating(modelBuilder);
     }

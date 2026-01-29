@@ -1,12 +1,14 @@
 /**
  * Solar System Generator Page
  * AI-powered solar system generation with orbital visualization
+ * Uses campaign context for entity creation
  */
 
 import React, { useState } from 'react';
 import { TerminalLayout } from '@shared/components/layout';
 import { Button } from '@shared/components/ui';
 import { aiService, entityService } from '@core/services/api';
+import { useCampaign } from '@core/context';
 import type { SystemData } from '@core/types';
 
 interface SolarSystemGeneratorPageProps {
@@ -22,6 +24,8 @@ const SPECTRAL_CLASSES = [
 ];
 
 export const SolarSystemGeneratorPage: React.FC<SolarSystemGeneratorPageProps> = ({ onBack }) => {
+  const { activeCampaignId, activeCampaign } = useCampaign();
+  
   const [spectralClass, setSpectralClass] = useState('G');
   const [planetCount, setPlanetCount] = useState(8);
   const [isInitializing, setIsInitializing] = useState(false);
@@ -55,17 +59,23 @@ export const SolarSystemGeneratorPage: React.FC<SolarSystemGeneratorPageProps> =
   };
 
   const handleSave = async () => {
-    if (!systemData) return;
+    if (!systemData || !activeCampaignId) return;
     setIsSaving(true);
     try {
-      await entityService.create({
+      await entityService.create(activeCampaignId, {
+        entityType: 'solar_system',
         name: systemData.name,
-        type: `ESTRELLA: CLASE ${spectralClass}`,
-        meta: `PLANETAS: ${planetCount}`,
-        category: 'PLANETS',
         description: systemData.description,
-        image: systemImage,
-        stats: { spectralClass, planetCount, planets: systemData.planets }
+        imageUrl: systemImage !== SYSTEM_PLACEHOLDER_IMAGE ? systemImage : undefined,
+        attributes: {
+          spectralClass,
+          planetCount,
+          planets: systemData.planets
+        },
+        metadata: {
+          generatedAt: new Date().toISOString(),
+          generator: 'solar_generator_v1'
+        }
       });
       setTimeout(onBack, 1000);
     } catch (e) {
@@ -86,7 +96,7 @@ export const SolarSystemGeneratorPage: React.FC<SolarSystemGeneratorPageProps> =
   return (
     <TerminalLayout 
       title="Generador Solar // OS.CORE" 
-      subtitle="Sintetizador de Mapas Estelares"
+      subtitle={`Campaña: ${activeCampaign?.name || 'N/A'} // Sintetizador de Mapas Estelares`}
       actions={
         <button onClick={onBack} className="text-primary/60 hover:text-primary transition-colors flex items-center gap-1 text-xs">
           <span className="material-icons text-sm">arrow_back</span> VOLVER
@@ -152,7 +162,7 @@ export const SolarSystemGeneratorPage: React.FC<SolarSystemGeneratorPageProps> =
               </Button>
               <Button
                 onClick={handleSave}
-                disabled={!systemData || isInitializing || isSaving}
+                disabled={!systemData || isInitializing || isSaving || !activeCampaignId}
                 variant="primary"
                 fullWidth
                 size="lg"

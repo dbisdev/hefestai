@@ -1,19 +1,22 @@
 /**
  * Vehicle Generator Page
  * AI-powered vehicle generation for starships, rovers, and mechs
+ * Uses campaign context for entity creation
  */
 
 import React, { useState } from 'react';
 import { TerminalLayout } from '@shared/components/layout';
 import { Button } from '@shared/components/ui';
 import { aiService, entityService } from '@core/services/api';
+import { useCampaign } from '@core/context';
 import type { VehicleData } from '@core/types';
+
+/** Placeholder image for vehicles without generated images */
+const VEHICLE_PLACEHOLDER_IMAGE = "https://lh3.googleusercontent.com/aida-public/AB6AXuDwdfYYr9eKFLnajyN2Ac6wDARXA_-mfibVDogKPYkAVDBc8v4xmz5S0onKageqWHbJkwaMQal6d_37piOBkfBRODrtpzVCAORmDmN9Lhms-1nWa0CAGhzL-5Cn16UzV3rpA-y-YrjlCMY3FBwJuARw1b7kBd9u5-Ix8KNLLf33w-D8gYTS1IH94XfBXDAo-nEqDs-LwRpisgMDqMM3vEgtruTqz-qjLsv8dR7IrSoRWDYyOqfAh36rTTDQBiDtNWaL6sCxsMV7POo";
 
 interface VehicleGeneratorPageProps {
   onBack: () => void;
 }
-
-const VEHICLE_PLACEHOLDER_IMAGE = "https://lh3.googleusercontent.com/aida-public/AB6AXuDwdfYYr9eKFLnajyN2Ac6wDARXA_-mfibVDogKPYkAVDBc8v4xmz5S0onKageqWHbJkwaMQal6d_37piOBkfBRODrtpzVCAORmDmN9Lhms-1nWa0CAGhzL-5Cn16UzV3rpA-y-YrjlCMY3FBwJuARw1b7kBd9u5-Ix8KNLLf33w-D8gYTS1IH94XfBXDAo-nEqDs-LwRpisgMDqMM3vEgtruTqz-qjLsv8dR7IrSoRWDYyOqfAh36rTTDQBiDtNWaL6sCxsMV7POo";
 
 const VEHICLE_TYPE_OPTIONS = [
   { value: 'starship', label: 'Nave Espacial' },
@@ -28,10 +31,12 @@ const CHASSIS_CLASS_OPTIONS = [
 ];
 
 export const VehicleGeneratorPage: React.FC<VehicleGeneratorPageProps> = ({ onBack }) => {
+  const { activeCampaignId, activeCampaign } = useCampaign();
   const [logs, setLogs] = useState(['> Awaiting construction parameters...']);
   const [isGenerating, setIsGenerating] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
   const [generatedVehi, setGeneratedVehi] = useState<VehicleData | null>(null);
+  const [vehicleImage, setVehicleImage] = useState<string>(VEHICLE_PLACEHOLDER_IMAGE);
 
   const [form, setForm] = useState({
     type: 'starship',
@@ -43,6 +48,9 @@ export const VehicleGeneratorPage: React.FC<VehicleGeneratorPageProps> = ({ onBa
     setLogs(prev => [...prev, `> ${msg}`].slice(-6));
   };
 
+  /**
+   * Handles vehicle generation via AI service
+   */
   const handleGenerate = async () => {
     setIsGenerating(true);
     addLog(`Initializing assembly for ${form.class}...`);
@@ -57,6 +65,18 @@ export const VehicleGeneratorPage: React.FC<VehicleGeneratorPageProps> = ({ onBa
       const data = JSON.parse(result.vehicleJson) as VehicleData;
       setGeneratedVehi(data);
       addLog(`Assembly complete: ${data.name}`);
+
+      // Handle generated image
+      if (result.imageBase64) {
+        setVehicleImage(`data:image/png;base64,${result.imageBase64}`);
+        addLog('Visual synthesis complete.');
+      } else if (result.imageUrl) {
+        setVehicleImage(result.imageUrl);
+        addLog('Visual synthesis complete.');
+      } else {
+        setVehicleImage(VEHICLE_PLACEHOLDER_IMAGE);
+        addLog('WARNING: Visual render failed. Using placeholder.');
+      }
     } catch (e: unknown) {
       const message = e instanceof Error ? e.message : 'Unknown error';
       addLog(`Error during assembly: ${message}`);
@@ -65,18 +85,30 @@ export const VehicleGeneratorPage: React.FC<VehicleGeneratorPageProps> = ({ onBa
     }
   };
 
+  /**
+   * Saves the generated vehicle to the entity service using campaign-scoped endpoint
+   */
   const handleSave = async () => {
-    if (!generatedVehi) return;
+    if (!generatedVehi || !activeCampaignId) return;
     setIsSaving(true);
+    addLog('Writing to shipyard database...');
+
     try {
-      await entityService.create({
+      await entityService.create(activeCampaignId, {
+        entityType: 'vehicle',
         name: generatedVehi.name,
-        type: `MODELO: ${form.class.toUpperCase()}`,
-        meta: `TIPO: ${form.type.toUpperCase()}`,
-        category: 'VEHICLES',
         description: generatedVehi.specs,
-        image: VEHICLE_PLACEHOLDER_IMAGE,
-        stats: generatedVehi.stats
+        imageUrl: vehicleImage !== VEHICLE_PLACEHOLDER_IMAGE ? vehicleImage : undefined,
+        attributes: {
+          vehicleType: form.type,
+          chassisClass: form.class,
+          engine: form.engine,
+          stats: generatedVehi.stats
+        },
+        metadata: {
+          generatedAt: new Date().toISOString(),
+          generator: 'vehicle_generator'
+        }
       });
       addLog('Data committed to shipyard database.');
       setTimeout(onBack, 1500);
@@ -91,7 +123,7 @@ export const VehicleGeneratorPage: React.FC<VehicleGeneratorPageProps> = ({ onBa
   return (
     <TerminalLayout 
       title="Shipyard_Forge // V.1.0" 
-      subtitle="Ensamblaje de Vehículos Persistentes"
+      subtitle={`Campaña: ${activeCampaign?.name || 'N/A'} // Ensamblaje de Vehículos Persistentes`}
       actions={
         <button onClick={onBack} className="text-primary/60 hover:text-primary transition-colors flex items-center gap-1 text-xs font-mono uppercase">
           <span className="material-icons text-sm">arrow_back</span> VOLVER
@@ -142,7 +174,7 @@ export const VehicleGeneratorPage: React.FC<VehicleGeneratorPageProps> = ({ onBa
             </Button>
             <Button
               onClick={handleSave}
-              disabled={!generatedVehi || isSaving}
+              disabled={!generatedVehi || isSaving || !activeCampaignId}
               variant="primary"
               fullWidth
               size="lg"
@@ -157,10 +189,18 @@ export const VehicleGeneratorPage: React.FC<VehicleGeneratorPageProps> = ({ onBa
         <div className="flex-1 flex flex-col gap-4">
           <div className="relative flex-1 border border-primary/30 bg-black clip-tech-br overflow-hidden">
             <img 
-              src={VEHICLE_PLACEHOLDER_IMAGE} 
-              className="w-full h-full object-cover grayscale opacity-60" 
+              src={vehicleImage} 
+              className={`w-full h-full object-cover transition-all duration-1000 ${isGenerating ? 'opacity-10 scale-110 blur-sm' : 'opacity-60 scale-100'} grayscale`} 
               alt="Vehicle Preview"
             />
+            {isGenerating && (
+              <div className="absolute inset-0 flex flex-col items-center justify-center bg-black/40 z-20">
+                <div className="w-1/2 h-1 bg-primary/20 relative overflow-hidden mb-2">
+                  <div className="absolute inset-0 bg-primary animate-[scan_2s_linear_infinite]"></div>
+                </div>
+                <span className="text-primary text-[10px] animate-pulse">ENSAMBLANDO_VEHICULO...</span>
+              </div>
+            )}
             <div className="absolute inset-0 flex flex-col justify-end p-4 bg-gradient-to-t from-black to-transparent">
               <h3 className="text-primary font-bold">{generatedVehi?.name || '---'}</h3>
               <p className="text-[10px] text-primary/70">{generatedVehi?.specs}</p>

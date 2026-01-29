@@ -1,0 +1,354 @@
+/**
+ * Enemy Generator Page
+ * AI-powered enemy/creature generation with cyberpunk terminal aesthetics
+ * Creates hostile creatures, aliens, or antagonists for combat encounters
+ */
+
+import React, { useState } from 'react';
+import { TerminalLayout } from '@shared/components/layout';
+import { Button } from '@shared/components/ui';
+import { aiService, entityService } from '@core/services/api';
+import { useCampaign } from '@core/context';
+import type { EnemyData } from '@core/types';
+
+interface EnemyGeneratorPageProps {
+  onBack: () => void;
+}
+
+const UNKNOWN_ENEMY_IMAGE = "https://images.unsplash.com/photo-1614728263952-84ea256f9679?q=80&w=400&auto=format&fit=crop";
+
+/**
+ * Enemy species/type options
+ */
+const SPECIES_OPTIONS = [
+  { value: '', label: 'Seleccionar Especie...' },
+  { value: 'alien-beast', label: 'Bestia Alien' },
+  { value: 'xenomorph', label: 'Xenomorfo' },
+  { value: 'android-rogue', label: 'Androide Rebelde' },
+  { value: 'mutant', label: 'Mutante' },
+  { value: 'cyborg-hunter', label: 'Cyborg Cazador' },
+  { value: 'parasite', label: 'Parasito' },
+  { value: 'hive-mind', label: 'Mente Colmena' },
+  { value: 'void-entity', label: 'Entidad del Vacio' },
+];
+
+/**
+ * Threat level classification
+ */
+const THREAT_LEVEL_OPTIONS = [
+  { value: 'minor', label: 'Menor', color: 'text-green-400' },
+  { value: 'moderate', label: 'Moderado', color: 'text-yellow-400' },
+  { value: 'dangerous', label: 'Peligroso', color: 'text-orange-400' },
+  { value: 'lethal', label: 'Letal', color: 'text-red-400' },
+  { value: 'apocalyptic', label: 'Apocaliptico', color: 'text-purple-400' },
+];
+
+/**
+ * Enemy behavior patterns
+ */
+const BEHAVIOR_OPTIONS = [
+  { value: '', label: 'Seleccionar Comportamiento...' },
+  { value: 'aggressive', label: 'Agresivo - Ataca a la vista' },
+  { value: 'territorial', label: 'Territorial - Defiende zona' },
+  { value: 'predatory', label: 'Depredador - Acecha y embosca' },
+  { value: 'swarm', label: 'Enjambre - Ataca en grupo' },
+  { value: 'intelligent', label: 'Inteligente - Tacticas avanzadas' },
+  { value: 'berserker', label: 'Berserker - Furia descontrolada' },
+];
+
+export const EnemyGeneratorPage: React.FC<EnemyGeneratorPageProps> = ({ onBack }) => {
+  const { activeCampaignId, activeCampaign } = useCampaign();
+  const [logs, setLogs] = useState([
+    '> Threat analysis system online...',
+    '> [WARNING] Hostile database accessed.',
+    '> Awaiting threat parameters...'
+  ]);
+  const [isGenerating, setIsGenerating] = useState(false);
+  const [isSaving, setIsSaving] = useState(false);
+  const [generatedEnemy, setGeneratedEnemy] = useState<EnemyData | null>(null);
+  const [enemyImage, setEnemyImage] = useState<string>(UNKNOWN_ENEMY_IMAGE);
+
+  const [form, setForm] = useState({
+    species: '',
+    threatLevel: 'moderate',
+    behavior: '',
+    environment: 'space-station'
+  });
+
+  /**
+   * Adds a log entry to the terminal display
+   */
+  const addLog = (msg: string) => {
+    setLogs(prev => [...prev, `> ${msg}`].slice(-6));
+  };
+
+  /**
+   * Handles enemy generation via AI service
+   */
+  const handleGenerate = async () => {
+    if (!form.species || !form.behavior) {
+      addLog('ERROR: PARAMETROS DE AMENAZA INCOMPLETOS');
+      return;
+    }
+
+    setIsGenerating(true);
+    addLog('INICIANDO ANALISIS DE AMENAZA...');
+
+    try {
+      addLog('ESCANEANDO PERFIL HOSTIL...');
+      
+      const result = await aiService.generateEnemy({
+        species: form.species,
+        threatLevel: form.threatLevel,
+        behavior: form.behavior,
+        environment: form.environment
+      });
+
+      const enemyData = JSON.parse(result.enemyJson) as EnemyData;
+      setGeneratedEnemy(enemyData);
+      addLog(`AMENAZA IDENTIFICADA: ${enemyData.name.toUpperCase()}`);
+
+      addLog('GENERANDO REPRESENTACION VISUAL...');
+      if (result.imageBase64) {
+        setEnemyImage(`data:image/png;base64,${result.imageBase64}`);
+        addLog('SINTESIS VISUAL COMPLETA.');
+      } else if (result.imageUrl) {
+        setEnemyImage(result.imageUrl);
+        addLog('SINTESIS VISUAL COMPLETA.');
+      } else {
+        addLog('ADVERTENCIA: RENDER VISUAL FALLIDO. USANDO PLACEHOLDER.');
+      }
+      
+      addLog('PERFIL DE AMENAZA COMPLETADO.');
+    } catch (error: unknown) {
+      const message = error instanceof Error ? error.message : 'ANALISIS FALLIDO';
+      addLog(`ERROR_CRITICO: ${message}`);
+      console.error(error);
+    } finally {
+      setIsGenerating(false);
+    }
+  };
+
+  /**
+   * Saves the generated enemy to the entity service using campaign-scoped endpoint
+   */
+  const handleSave = async () => {
+    if (!generatedEnemy || !activeCampaignId) return;
+    setIsSaving(true);
+    addLog('ARCHIVANDO AMENAZA...');
+    
+    try {
+      await entityService.create(activeCampaignId, {
+        entityType: 'enemy',
+        name: generatedEnemy.name,
+        description: generatedEnemy.abilities,
+        imageUrl: enemyImage !== UNKNOWN_ENEMY_IMAGE ? enemyImage : undefined,
+        attributes: {
+          species: generatedEnemy.species || form.species,
+          threatLevel: form.threatLevel,
+          behavior: form.behavior,
+          environment: form.environment,
+          weakness: generatedEnemy.weakness,
+          stats: generatedEnemy.stats
+        },
+        metadata: {
+          generatedAt: new Date().toISOString(),
+          generator: 'enemy_generator'
+        }
+      });
+      addLog('EXITO: AMENAZA ARCHIVADA EN NUCLEO');
+      setTimeout(onBack, 1000);
+    } catch (e: unknown) {
+      const message = e instanceof Error ? e.message : 'ALMACENAMIENTO RECHAZADO';
+      addLog(`DB_WRITE_ERROR: ${message}`);
+    } finally {
+      setIsSaving(false);
+    }
+  };
+
+  /**
+   * Gets the color class for threat level display
+   */
+  const getThreatColor = () => {
+    const threat = THREAT_LEVEL_OPTIONS.find(t => t.value === form.threatLevel);
+    return threat?.color || 'text-primary';
+  };
+
+  return (
+    <TerminalLayout 
+      title="Threat_Analyzer // V.1.0" 
+      subtitle={`Campaña: ${activeCampaign?.name || 'N/A'} // Generador de Perfiles de Amenazas Hostiles`}
+      actions={
+        <button onClick={onBack} className="text-primary/60 hover:text-primary transition-colors flex items-center gap-1 text-xs font-mono uppercase">
+          <span className="material-icons text-sm">arrow_back</span> VOLVER
+        </button>
+      }
+    >
+      <div className="flex flex-col lg:flex-row gap-8 h-full font-mono">
+        {/* Form Panel */}
+        <div className="flex-1 flex flex-col gap-6 overflow-y-auto pr-2">
+          <div className="space-y-6">
+            {/* Species Selection */}
+            <div>
+              <label className="text-primary text-[10px] uppercase tracking-widest mb-2 flex items-center gap-2">
+                <span className="material-icons text-sm">bug_report</span> Especie Hostil
+              </label>
+              <select 
+                value={form.species}
+                onChange={(e) => setForm({...form, species: e.target.value})}
+                className="w-full bg-surface-dark border border-primary/30 text-white h-10 px-4 focus:ring-primary focus:border-primary text-sm uppercase"
+              >
+                {SPECIES_OPTIONS.map(opt => (
+                  <option key={opt.value} value={opt.value}>{opt.label}</option>
+                ))}
+              </select>
+            </div>
+
+            {/* Threat Level Selection */}
+            <div>
+              <label className="text-primary text-[10px] uppercase tracking-widest mb-2 flex items-center gap-2">
+                <span className="material-icons text-sm">warning</span> Nivel de Amenaza
+              </label>
+              <div className="grid grid-cols-5 gap-1">
+                {THREAT_LEVEL_OPTIONS.map((threat) => (
+                  <button
+                    key={threat.value}
+                    onClick={() => setForm({...form, threatLevel: threat.value})}
+                    className={`h-12 border font-mono text-[8px] uppercase transition-all flex flex-col items-center justify-center ${
+                      form.threatLevel === threat.value 
+                        ? `bg-primary/20 border-primary font-bold ${threat.color}` 
+                        : 'border-primary/30 text-white/60 bg-surface-dark hover:border-primary'
+                    }`}
+                  >
+                    <span className="material-icons text-sm mb-0.5">
+                      {threat.value === 'minor' && 'sentiment_satisfied'}
+                      {threat.value === 'moderate' && 'sentiment_neutral'}
+                      {threat.value === 'dangerous' && 'sentiment_dissatisfied'}
+                      {threat.value === 'lethal' && 'sentiment_very_dissatisfied'}
+                      {threat.value === 'apocalyptic' && 'whatshot'}
+                    </span>
+                    {threat.label}
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            {/* Behavior Selection */}
+            <div>
+              <label className="text-primary text-[10px] uppercase tracking-widest mb-2 flex items-center gap-2">
+                <span className="material-icons text-sm">psychology</span> Comportamiento
+              </label>
+              <select 
+                value={form.behavior}
+                onChange={(e) => setForm({...form, behavior: e.target.value})}
+                className="w-full bg-surface-dark border border-primary/30 text-white h-10 px-4 focus:ring-primary focus:border-primary text-sm uppercase"
+              >
+                {BEHAVIOR_OPTIONS.map(opt => (
+                  <option key={opt.value} value={opt.value}>{opt.label}</option>
+                ))}
+              </select>
+            </div>
+          </div>
+
+          {/* Action Buttons */}
+          <div className="mt-auto pt-6 border-t border-primary/30 grid grid-cols-2 gap-4">
+            <Button
+              onClick={handleGenerate}
+              disabled={isGenerating}
+              variant="secondary"
+              size="lg"
+              isLoading={isGenerating}
+              icon="pest_control"
+            >
+              ANALIZAR_AMENAZA
+            </Button>
+            <Button
+              onClick={handleSave}
+              disabled={!generatedEnemy || isSaving || isGenerating || !activeCampaignId}
+              variant="primary"
+              size="lg"
+              isLoading={isSaving}
+              icon="save"
+            >
+              GUARDAR_NUCLEO
+            </Button>
+          </div>
+        </div>
+
+        {/* Preview Panel */}
+        <div className="flex-1 flex flex-col gap-4">
+          <div className="relative w-full aspect-square border border-danger/30 bg-black p-1 flex flex-col overflow-hidden clip-tech-br group">
+            <div className="relative flex-1 bg-black overflow-hidden flex items-center justify-center">
+              <img 
+                className={`w-full h-full object-cover transition-all duration-1000 ${isGenerating ? 'opacity-10 scale-110 blur-sm' : 'opacity-80 scale-100'} grayscale brightness-75 contrast-125`} 
+                src={enemyImage} 
+                alt="Enemy Preview"
+              />
+              {isGenerating && (
+                <div className="absolute inset-0 flex flex-col items-center justify-center bg-black/40 z-20">
+                  <div className="w-1/2 h-1 bg-danger/20 relative overflow-hidden mb-2">
+                    <div className="absolute inset-0 bg-danger animate-[scan_2s_linear_infinite]"></div>
+                  </div>
+                  <span className="text-danger text-[10px] animate-pulse">ESCANEANDO_AMENAZA...</span>
+                </div>
+              )}
+              <div className="absolute inset-0 pointer-events-none border border-danger/5 opacity-30"></div>
+              
+              {/* Threat Level Badge */}
+              {generatedEnemy && (
+                <div className={`absolute top-2 right-2 px-2 py-1 bg-black/80 border border-current text-[8px] font-bold uppercase ${getThreatColor()}`}>
+                  {form.threatLevel}
+                </div>
+              )}
+            </div>
+            <div className={`absolute bottom-0 left-0 right-0 z-10 bg-black/80 p-3 border-t border-danger/40 backdrop-blur-sm transition-transform duration-500 ${generatedEnemy ? 'translate-y-0' : 'translate-y-full'}`}>
+              <p className="font-bold text-danger text-sm uppercase mb-1">{generatedEnemy?.name}</p>
+              <p className="text-[8px] text-white/60 uppercase mb-1">{generatedEnemy?.species}</p>
+              <p className="text-[9px] text-white/80 line-clamp-2 leading-tight font-mono">{generatedEnemy?.abilities}</p>
+            </div>
+            {!generatedEnemy && !isGenerating && (
+              <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
+                <span className="text-danger/20 text-[10px] tracking-[0.5em] uppercase font-bold">Sin Datos</span>
+              </div>
+            )}
+          </div>
+
+          {/* Log Panel */}
+          <div className="h-24 bg-black/80 border border-danger/20 p-3 text-[10px] text-danger/80 overflow-y-auto font-mono scrollbar-hide">
+            {logs.map((log, i) => <p key={i} className={i === logs.length - 1 ? "text-danger font-bold" : "opacity-60"}>{log}</p>)}
+          </div>
+
+          {/* Stats Panel */}
+          <div className="grid grid-cols-4 gap-2">
+            {[
+              { label: 'HP', val: generatedEnemy?.stats?.HP || '--', desc: 'Salud' },
+              { label: 'ATK', val: generatedEnemy?.stats?.ATK || '--', desc: 'Ataque' },
+              { label: 'DEF', val: generatedEnemy?.stats?.DEF || '--', desc: 'Defensa' },
+              { label: 'SPD', val: generatedEnemy?.stats?.SPD || '--', desc: 'Velocidad' }
+            ].map(stat => (
+              <div key={stat.label} className="bg-surface-dark border border-danger/20 p-2 text-center relative overflow-hidden group">
+                <p className="text-[9px] text-danger/40 uppercase mb-1">{stat.label}</p>
+                <p className="text-lg font-bold text-danger font-mono">{stat.val}</p>
+                <div className="absolute bottom-0 left-0 h-0.5 bg-danger/20" style={{ width: stat.val !== '--' ? `${Math.min(Number(stat.val), 100)}%` : '0%' }}></div>
+                <span className="absolute top-1 right-1 text-[6px] text-danger/30 opacity-0 group-hover:opacity-100 transition-opacity">{stat.desc}</span>
+              </div>
+            ))}
+          </div>
+
+          {/* Weakness Display */}
+          {generatedEnemy?.weakness && (
+            <div className="bg-black/60 border border-yellow-500/30 p-3">
+              <p className="text-[8px] text-yellow-500/60 uppercase tracking-widest mb-1">
+                <span className="material-icons text-sm align-middle mr-1">tips_and_updates</span>
+                Debilidad Detectada
+              </p>
+              <p className="text-[10px] text-yellow-500/80">{generatedEnemy.weakness}</p>
+            </div>
+          )}
+        </div>
+      </div>
+    </TerminalLayout>
+  );
+};
+
+export default EnemyGeneratorPage;

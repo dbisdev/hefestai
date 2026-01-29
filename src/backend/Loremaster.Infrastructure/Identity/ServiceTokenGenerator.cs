@@ -33,10 +33,16 @@ public class ServiceTokenGenerator : IServiceTokenGenerator
         var securityKey = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(secret));
         var credentials = new SigningCredentials(securityKey, SecurityAlgorithms.HmacSha256);
 
+        var now = _dateTimeProvider.UtcNow;
+        var unixNow = new DateTimeOffset(now).ToUnixTimeSeconds();
+        var unixExp = new DateTimeOffset(now.AddMinutes(expirationMinutes)).ToUnixTimeSeconds();
+        
         var claims = new[]
         {
             new Claim(JwtRegisteredClaimNames.Sub, "loremaster-backend"),
             new Claim(JwtRegisteredClaimNames.Jti, Guid.NewGuid().ToString()),
+            new Claim(JwtRegisteredClaimNames.Iat, unixNow.ToString(), ClaimValueTypes.Integer64),
+            new Claim(JwtRegisteredClaimNames.Exp, unixExp.ToString(), ClaimValueTypes.Integer64),
             new Claim("scope", string.Join(" ", scopes)),
         };
 
@@ -44,7 +50,6 @@ public class ServiceTokenGenerator : IServiceTokenGenerator
             issuer: issuer,
             audience: audience,
             claims: claims,
-            expires: _dateTimeProvider.UtcNow.AddMinutes(expirationMinutes),
             signingCredentials: credentials);
 
         return new JwtSecurityTokenHandler().WriteToken(token);

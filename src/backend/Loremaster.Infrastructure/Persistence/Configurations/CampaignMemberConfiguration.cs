@@ -51,8 +51,7 @@ public class CampaignMemberConfiguration : IEntityTypeConfiguration<CampaignMemb
 
         builder.Property(cm => cm.Role)
             .HasColumnName("role")
-            .HasConversion<string>()
-            .HasMaxLength(20)
+            .HasColumnType("campaign_role")
             .HasDefaultValue(CampaignRole.Player)
             .IsRequired();
 

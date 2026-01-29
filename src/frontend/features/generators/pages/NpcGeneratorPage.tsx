@@ -1,0 +1,321 @@
+/**
+ * NPC Generator Page
+ * AI-powered NPC generation with cyberpunk terminal aesthetics
+ * Creates humanoid NPCs (actors) for campaign storytelling
+ */
+
+import React, { useState } from 'react';
+import { TerminalLayout } from '@shared/components/layout';
+import { Button } from '@shared/components/ui';
+import { aiService, entityService } from '@core/services/api';
+import { useCampaign } from '@core/context';
+import type { NpcData } from '@core/types';
+
+interface NpcGeneratorPageProps {
+  onBack: () => void;
+}
+
+const UNKNOWN_NPC_IMAGE = "https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?q=80&w=400&auto=format&fit=crop";
+
+/**
+ * NPC occupation options - defines the role of the NPC in the world
+ */
+const OCCUPATION_OPTIONS = [
+  { value: '', label: 'Seleccionar Ocupacion...' },
+  { value: 'merchant', label: 'Comerciante' },
+  { value: 'informant', label: 'Informante' },
+  { value: 'scientist', label: 'Cientifico' },
+  { value: 'pilot', label: 'Piloto' },
+  { value: 'mechanic', label: 'Mecanico' },
+  { value: 'bartender', label: 'Cantinero' },
+  { value: 'diplomat', label: 'Diplomatico' },
+  { value: 'smuggler', label: 'Contrabandista' },
+];
+
+/**
+ * NPC personality archetypes
+ */
+const PERSONALITY_OPTIONS = [
+  { value: '', label: 'Seleccionar Personalidad...' },
+  { value: 'friendly', label: 'Amigable' },
+  { value: 'suspicious', label: 'Sospechoso' },
+  { value: 'mysterious', label: 'Misterioso' },
+  { value: 'greedy', label: 'Codicioso' },
+  { value: 'helpful', label: 'Servicial' },
+  { value: 'aggressive', label: 'Agresivo' },
+  { value: 'cunning', label: 'Astuto' },
+  { value: 'naive', label: 'Ingenuo' },
+];
+
+/**
+ * NPC species/origin options
+ */
+const SPECIES_OPTIONS = [
+  { value: 'human', label: 'Humano' },
+  { value: 'android', label: 'Androide' },
+  { value: 'alien-humanoid', label: 'Alien Humanoide' },
+  { value: 'cyber-enhanced', label: 'Cyber-Aumentado' },
+  { value: 'clone', label: 'Clon' },
+];
+
+export const NpcGeneratorPage: React.FC<NpcGeneratorPageProps> = ({ onBack }) => {
+  const { activeCampaignId, activeCampaign } = useCampaign();
+  const [logs, setLogs] = useState([
+    '> Actor database initialized...',
+    '> [SUCCESS] Social profiling module loaded.',
+    '> Awaiting actor parameters...'
+  ]);
+  const [isGenerating, setIsGenerating] = useState(false);
+  const [isSaving, setIsSaving] = useState(false);
+  const [generatedNpc, setGeneratedNpc] = useState<NpcData | null>(null);
+  const [npcImage, setNpcImage] = useState<string>(UNKNOWN_NPC_IMAGE);
+
+  const [form, setForm] = useState({
+    species: 'human',
+    occupation: '',
+    personality: '',
+    setting: 'space-station'
+  });
+
+  /**
+   * Adds a log entry to the terminal display
+   */
+  const addLog = (msg: string) => {
+    setLogs(prev => [...prev, `> ${msg}`].slice(-6));
+  };
+
+  /**
+   * Handles NPC generation via AI service
+   */
+  const handleGenerate = async () => {
+    if (!form.occupation || !form.personality) {
+      addLog('ERROR: PARAMETROS INCOMPLETOS');
+      return;
+    }
+
+    setIsGenerating(true);
+    addLog('INICIANDO PERFIL SOCIAL...');
+
+    try {
+      addLog('CONSTRUYENDO IDENTIDAD...');
+      
+      const result = await aiService.generateNpc({
+        species: form.species,
+        occupation: form.occupation,
+        personality: form.personality,
+        setting: form.setting
+      });
+
+      const npcData = JSON.parse(result.npcJson) as NpcData;
+      setGeneratedNpc(npcData);
+      addLog(`ACTOR REGISTRADO: ${npcData.name.toUpperCase()}`);
+
+      addLog('GENERANDO REPRESENTACION VISUAL...');
+      if (result.imageBase64) {
+        setNpcImage(`data:image/png;base64,${result.imageBase64}`);
+        addLog('SINTESIS VISUAL COMPLETA.');
+      } else if (result.imageUrl) {
+        setNpcImage(result.imageUrl);
+        addLog('SINTESIS VISUAL COMPLETA.');
+      } else {
+        addLog('ADVERTENCIA: RENDER VISUAL FALLIDO. USANDO PLACEHOLDER.');
+      }
+      
+      addLog('PERFIL COMPLETADO CON EXITO.');
+    } catch (error: unknown) {
+      const message = error instanceof Error ? error.message : 'GENERACION FALLIDA';
+      addLog(`ERROR_CRITICO: ${message}`);
+      console.error(error);
+    } finally {
+      setIsGenerating(false);
+    }
+  };
+
+  /**
+   * Saves the generated NPC to the entity service using campaign-scoped endpoint
+   */
+  const handleSave = async () => {
+    if (!generatedNpc || !activeCampaignId) return;
+    setIsSaving(true);
+    addLog('ESCRIBIENDO EN ALMACENAMIENTO...');
+    
+    try {
+      await entityService.create(activeCampaignId, {
+        entityType: 'npc',
+        name: generatedNpc.name,
+        description: generatedNpc.background,
+        imageUrl: npcImage !== UNKNOWN_NPC_IMAGE ? npcImage : undefined,
+        attributes: {
+          species: form.species,
+          occupation: generatedNpc.occupation || form.occupation,
+          personality: form.personality,
+          setting: form.setting,
+          stats: generatedNpc.stats
+        },
+        metadata: {
+          generatedAt: new Date().toISOString(),
+          generator: 'npc_generator'
+        }
+      });
+      addLog('EXITO: ACTOR REGISTRADO EN NUCLEO');
+      setTimeout(onBack, 1000);
+    } catch (e: unknown) {
+      const message = e instanceof Error ? e.message : 'ALMACENAMIENTO RECHAZADO';
+      addLog(`DB_WRITE_ERROR: ${message}`);
+    } finally {
+      setIsSaving(false);
+    }
+  };
+
+  return (
+    <TerminalLayout 
+      title="Actor_Synth // V.1.0" 
+      subtitle={`Campaña: ${activeCampaign?.name || 'N/A'} // Generador de Perfiles de Actores NPC`}
+      actions={
+        <button onClick={onBack} className="text-primary/60 hover:text-primary transition-colors flex items-center gap-1 text-xs font-mono uppercase">
+          <span className="material-icons text-sm">arrow_back</span> VOLVER
+        </button>
+      }
+    >
+      <div className="flex flex-col lg:flex-row gap-8 h-full font-mono">
+        {/* Form Panel */}
+        <div className="flex-1 flex flex-col gap-6 overflow-y-auto pr-2">
+          <div className="space-y-6">
+            {/* Species Selection */}
+            <div>
+              <label className="text-primary text-[10px] uppercase tracking-widest mb-2 flex items-center gap-2">
+                <span className="material-icons text-sm">fingerprint</span> Especie
+              </label>
+              <div className="grid grid-cols-3 gap-2">
+                {SPECIES_OPTIONS.map((spec) => (
+                  <button
+                    key={spec.value}
+                    onClick={() => setForm({...form, species: spec.value})}
+                    className={`h-10 border font-mono text-[9px] uppercase transition-all ${
+                      form.species === spec.value 
+                        ? 'bg-primary text-black border-primary font-bold' 
+                        : 'border-primary/30 text-white bg-surface-dark hover:border-primary'
+                    }`}
+                  >
+                    {spec.label}
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            {/* Occupation Selection */}
+            <div>
+              <label className="text-primary text-[10px] uppercase tracking-widest mb-2 flex items-center gap-2">
+                <span className="material-icons text-sm">work</span> Ocupacion
+              </label>
+              <select 
+                value={form.occupation}
+                onChange={(e) => setForm({...form, occupation: e.target.value})}
+                className="w-full bg-surface-dark border border-primary/30 text-white h-10 px-4 focus:ring-primary focus:border-primary text-sm uppercase"
+              >
+                {OCCUPATION_OPTIONS.map(opt => (
+                  <option key={opt.value} value={opt.value}>{opt.label}</option>
+                ))}
+              </select>
+            </div>
+
+            {/* Personality Selection */}
+            <div>
+              <label className="text-primary text-[10px] uppercase tracking-widest mb-2 flex items-center gap-2">
+                <span className="material-icons text-sm">psychology</span> Personalidad
+              </label>
+              <select 
+                value={form.personality}
+                onChange={(e) => setForm({...form, personality: e.target.value})}
+                className="w-full bg-surface-dark border border-primary/30 text-white h-10 px-4 focus:ring-primary focus:border-primary text-sm uppercase"
+              >
+                {PERSONALITY_OPTIONS.map(opt => (
+                  <option key={opt.value} value={opt.value}>{opt.label}</option>
+                ))}
+              </select>
+            </div>
+          </div>
+
+          {/* Action Buttons */}
+          <div className="mt-auto pt-6 border-t border-primary/30 grid grid-cols-2 gap-4">
+            <Button
+              onClick={handleGenerate}
+              disabled={isGenerating}
+              variant="secondary"
+              size="lg"
+              isLoading={isGenerating}
+              icon="person_add"
+            >
+              GENERAR_ACTOR
+            </Button>
+            <Button
+              onClick={handleSave}
+              disabled={!generatedNpc || isSaving || isGenerating || !activeCampaignId}
+              variant="primary"
+              size="lg"
+              isLoading={isSaving}
+              icon="save"
+            >
+              GUARDAR_NUCLEO
+            </Button>
+          </div>
+        </div>
+
+        {/* Preview Panel */}
+        <div className="flex-1 flex flex-col gap-4">
+          <div className="relative w-full aspect-square border border-primary/30 bg-black p-1 flex flex-col overflow-hidden clip-tech-br group">
+            <div className="relative flex-1 bg-black overflow-hidden flex items-center justify-center">
+              <img 
+                className={`w-full h-full object-cover transition-all duration-1000 ${isGenerating ? 'opacity-10 scale-110 blur-sm' : 'opacity-80 scale-100'} grayscale brightness-90`} 
+                src={npcImage} 
+                alt="NPC Preview"
+              />
+              {isGenerating && (
+                <div className="absolute inset-0 flex flex-col items-center justify-center bg-black/40 z-20">
+                  <div className="w-1/2 h-1 bg-primary/20 relative overflow-hidden mb-2">
+                    <div className="absolute inset-0 bg-primary animate-[scan_2s_linear_infinite]"></div>
+                  </div>
+                  <span className="text-primary text-[10px] animate-pulse">PROCESANDO_IDENTIDAD...</span>
+                </div>
+              )}
+              <div className="absolute inset-0 pointer-events-none border border-primary/5 opacity-30"></div>
+            </div>
+            <div className={`absolute bottom-0 left-0 right-0 z-10 bg-black/80 p-3 border-t border-primary/40 backdrop-blur-sm transition-transform duration-500 ${generatedNpc ? 'translate-y-0' : 'translate-y-full'}`}>
+              <p className="font-bold text-primary text-sm uppercase mb-1">{generatedNpc?.name}</p>
+              <p className="text-[8px] text-white/60 uppercase mb-1">{generatedNpc?.occupation}</p>
+              <p className="text-[9px] text-white/80 line-clamp-2 leading-tight font-mono">{generatedNpc?.background}</p>
+            </div>
+            {!generatedNpc && !isGenerating && (
+              <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
+                <span className="text-primary/20 text-[10px] tracking-[0.5em] uppercase font-bold">Sin Datos</span>
+              </div>
+            )}
+          </div>
+
+          {/* Log Panel */}
+          <div className="h-24 bg-black/80 border border-primary/20 p-3 text-[10px] text-primary/80 overflow-y-auto font-mono scrollbar-hide">
+            {logs.map((log, i) => <p key={i} className={i === logs.length - 1 ? "text-primary font-bold" : "opacity-60"}>{log}</p>)}
+          </div>
+
+          {/* Stats Panel */}
+          <div className="grid grid-cols-3 gap-2">
+            {[
+              { label: 'CHA', val: generatedNpc?.stats?.CHA || '--', desc: 'Carisma' },
+              { label: 'INT', val: generatedNpc?.stats?.INT || '--', desc: 'Intelecto' },
+              { label: 'WIS', val: generatedNpc?.stats?.WIS || '--', desc: 'Sabiduria' }
+            ].map(stat => (
+              <div key={stat.label} className="bg-surface-dark border border-primary/20 p-2 text-center relative overflow-hidden group">
+                <p className="text-[9px] text-primary/40 uppercase mb-1">{stat.label}</p>
+                <p className="text-lg font-bold text-primary font-mono">{stat.val}</p>
+                <div className="absolute bottom-0 left-0 h-0.5 bg-primary/20" style={{ width: stat.val !== '--' ? `${stat.val}%` : '0%' }}></div>
+                <span className="absolute top-1 right-1 text-[6px] text-primary/30 opacity-0 group-hover:opacity-100 transition-opacity">{stat.desc}</span>
+              </div>
+            ))}
+          </div>
+        </div>
+      </div>
+    </TerminalLayout>
+  );
+};
+
+export default NpcGeneratorPage;
