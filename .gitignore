@@ -18,6 +18,7 @@ build/
 *.userosscache
 *.sln.docstates
 .vs/
+AGENTS.md
 
 # Environment files
 .env

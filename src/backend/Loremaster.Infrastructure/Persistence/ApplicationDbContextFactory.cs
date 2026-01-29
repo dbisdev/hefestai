@@ -1,8 +1,10 @@
 using Loremaster.Application.Common.Interfaces;
+using Loremaster.Domain.Enums;
 using Loremaster.Infrastructure.Persistence.Interceptors;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Design;
 using Microsoft.Extensions.Configuration;
+using Npgsql;
 
 namespace Loremaster.Infrastructure.Persistence;
 
@@ -22,8 +24,13 @@ public class ApplicationDbContextFactory : IDesignTimeDbContextFactory<Applicati
 
         var connectionString = configuration.GetConnectionString("DefaultConnection");
 
+        // Configure NpgsqlDataSource with PostgreSQL enum mappings
+        var dataSourceBuilder = new NpgsqlDataSourceBuilder(connectionString);
+        dataSourceBuilder.MapEnum<UserRole>("user_role");
+        var dataSource = dataSourceBuilder.Build();
+
         var optionsBuilder = new DbContextOptionsBuilder<ApplicationDbContext>();
-        optionsBuilder.UseNpgsql(connectionString, b => 
+        optionsBuilder.UseNpgsql(dataSource, b => 
             b.MigrationsAssembly(typeof(ApplicationDbContext).Assembly.FullName));
 
         // Create a dummy interceptor for design time

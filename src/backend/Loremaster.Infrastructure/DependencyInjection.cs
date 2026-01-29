@@ -1,5 +1,6 @@
 using System.Text;
 using Loremaster.Application.Common.Interfaces;
+using Loremaster.Domain.Enums;
 using Loremaster.Infrastructure.Identity;
 using Loremaster.Infrastructure.Persistence;
 using Loremaster.Infrastructure.Persistence.Interceptors;
@@ -10,6 +11,7 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.IdentityModel.Tokens;
+using Npgsql;
 using Polly;
 using Polly.Extensions.Http;
 
@@ -33,10 +35,15 @@ public static class DependencyInjection
             : configuration.GetConnectionString("SupabaseConnection") 
               ?? configuration.GetConnectionString("DefaultConnection");
         
+        // Configure NpgsqlDataSource with PostgreSQL enum mappings
+        var dataSourceBuilder = new NpgsqlDataSourceBuilder(connectionString);
+        dataSourceBuilder.MapEnum<UserRole>("user_role");
+        var dataSource = dataSourceBuilder.Build();
+        
         services.AddDbContext<ApplicationDbContext>((sp, options) =>
         {
             options.UseNpgsql(
-                connectionString,
+                dataSource,
                 b => {
                     b.MigrationsAssembly(typeof(ApplicationDbContext).Assembly.FullName);
                     // Enable pgvector
@@ -51,8 +58,15 @@ public static class DependencyInjection
 
         // Repositories
         services.AddScoped<IUserRepository, UserRepository>();
+        services.AddScoped<ICampaignRepository, CampaignRepository>();
+        services.AddScoped<ICampaignMemberRepository, CampaignMemberRepository>();
+        services.AddScoped<ILoreEntityRepository, LoreEntityRepository>();
+        services.AddScoped<IGameSystemRepository, GameSystemRepository>();
+        services.AddScoped<IGenerationRequestRepository, GenerationRequestRepository>();
+        services.AddScoped<IRagSourceRepository, RagSourceRepository>();
+        
+        // Legacy repositories (to be migrated/removed)
         services.AddScoped<IProjectRepository, ProjectRepository>();
-        services.AddScoped<IWorldEntityRepository, WorldEntityRepository>();
         services.AddScoped<IDocumentRepository, DocumentRepository>();
 
         // Services

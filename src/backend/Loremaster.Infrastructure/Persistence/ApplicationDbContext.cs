@@ -1,6 +1,7 @@
 using Loremaster.Application.Common.Interfaces;
 using Loremaster.Domain.Common;
 using Loremaster.Domain.Entities;
+using Loremaster.Domain.Enums;
 using Loremaster.Infrastructure.Persistence.Interceptors;
 using MediatR;
 using Microsoft.EntityFrameworkCore;
@@ -22,9 +23,25 @@ public class ApplicationDbContext : DbContext, IApplicationDbContext, IUnitOfWor
         _mediator = mediator;
     }
 
+    // Core entities
     public DbSet<User> Users => Set<User>();
+    public DbSet<GameSystem> GameSystems => Set<GameSystem>();
+    public DbSet<Campaign> Campaigns => Set<Campaign>();
+    public DbSet<CampaignMember> CampaignMembers => Set<CampaignMember>();
+    
+    // Lore entities
+    public DbSet<LoreEntity> LoreEntities => Set<LoreEntity>();
+    public DbSet<LoreEntityRelationship> LoreEntityRelationships => Set<LoreEntityRelationship>();
+    public DbSet<LoreEntityImport> LoreEntityImports => Set<LoreEntityImport>();
+    
+    // Generation/AI entities
+    public DbSet<GenerationRequest> GenerationRequests => Set<GenerationRequest>();
+    public DbSet<GenerationResult> GenerationResults => Set<GenerationResult>();
+    public DbSet<GenerationResultSource> GenerationResultSources => Set<GenerationResultSource>();
+    public DbSet<RagSource> RagSources => Set<RagSource>();
+    
+    // Legacy entities (to be migrated/removed)
     public DbSet<Project> Projects => Set<Project>();
-    public DbSet<WorldEntity> WorldEntities => Set<WorldEntity>();
     public DbSet<Document> Documents => Set<Document>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
@@ -35,6 +52,9 @@ public class ApplicationDbContext : DbContext, IApplicationDbContext, IUnitOfWor
         // PostgreSQL specific settings
         modelBuilder.HasPostgresExtension("uuid-ossp");
         modelBuilder.HasPostgresExtension("vector"); // pgvector extension
+        
+        // Register PostgreSQL enum types
+        modelBuilder.HasPostgresEnum<UserRole>("user_role");
 
         base.OnModelCreating(modelBuilder);
     }

@@ -29,7 +29,7 @@ public class LoginCommandHandler : IRequestHandler<LoginCommand, LoginResponse>
         
         if (user == null || !_passwordHasher.VerifyPassword(request.Password, user.PasswordHash))
         {
-            throw new DomainException("Invalid email or password");
+            throw new DomainException("Invalid credentials");
         }
 
         if (!user.IsActive)

@@ -30,132 +30,140 @@ const DiceRoller: React.FC<DiceRollerProps> = ({ onClose }) => {
 
   // Initialize Three.js and Cannon.js
   useEffect(() => {
-  if (!containerRef.current) return;
+    if (!containerRef.current) return;
 
-  // --- Evitar duplicar renderer ---
-  if (rendererRef.current) return;
+    // --- Evitar duplicar renderer ---
+    if (rendererRef.current) return;
+    
+    const container = containerRef.current;
 
-  const container = containerRef.current;
+    // --- PHYSICS SETUP ---
+    const world = new CANNON.World();
+    world.gravity.set(0, -9.82, 0);
+    worldRef.current = world;
 
-  // --- PHYSICS SETUP ---
-  const world = new CANNON.World();
-  world.gravity.set(0, -9.82, 0);
-  worldRef.current = world;
+    // Floor physics
+    const floorBody = new CANNON.Body({
+      type: CANNON.Body.STATIC,
+      shape: new CANNON.Plane(),
+    });
+    floorBody.quaternion.setFromEuler(-Math.PI / 2, 0, 0);
+    world.addBody(floorBody);
 
-  // Floor physics
-  const floorBody = new CANNON.Body({
-    type: CANNON.Body.STATIC,
-    shape: new CANNON.Plane(),
-  });
-  floorBody.quaternion.setFromEuler(-Math.PI / 2, 0, 0);
-  world.addBody(floorBody);
-
-  // Walls physics
-  const wallShape = new CANNON.Plane();
-  const walls = [
-    { pos: [0, 0, 5], rot: [0, Math.PI, 0] },      // Back
-    { pos: [0, 0, -5], rot: [0, 0, 0] },           // Front
-    { pos: [5, 0, 0], rot: [0, -Math.PI / 2, 0] }, // Right
-    { pos: [-5, 0, 0], rot: [0, Math.PI / 2, 0] }  // Left
-  ];
-  walls.forEach(w => {
-    const b = new CANNON.Body({ type: CANNON.Body.STATIC, shape: wallShape });
-    b.position.set(w.pos[0], w.pos[1], w.pos[2]);
-    b.quaternion.setFromEuler(w.rot[0], w.rot[1], w.rot[2]);
-    world.addBody(b);
-  });
-
-  // --- THREE.JS SETUP ---
-  const width = container.clientWidth;
-  const height = container.clientHeight;
-
-  const scene = new THREE.Scene();
-  sceneRef.current = scene;
-
-  const camera = new THREE.PerspectiveCamera(45, width / height, 0.1, 100);
-  camera.position.set(0, 10, 8);
-  camera.lookAt(0, 0, 0);
-  cameraRef.current = camera;
-
-  // Renderer
-  const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
-  renderer.setSize(width, height);
-  renderer.setPixelRatio(window.devicePixelRatio);
-
-  // Limpiar cualquier canvas previo
-  container.innerHTML = '';
-  container.appendChild(renderer.domElement);
-  rendererRef.current = renderer;
-
-  // Lights
-  const ambientLight = new THREE.AmbientLight(0xffffff, 0.5);
-  scene.add(ambientLight);
-  const spotLight = new THREE.SpotLight(0x25f46a, 200);
-  spotLight.position.set(5, 10, 5);
-  spotLight.castShadow = true;
-  scene.add(spotLight);
-
-  // Floor mesh
-  const floorGeom = new THREE.PlaneGeometry(20, 20);
-  const floorMat = new THREE.MeshStandardMaterial({ color: 0x050a06, transparent: true, opacity: 0.8 });
-  const floorMesh = new THREE.Mesh(floorGeom, floorMat);
-  floorMesh.rotation.x = -Math.PI / 2;
-  scene.add(floorMesh);
-
-  // Grid helper
-  const grid = new THREE.GridHelper(20, 20, 0x25f46a, 0x1a853d);
-  grid.position.y = 0.01;
-  scene.add(grid);
-
-  // --- Animation Loop ---
-  const animate = () => {
-    world.fixedStep();
-
-    // Actualizar posición de los dados
-    diceBodiesRef.current.forEach(({ body, mesh }) => {
-      mesh.position.copy(body.position as any);
-      mesh.quaternion.copy(body.quaternion as any);
+    // Walls physics (to keep dice in view)
+    const wallShape = new CANNON.Plane();
+    const walls = [
+      { pos: [0, 0, 5], rot: [0, Math.PI, 0] },    // Back
+      { pos: [0, 0, -5], rot: [0, 0, 0] },       // Front
+      { pos: [5, 0, 0], rot: [0, -Math.PI / 2, 0] }, // Right
+      { pos: [-5, 0, 0], rot: [0, Math.PI / 2, 0] }   // Left
+    ];
+    walls.forEach(w => {
+      const b = new CANNON.Body({ type: CANNON.Body.STATIC, shape: wallShape });
+      b.position.set(w.pos[0], w.pos[1], w.pos[2]);
+      b.quaternion.setFromEuler(w.rot[0], w.rot[1], w.rot[2]);
+      world.addBody(b);
     });
 
-    renderer.render(scene, camera);
-    requestRef.current = requestAnimationFrame(animate);
-  };
-  animate();
+    // --- THREE.JS SETUP ---
+    // Start with default values, ResizeObserver will fix it immediately
+    const scene = new THREE.Scene();
+    sceneRef.current = scene;
 
-  // --- Resize handler ---
-  const handleResize = () => {
-    if (!container || !cameraRef.current || !rendererRef.current) return;
-    const w = container.clientWidth;
-    const h = container.clientHeight;
-    if (w === 0 || h === 0) return;
-    cameraRef.current.aspect = w / h;
-    cameraRef.current.updateProjectionMatrix();
-    rendererRef.current.setSize(w, h);
-  };
-  window.addEventListener('resize', handleResize);
+    const camera = new THREE.PerspectiveCamera(45, 1, 0.1, 100);
+    // Adjusted position: moved from (0, 10, 8) to (0, 14, 11) to be "a little far"
+    camera.position.set(0, 14, 11);
+    camera.lookAt(0, 0, 0);
+    cameraRef.current = camera;
 
-  // --- Cleanup al desmontar ---
-  return () => {
-    window.removeEventListener('resize', handleResize);
-    if (requestRef.current) cancelAnimationFrame(requestRef.current);
+    const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
+    renderer.setPixelRatio(window.devicePixelRatio);
+    // Limpiar cualquier canvas previo
+    container.innerHTML = '';
+    container.appendChild(renderer.domElement);
+    //containerRef.current.appendChild(renderer.domElement);
+    rendererRef.current = renderer;
 
-    // Eliminar todos los meshes de la escena
+    // Lighting
+    const ambientLight = new THREE.AmbientLight(0xffffff, 0.5);
+    scene.add(ambientLight);
+    const spotLight = new THREE.SpotLight(0x25f46a, 200);
+    spotLight.position.set(5, 10, 5);
+    spotLight.castShadow = true;
+    scene.add(spotLight);
+
+    // Floor Mesh
+    const floorGeom = new THREE.PlaneGeometry(20, 20);
+    const floorMat = new THREE.MeshStandardMaterial({ 
+      color: 0x050a06,
+      transparent: true,
+      opacity: 0.8
+    });
+    const floorMesh = new THREE.Mesh(floorGeom, floorMat);
+    floorMesh.rotation.x = -Math.PI / 2;
+    scene.add(floorMesh);
+
+    // Grid Helper for that retro look
+    const grid = new THREE.GridHelper(20, 20, 0x25f46a, 0x1a853d);
+    grid.position.y = 0.01;
+    scene.add(grid);
+
+    // Resize Handler
+    const updateSize = () => {
+      if (!containerRef.current || !cameraRef.current || !rendererRef.current) return;
+      const width = containerRef.current.clientWidth;
+      const height = containerRef.current.clientHeight;
+      if (width === 0 || height === 0) return;
+
+      cameraRef.current.aspect = width / height;
+      cameraRef.current.updateProjectionMatrix();
+      cameraRef.current.lookAt(0, 0, 0); // Re-center
+      rendererRef.current.setSize(width, height);
+    };
+
+    // Use ResizeObserver for robust layout detection
+    const resizeObserver = new ResizeObserver(() => {
+      updateSize();
+    });
+    resizeObserver.observe(containerRef.current);
+
+    // Animation Loop
+    const animate = () => {
+      world.fixedStep();
+      
+      // Update dice meshes
+      diceBodiesRef.current.forEach(({ body, mesh }) => {
+        mesh.position.copy(body.position as any);
+        mesh.quaternion.copy(body.quaternion as any);
+      });
+
+      renderer.render(scene, camera);
+      requestRef.current = requestAnimationFrame(animate);
+    };
+    animate();
+
+    const handleResize = () => updateSize();
+    window.addEventListener('resize', handleResize);
+
+    return () => {
+      window.removeEventListener('resize', handleResize);
+      resizeObserver.disconnect();
+      if (requestRef.current) cancelAnimationFrame(requestRef.current);
+      
+      // Eliminar todos los meshes de la escena
     diceBodiesRef.current.forEach(({ mesh }) => scene.remove(mesh));
     diceBodiesRef.current = [];
-
-    // Limpiar renderer del DOM
     if (rendererRef.current && container) {
-      container.removeChild(rendererRef.current.domElement);
-      rendererRef.current.dispose();
+        container.removeChild(rendererRef.current.domElement);
+        rendererRef.current.dispose();
       rendererRef.current = undefined;
-    }
-
-    // Limpiar referencias
+      }
+      // Limpiar referencias
     sceneRef.current = undefined;
     cameraRef.current = undefined;
     worldRef.current = undefined;
-  };
-}, []);
+    };
+  }, []);
 
   const createDice = (color: 'black' | 'yellow') => {
     const scene = sceneRef.current;
@@ -362,10 +370,14 @@ const DiceRoller: React.FC<DiceRollerProps> = ({ onClose }) => {
               <button 
                 onClick={rollDice}
                 disabled={isRolling || (blackCount + yellowCount === 0)}
-                className="w-full h-14 bg-primary text-black font-bold uppercase tracking-widest hover:scale-[1.02] active:scale-95 transition-all shadow-[0_0_20px_rgba(37,244,106,0.2)] disabled:opacity-20 flex items-center justify-center gap-2"
+                className="w-full h-14 bg-primary text-black font-bold uppercase tracking-widest hover:scale-[1.02] active:scale-95 transition-all shadow-[0_0_20px_rgba(37,244,106,0.2)] disabled:opacity-20 flex items-center justify-center gap-2 overflow-hidden px-4"
               >
-                {isRolling ? <span className="material-icons animate-spin">refresh</span> : <span className="material-icons">tumble_dryer</span>}
-                LANZAR
+                {isRolling ? (
+                  <span className="material-icons animate-spin text-lg">refresh</span>
+                ) : (
+                  <span className="material-icons text-lg">casino</span>
+                )}
+                <span className="text-sm tracking-[0.2em] whitespace-nowrap">LANZAR</span>
               </button>
             </div>
 

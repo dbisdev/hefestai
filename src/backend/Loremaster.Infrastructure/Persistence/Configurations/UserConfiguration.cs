@@ -9,10 +9,8 @@ public class UserConfiguration : IEntityTypeConfiguration<User>
 {
     public void Configure(EntityTypeBuilder<User> builder)
     {
-        // Table
-        builder.ToTable("users");
+        builder.ToTable("user");
 
-        // Primary Key (UUID)
         builder.HasKey(u => u.Id);
 
         builder.Property(u => u.Id)
@@ -21,89 +19,105 @@ public class UserConfiguration : IEntityTypeConfiguration<User>
             .HasDefaultValueSql("gen_random_uuid()")
             .ValueGeneratedOnAdd();
 
-        // Email (unique)
         builder.Property(u => u.Email)
             .HasColumnName("email")
-            .HasMaxLength(256)
+            .HasMaxLength(255)
             .IsRequired();
 
         builder.HasIndex(u => u.Email)
             .IsUnique()
-            .HasDatabaseName("ix_users_email");
+            .HasDatabaseName("uq_user_email");
 
-        // PasswordHash
+        builder.HasIndex(u => u.Email)
+            .HasDatabaseName("ix_user_email")
+            .HasFilter("deleted_at IS NULL");
+
         builder.Property(u => u.PasswordHash)
             .HasColumnName("password_hash")
-            .HasMaxLength(512)
+            .HasMaxLength(255)
             .IsRequired();
 
-        // Role
-        builder.Property(u => u.Role)
-            .HasColumnName("role")
-            .HasConversion<string>()
-            .HasMaxLength(50)
-            .HasDefaultValue(UserRole.Player)
-            .IsRequired();
-
-        builder.HasIndex(u => u.Role)
-            .HasDatabaseName("ix_users_role");
-
-        // DisplayName
         builder.Property(u => u.DisplayName)
             .HasColumnName("display_name")
             .HasMaxLength(100);
 
-        // IsActive
+        builder.Property(u => u.Role)
+            .HasColumnName("role")
+            .HasColumnType("user_role")
+            .HasDefaultValue(UserRole.Player)
+            .IsRequired();
+
+        builder.HasIndex(u => u.Role)
+            .HasDatabaseName("ix_user_role")
+            .HasFilter("deleted_at IS NULL");
+
+        builder.Property(u => u.AvatarUrl)
+            .HasColumnName("avatar_url")
+            .HasMaxLength(500);
+
+        // External authentication support (optional)
+        builder.Property(u => u.ExternalId)
+            .HasColumnName("external_id")
+            .HasMaxLength(255);
+
+        builder.HasIndex(u => u.ExternalId)
+            .IsUnique()
+            .HasDatabaseName("uq_user_external_id")
+            .HasFilter("external_id IS NOT NULL");
+
+        builder.HasIndex(u => u.ExternalId)
+            .HasDatabaseName("ix_user_external_id")
+            .HasFilter("external_id IS NOT NULL AND deleted_at IS NULL");
+
+        // Password-based authentication fields
+        builder.Property(u => u.RefreshToken)
+            .HasColumnName("refresh_token")
+            .HasMaxLength(500);
+
+        builder.Property(u => u.RefreshTokenExpiryTime)
+            .HasColumnName("refresh_token_expiry_time")
+            .HasColumnType("timestamp with time zone");
+
         builder.Property(u => u.IsActive)
             .HasColumnName("is_active")
             .HasDefaultValue(true)
             .IsRequired();
 
         builder.HasIndex(u => u.IsActive)
-            .HasDatabaseName("ix_users_is_active");
+            .HasDatabaseName("ix_user_is_active")
+            .HasFilter("deleted_at IS NULL");
 
-        // LastLoginAt
         builder.Property(u => u.LastLoginAt)
             .HasColumnName("last_login_at")
             .HasColumnType("timestamp with time zone");
 
-        // RefreshToken
-        builder.Property(u => u.RefreshToken)
-            .HasColumnName("refresh_token")
-            .HasMaxLength(512);
+        // Master-Player relationship
+        builder.Property(u => u.InvitationCode)
+            .HasColumnName("invitation_code")
+            .HasMaxLength(20);
 
-        builder.HasIndex(u => u.RefreshToken)
-            .HasDatabaseName("ix_users_refresh_token")
-            .HasFilter("refresh_token IS NOT NULL");
+        builder.HasIndex(u => u.InvitationCode)
+            .IsUnique()
+            .HasDatabaseName("uq_user_invitation_code")
+            .HasFilter("invitation_code IS NOT NULL");
 
-        // RefreshTokenExpiryTime
-        builder.Property(u => u.RefreshTokenExpiryTime)
-            .HasColumnName("refresh_token_expiry_time")
-            .HasColumnType("timestamp with time zone");
+        builder.HasIndex(u => u.InvitationCode)
+            .HasDatabaseName("ix_user_invitation_code")
+            .HasFilter("invitation_code IS NOT NULL AND deleted_at IS NULL AND is_active = true");
 
-        // MasterId - Foreign key to Master user
         builder.Property(u => u.MasterId)
             .HasColumnName("master_id")
             .HasColumnType("uuid");
 
         builder.HasIndex(u => u.MasterId)
-            .HasDatabaseName("ix_users_master_id")
-            .HasFilter("master_id IS NOT NULL");
+            .HasDatabaseName("ix_user_master_id")
+            .HasFilter("master_id IS NOT NULL AND deleted_at IS NULL");
 
-        // InvitationCode for Masters
-        builder.Property(u => u.InvitationCode)
-            .HasColumnName("invitation_code")
-            .HasMaxLength(10);
-
-        builder.HasIndex(u => u.InvitationCode)
-            .IsUnique()
-            .HasDatabaseName("ix_users_invitation_code")
-            .HasFilter("invitation_code IS NOT NULL");
-
-        // Self-referencing relationship: Player -> Master
+        // Self-referencing relationship: Master -> Players
         builder.HasOne(u => u.Master)
             .WithMany(u => u.Players)
             .HasForeignKey(u => u.MasterId)
+            .HasConstraintName("fk_user_master")
             .OnDelete(DeleteBehavior.SetNull);
 
         // Audit fields
@@ -113,19 +127,23 @@ public class UserConfiguration : IEntityTypeConfiguration<User>
             .HasDefaultValueSql("CURRENT_TIMESTAMP")
             .IsRequired();
 
-        builder.Property(u => u.CreatedBy)
-            .HasColumnName("created_by")
-            .HasMaxLength(256);
-
         builder.Property(u => u.UpdatedAt)
             .HasColumnName("updated_at")
+            .HasColumnType("timestamp with time zone")
+            .HasDefaultValueSql("CURRENT_TIMESTAMP")
+            .IsRequired();
+
+        builder.Property(u => u.DeletedAt)
+            .HasColumnName("deleted_at")
             .HasColumnType("timestamp with time zone");
 
-        builder.Property(u => u.UpdatedBy)
-            .HasColumnName("updated_by")
-            .HasMaxLength(256);
+        builder.HasIndex(u => u.DeletedAt)
+            .HasDatabaseName("ix_user_deleted_at")
+            .HasFilter("deleted_at IS NOT NULL");
 
-        // Ignore domain events (not persisted)
+        // Ignore base class properties not in schema
+        builder.Ignore(u => u.CreatedBy);
+        builder.Ignore(u => u.UpdatedBy);
         builder.Ignore(u => u.DomainEvents);
     }
 }

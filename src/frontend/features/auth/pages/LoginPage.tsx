@@ -16,16 +16,14 @@ interface LoginPageProps {
 }
 
 export const LoginPage: React.FC<LoginPageProps> = ({ onLoginSuccess, onGoSignup }) => {
-  const { login } = useAuth();
+  const { login, error: authError, isLoading: authLoading, clearError } = useAuth();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
-  const [error, setError] = useState('');
-  const [loading, setLoading] = useState(false);
   const [validationErrors, setValidationErrors] = useState<Record<string, string>>({});
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
-    setError('');
+    clearError();
     setValidationErrors({});
 
     // Client-side validation (OWASP A03 - Input Validation)
@@ -45,16 +43,12 @@ export const LoginPage: React.FC<LoginPageProps> = ({ onLoginSuccess, onGoSignup
       return;
     }
 
-    setLoading(true);
     try {
       // Use AuthContext login to update global state
       await login({ email, password });
       onLoginSuccess();
-    } catch (err: unknown) {
-      const message = err instanceof Error ? err.message : 'Error de autenticación';
-      setError(message);
-    } finally {
-      setLoading(false);
+    } catch {
+      // Error is handled by AuthContext and will be displayed via authError
     }
   };
 
@@ -98,14 +92,14 @@ export const LoginPage: React.FC<LoginPageProps> = ({ onLoginSuccess, onGoSignup
               autoComplete="current-password"
             />
 
-            {error && <ErrorMessage message={error} />}
+            {authError && <ErrorMessage message={authError} />}
 
             <Button
               type="submit"
               variant="primary"
               fullWidth
               size="lg"
-              isLoading={loading}
+              isLoading={authLoading}
               icon="login"
             >
               ACCEDER_AL_NUCLEO
