@@ -127,8 +127,7 @@ loremaster/
 │   │   ├── Loremaster.Shared/    # Helpers, extensions
 │   │   ├── Loremaster.Tests.Unit/
 │   │   ├── Loremaster.Tests.Integration/
-│   │   ├── Dockerfile
-│   │   └── fly.toml              # Fly.io deployment config
+│   │   └── Dockerfile
 │   │
 │   └── genkit-service/           # Node.js AI microservice
 │       ├── src/
@@ -136,8 +135,7 @@ loremaster/
 │       │   ├── flows.ts          # Genkit AI flows
 │       │   ├── schemas.ts        # Zod validation
 │       │   └── middleware/       # JWT auth
-│       ├── Dockerfile
-│       └── fly.toml              # Fly.io deployment config
+│       └── Dockerfile
 │
 ├── docker/
 │   └── init.sql                  # PostgreSQL initialization
