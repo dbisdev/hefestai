@@ -19,6 +19,7 @@ build/
 *.sln.docstates
 .vs/
 AGENTS.md
+.genkit/
 
 # Environment files
 .env

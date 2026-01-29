@@ -1,5 +1,4 @@
-import { ai } from './genkit.config.js';
-import { gemini15Flash, textEmbedding004 } from '@genkit-ai/googleai';
+import { ai, googleAI } from './genkit.config.js';
 import {
   ChatRequestSchema,
   ChatResponseSchema,
@@ -23,8 +22,32 @@ import {
   type RagGenerateResponse,
 } from './schemas.js';
 
+/** Google GenAI model references using the new API style */
+const geminiModel = googleAI.model('gemini-2.0-flash');
+const embeddingModel = googleAI.embedder('text-embedding-004');
+
 /**
- * Chat flow for multi-turn conversations
+ * Strips markdown code fences from a string.
+ * Handles ```json, ```xml, ```, and other code fence variations.
+ * @param text - The text potentially containing markdown code fences
+ * @returns The cleaned text without code fences
+ */
+function stripMarkdownCodeFences(text: string): string {
+  const trimmed = text.trim();
+  // Check if text starts with code fence
+  if (!trimmed.startsWith('```')) {
+    return text;
+  }
+  // Remove opening code fence with optional language identifier
+  let cleaned = trimmed.replace(/^```(?:\w+)?\s*\n?/, '');
+  // Remove closing code fence
+  cleaned = cleaned.replace(/\n?```\s*$/, '');
+  return cleaned.trim();
+}
+
+/**
+ * Chat flow for multi-turn conversations.
+ * Supports conversation history and system context.
  */
 export const chatFlow = ai.defineFlow(
   {
@@ -44,7 +67,7 @@ export const chatFlow = ai.defineFlow(
     const previousMessages = messages.slice(0, -1);
 
     const response = await ai.generate({
-      model: gemini15Flash,
+      model: geminiModel,
       messages: previousMessages,
       prompt: lastMessage.content,
       config: {
@@ -70,7 +93,8 @@ export const chatFlow = ai.defineFlow(
 );
 
 /**
- * Simple text generation flow
+ * Simple text generation flow.
+ * Generates text based on a prompt with optional system instructions.
  */
 export const generateTextFlow = ai.defineFlow(
   {
@@ -80,7 +104,7 @@ export const generateTextFlow = ai.defineFlow(
   },
   async (input: TextGenerationRequest): Promise<TextGenerationResponse> => {
     const response = await ai.generate({
-      model: gemini15Flash,
+      model: geminiModel,
       prompt: input.prompt,
       config: {
         temperature: input.temperature,
@@ -92,7 +116,7 @@ export const generateTextFlow = ai.defineFlow(
     });
 
     return {
-      text: response.text,
+      text: stripMarkdownCodeFences(response.text),
       usage: response.usage
         ? {
             promptTokens: response.usage.inputTokens || 0,
@@ -105,7 +129,8 @@ export const generateTextFlow = ai.defineFlow(
 );
 
 /**
- * Text summarization flow
+ * Text summarization flow.
+ * Summarizes text with configurable style (concise, detailed, bullet-points).
  */
 export const summarizeFlow = ai.defineFlow(
   {
@@ -126,7 +151,7 @@ ${input.language !== 'en' ? `Write the summary in ${input.language}.` : ''}
 Focus on the most important information and maintain accuracy.`;
 
     const response = await ai.generate({
-      model: gemini15Flash,
+      model: geminiModel,
       prompt: `Please summarize the following text:\n\n${input.text}`,
       system: systemPrompt,
       config: {
@@ -154,7 +179,8 @@ Focus on the most important information and maintain accuracy.`;
 );
 
 /**
- * Embeddings flow for RAG - generates vector embeddings for text
+ * Embeddings flow for RAG.
+ * Generates vector embeddings for an array of text inputs.
  */
 export const embeddingsFlow = ai.defineFlow(
   {
@@ -165,14 +191,13 @@ export const embeddingsFlow = ai.defineFlow(
   async (input: EmbeddingsRequest): Promise<EmbeddingsResponse> => {
     const embeddings: number[][] = [];
     
-    // Process texts in batches to avoid rate limits
+    // Process texts individually to generate embeddings
     for (const text of input.texts) {
       const result = await ai.embed({
-        embedder: textEmbedding004,
+        embedder: embeddingModel,
         content: text,
       });
-      // Genkit 1.0 returns array of objects with 'embedding' property
-      // For single content, we get an array with one element
+      // Genkit returns array of objects with 'embedding' property
       const embeddingVector = Array.isArray(result) 
         ? result[0].embedding 
         : (result as any).embedding || result;
@@ -188,7 +213,8 @@ export const embeddingsFlow = ai.defineFlow(
 );
 
 /**
- * RAG Generation flow - generates answers using provided context
+ * RAG Generation flow.
+ * Generates answers using provided context documents and a query.
  */
 export const ragGenerateFlow = ai.defineFlow(
   {
@@ -209,7 +235,7 @@ Be concise and accurate.`;
     const prompt = `Context:\n${contextText}\n\nQuestion: ${input.query}\n\nAnswer:`;
 
     const response = await ai.generate({
-      model: gemini15Flash,
+      model: geminiModel,
       prompt,
       system: systemPrompt,
       config: {

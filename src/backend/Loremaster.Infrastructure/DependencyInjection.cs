@@ -39,6 +39,8 @@ public static class DependencyInjection
         var dataSourceBuilder = new NpgsqlDataSourceBuilder(connectionString);
         dataSourceBuilder.MapEnum<UserRole>("user_role");
         dataSourceBuilder.MapEnum<CampaignRole>("campaign_role");
+        dataSourceBuilder.MapEnum<OwnershipType>("ownership_type");
+        dataSourceBuilder.MapEnum<VisibilityLevel>("visibility_level");
         var dataSource = dataSourceBuilder.Build();
         
         services.AddDbContext<ApplicationDbContext>((sp, options) =>

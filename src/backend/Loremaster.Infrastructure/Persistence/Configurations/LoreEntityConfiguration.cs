@@ -64,15 +64,13 @@ public class LoreEntityConfiguration : IEntityTypeConfiguration<LoreEntity>
 
         builder.Property(le => le.OwnershipType)
             .HasColumnName("ownership_type")
-            .HasConversion<string>()
-            .HasMaxLength(20)
+            .HasColumnType("ownership_type")
             .HasDefaultValue(OwnershipType.Master)
             .IsRequired();
 
         builder.Property(le => le.Visibility)
             .HasColumnName("visibility")
-            .HasConversion<string>()
-            .HasMaxLength(20)
+            .HasColumnType("visibility_level")
             .HasDefaultValue(VisibilityLevel.Campaign)
             .IsRequired();
 

@@ -1,7 +1,10 @@
 import { genkit } from 'genkit';
-import { googleAI } from '@genkit-ai/googleai';
+import { googleAI } from '@genkit-ai/google-genai';
 
-// Configure Genkit with Google AI plugin
+/**
+ * Genkit AI instance configured with Google GenAI plugin.
+ * Uses the GOOGLE_GENAI_API_KEY environment variable for authentication.
+ */
 export const ai = genkit({
   plugins: [
     googleAI({

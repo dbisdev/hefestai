@@ -79,6 +79,7 @@ app.post(
       logger.info({ serviceId: req.service?.id, operation: 'generate' }, 'Processing generate request');
       
       const result = await generateTextFlow(validatedInput);
+      logger.info({ serviceId: req.service?.id, operation: result.text }, 'Resultado generate request');
       res.json(result);
     } catch (error) {
       handleFlowError(error, res, 'generate');
