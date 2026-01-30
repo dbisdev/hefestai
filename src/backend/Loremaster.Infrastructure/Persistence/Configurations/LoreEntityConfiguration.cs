@@ -81,7 +81,7 @@ public class LoreEntityConfiguration : IEntityTypeConfiguration<LoreEntity>
 
         builder.Property(le => le.ImageUrl)
             .HasColumnName("image_url")
-            .HasMaxLength(500);
+            .HasColumnType("text");
 
         builder.Property(le => le.Attributes)
             .HasColumnName("attributes")

@@ -82,21 +82,36 @@ public class GenkitAiService : IAiService
 
     public async Task<GenerateImageResult> GenerateImageAsync(
         string prompt,
+        string? style = null,
+        string aspectRatio = "1:1",
+        string? negativePrompt = null,
         CancellationToken cancellationToken = default)
     {
         try
         {
             var request = new ImageGenerateRequest
             {
-                Prompt = prompt
+                Prompt = prompt,
+                Style = style,
+                AspectRatio = aspectRatio,
+                NegativePrompt = negativePrompt
             };
 
             var response = await SendRequestAsync<ImageGenerateRequest, ImageGenerateResponse>(
                 "/api/generate-image", request, cancellationToken);
 
+            // Convert new response format to existing result format
+            var imageBase64 = response.Image?.Base64;
+            var mimeType = response.Image?.MimeType ?? "image/png";
+            
+            // Create data URL if we have base64 data
+            string? imageUrl = imageBase64 != null 
+                ? $"data:{mimeType};base64,{imageBase64}" 
+                : null;
+
             return new GenerateImageResult(
-                response.ImageBase64,
-                response.ImageUrl,
+                imageBase64,
+                imageUrl,
                 response.Success);
         }
         catch (Exception ex)
@@ -250,13 +265,23 @@ public class GenkitAiService : IAiService
     private record ImageGenerateRequest
     {
         public string Prompt { get; init; } = null!;
+        public string? NegativePrompt { get; init; }
+        public string AspectRatio { get; init; } = "1:1";
+        public string? Style { get; init; }
     }
 
     private record ImageGenerateResponse
     {
-        public string? ImageBase64 { get; init; }
-        public string? ImageUrl { get; init; }
+        public ImageDataDto? Image { get; init; }
         public bool Success { get; init; }
+        public string? Message { get; init; }
+        public string? UsedPrompt { get; init; }
+    }
+
+    private record ImageDataDto
+    {
+        public string Base64 { get; init; } = null!;
+        public string MimeType { get; init; } = null!;
     }
 
     private record SummarizeRequest

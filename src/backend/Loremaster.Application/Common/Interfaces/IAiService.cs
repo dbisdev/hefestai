@@ -28,8 +28,16 @@ public interface IAiService
     /// <summary>
     /// Generate an image from a prompt
     /// </summary>
+    /// <param name="prompt">The image generation prompt</param>
+    /// <param name="style">Optional style preset (realistic, artistic, anime, fantasy, sketch)</param>
+    /// <param name="aspectRatio">Aspect ratio (1:1, 16:9, 9:16, 4:3, 3:4)</param>
+    /// <param name="negativePrompt">Optional negative prompt to specify what to avoid</param>
+    /// <param name="cancellationToken">Cancellation token</param>
     Task<GenerateImageResult> GenerateImageAsync(
         string prompt,
+        string? style = null,
+        string aspectRatio = "1:1",
+        string? negativePrompt = null,
         CancellationToken cancellationToken = default);
 
     /// <summary>

@@ -107,17 +107,31 @@ export type RagGenerateRequest = z.infer<typeof RagGenerateRequestSchema>;
 export type RagGenerateResponse = z.infer<typeof RagGenerateResponseSchema>;
 
 // =============================================================================
-// Image Generation schemas (placeholder for future implementation)
+// Image Generation schemas
 // =============================================================================
 export const ImageGenerateRequestSchema = z.object({
-  prompt: z.string().min(1).max(1000),
+  /** The prompt describing the image to generate */
+  prompt: z.string().min(1).max(2000),
+  /** Optional negative prompt to specify what to avoid */
+  negativePrompt: z.string().max(1000).optional(),
+  /** Aspect ratio of the generated image */
+  aspectRatio: z.enum(['1:1', '16:9', '9:16', '4:3', '3:4']).optional().default('1:1'),
+  /** Style preset for the image */
+  style: z.enum(['realistic', 'artistic', 'anime', 'fantasy', 'sketch']).optional(),
 });
 
 export const ImageGenerateResponseSchema = z.object({
-  imageBase64: z.string().nullable(),
-  imageUrl: z.string().nullable(),
+  /** Generated image as base64 string */
+  image: z.object({
+    base64: z.string(),
+    mimeType: z.string(),
+  }).nullable(),
+  /** Whether the generation was successful */
   success: z.boolean(),
+  /** Optional message (error details or additional info) */
   message: z.string().optional(),
+  /** The prompt that was used (may be enhanced) */
+  usedPrompt: z.string().optional(),
 });
 
 export type ImageGenerateRequest = z.infer<typeof ImageGenerateRequestSchema>;

@@ -57,7 +57,7 @@ Example format:
             // Generate image
             var imagePrompt = $"High-quality futuristic sci-fi portrait of a {request.Species} {request.Role}, {request.Morphology}, wearing {request.Attire}. Cinematic lighting, cyberpunk aesthetic, detailed face, 8k resolution, professional concept art, black background.";
             
-            var imageResult = await _aiService.GenerateImageAsync(imagePrompt, cancellationToken);
+            var imageResult = await _aiService.GenerateImageAsync(imagePrompt, cancellationToken: cancellationToken);
 
             return Ok(new CharacterGenerationResponse
             {
@@ -114,7 +114,7 @@ Example format:
             // Generate image
             var imagePrompt = $"Breathtaking wide-angle cinematic view of a {request.SpectralClass}-type star solar system. Visible planets orbiting, vibrant cosmic nebulas in background, high detail, photorealistic space photography, sci-fi concept art, deep blacks, vivid colors.";
             
-            var imageResult = await _aiService.GenerateImageAsync(imagePrompt, cancellationToken);
+            var imageResult = await _aiService.GenerateImageAsync(imagePrompt, cancellationToken: cancellationToken);
 
             return Ok(new SolarSystemGenerationResponse
             {
@@ -228,7 +228,7 @@ Example format:
             // Generate image for the NPC
             var imagePrompt = $"High-quality futuristic sci-fi portrait of a {request.Species} {request.Occupation}, {request.Personality} expression. Cinematic lighting, cyberpunk aesthetic, detailed face, professional concept art, neutral background, 8k resolution.";
             
-            var imageResult = await _aiService.GenerateImageAsync(imagePrompt, cancellationToken);
+            var imageResult = await _aiService.GenerateImageAsync(imagePrompt, cancellationToken: cancellationToken);
 
             return Ok(new NpcGenerationResponse
             {
@@ -291,7 +291,7 @@ Example format:
             // Generate image for the enemy
             var imagePrompt = $"Terrifying sci-fi creature concept art, {request.Species}, {request.Behavior} posture, menacing, dark atmosphere, highly detailed, horror sci-fi aesthetic, professional illustration, dramatic lighting, 8k resolution.";
             
-            var imageResult = await _aiService.GenerateImageAsync(imagePrompt, cancellationToken);
+            var imageResult = await _aiService.GenerateImageAsync(imagePrompt, cancellationToken: cancellationToken);
 
             return Ok(new EnemyGenerationResponse
             {

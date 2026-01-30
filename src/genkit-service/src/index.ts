@@ -8,7 +8,7 @@ import path from 'path';
 import { fileURLToPath } from 'url';
 
 // Initialize Genkit config and flows
-import { chatFlow, generateTextFlow, summarizeFlow, embeddingsFlow, ragGenerateFlow } from './flows.js';
+import { chatFlow, generateTextFlow, summarizeFlow, embeddingsFlow, ragGenerateFlow, imageGenerateFlow } from './flows.js';
 import { 
   ChatRequestSchema, 
   TextGenerationRequestSchema, 
@@ -173,7 +173,7 @@ app.post(
 );
 
 // =============================================================================
-// Image Generation endpoint (placeholder - not yet implemented)
+// Image Generation endpoint
 // =============================================================================
 app.post(
   '/api/generate-image',
@@ -183,19 +183,25 @@ app.post(
     try {
       const validatedInput = ImageGenerateRequestSchema.parse(req.body);
       logger.info(
-        { serviceId: req.service?.id, operation: 'generate-image', promptLength: validatedInput.prompt.length },
-        'Image generation requested (not implemented)'
+        { 
+          serviceId: req.service?.id, 
+          operation: 'generate-image', 
+          promptLength: validatedInput.prompt.length,
+          style: validatedInput.style,
+          aspectRatio: validatedInput.aspectRatio,
+        },
+        'Processing image generation request'
       );
       
-      // Image generation is not yet implemented
-      // This placeholder returns a graceful "not implemented" response
-      // Future implementation could use Google Imagen, DALL-E, or Stable Diffusion
-      res.json({
-        imageBase64: null,
-        imageUrl: null,
-        success: false,
-        message: 'Image generation is not yet implemented. This feature requires integration with an image generation service (e.g., Google Imagen, DALL-E, Stable Diffusion).',
-      });
+      const result = await imageGenerateFlow(validatedInput);
+      
+      if (result.success) {
+        logger.info({ serviceId: req.service?.id, message: result.image?.base64 }, 'Image generation completed successfully');
+      } else {
+        logger.warn({ serviceId: req.service?.id, message: result.message }, 'Image generation failed');
+      }
+      
+      res.json(result);
     } catch (error) {
       handleFlowError(error, res, 'generate-image');
     }

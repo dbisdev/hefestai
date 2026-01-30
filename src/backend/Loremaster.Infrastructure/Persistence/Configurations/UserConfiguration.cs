@@ -53,7 +53,7 @@ public class UserConfiguration : IEntityTypeConfiguration<User>
 
         builder.Property(u => u.AvatarUrl)
             .HasColumnName("avatar_url")
-            .HasMaxLength(500);
+            .HasColumnType("text");
 
         // External authentication support (optional)
         builder.Property(u => u.ExternalId)

@@ -10,6 +10,8 @@ import {
   EmbeddingsResponseSchema,
   RagGenerateRequestSchema,
   RagGenerateResponseSchema,
+  ImageGenerateRequestSchema,
+  ImageGenerateResponseSchema,
   type ChatRequest,
   type ChatResponse,
   type TextGenerationRequest,
@@ -20,10 +22,13 @@ import {
   type EmbeddingsResponse,
   type RagGenerateRequest,
   type RagGenerateResponse,
+  type ImageGenerateRequest,
+  type ImageGenerateResponse,
 } from './schemas.js';
 
 /** Google GenAI model references using the new API style */
 const geminiModel = googleAI.model('gemini-2.0-flash');
+const geminiImageModel = googleAI.model('gemini-2.5-flash-image');
 const embeddingModel = googleAI.embedder('text-embedding-004');
 
 /**
@@ -254,5 +259,113 @@ Be concise and accurate.`;
           }
         : undefined,
     };
+  }
+);
+
+/**
+ * Image generation flow.
+ * Generates a single image using Gemini's native image generation capabilities.
+ */
+export const imageGenerateFlow = ai.defineFlow(
+  {
+    name: 'imageGenerate',
+    inputSchema: ImageGenerateRequestSchema,
+    outputSchema: ImageGenerateResponseSchema,
+  },
+  async (input: ImageGenerateRequest): Promise<ImageGenerateResponse> => {
+    // Style enhancement mappings
+    const stylePrompts: Record<string, string> = {
+      realistic: 'photorealistic, highly detailed, professional photography',
+      artistic: 'artistic style, creative composition, expressive',
+      anime: 'anime style, vibrant colors, Japanese animation aesthetic',
+      fantasy: 'fantasy art style, magical, ethereal, detailed illustration',
+      sketch: 'pencil sketch style, hand-drawn, artistic lines',
+    };
+
+    const aspectRatioHints: Record<string, string> = {
+      '1:1': 'square composition',
+      '16:9': 'wide landscape format, cinematic',
+      '9:16': 'vertical portrait format, tall composition',
+      '4:3': 'standard landscape format',
+      '3:4': 'standard portrait format',
+    };
+
+    // Build enhanced prompt
+    let enhancedPrompt = input.prompt;
+    
+    if (input.style && stylePrompts[input.style]) {
+      enhancedPrompt = `${enhancedPrompt}, ${stylePrompts[input.style]}`;
+    }
+    
+    if (input.aspectRatio && aspectRatioHints[input.aspectRatio]) {
+      enhancedPrompt = `${enhancedPrompt}, ${aspectRatioHints[input.aspectRatio]}`;
+    }
+    
+    if (input.negativePrompt) {
+      enhancedPrompt = `${enhancedPrompt}. Avoid: ${input.negativePrompt}`;
+    }
+
+    const fullPrompt = `Generate an image: ${enhancedPrompt}`;
+
+    try {
+      const response = await ai.generate({
+        model: geminiImageModel,
+        prompt: fullPrompt,
+      });
+
+      // Extract image from response.media
+      if (response.media?.contentType?.startsWith('image/')) {
+        const base64Data = response.media.url.includes('base64,')
+          ? response.media.url.split('base64,')[1]
+          : response.media.url;
+        
+        return {
+          image: {
+            base64: base64Data,
+            mimeType: response.media.contentType,
+          },
+          success: true,
+          usedPrompt: enhancedPrompt,
+        };
+      }
+
+      // Check message content for image data as fallback
+      if (response.message?.content) {
+        for (const part of response.message.content) {
+          if ('media' in part && part.media) {
+            const mediaPart = part.media as { url: string; contentType?: string };
+            if (mediaPart.contentType?.startsWith('image/')) {
+              const base64Data = mediaPart.url.includes('base64,')
+                ? mediaPart.url.split('base64,')[1]
+                : mediaPart.url;
+              
+              return {
+                image: {
+                  base64: base64Data,
+                  mimeType: mediaPart.contentType,
+                },
+                success: true,
+                usedPrompt: enhancedPrompt,
+              };
+            }
+          }
+        }
+      }
+
+      return {
+        image: null,
+        success: false,
+        message: 'No image was generated. The model may not support image generation or the prompt was rejected.',
+        usedPrompt: enhancedPrompt,
+      };
+    } catch (error) {
+      const errorMessage = error instanceof Error ? error.message : 'Unknown error occurred';
+      return {
+        image: null,
+        success: false,
+        message: `Image generation failed: ${errorMessage}`,
+        usedPrompt: enhancedPrompt,
+      };
+    }
   }
 );

@@ -43,7 +43,7 @@ CREATE TABLE "user" (
     password_hash VARCHAR(255) NOT NULL,
     display_name VARCHAR(100),
     role user_role NOT NULL DEFAULT 'player',
-    avatar_url VARCHAR(500),
+    avatar_url TEXT,
     
     -- External authentication support (for future OAuth integration)
     external_id VARCHAR(255),
@@ -251,7 +251,7 @@ CREATE TABLE lore_entity (
     ownership_type ownership_type NOT NULL DEFAULT 'master',
     visibility visibility_level NOT NULL DEFAULT 'campaign',
     is_template BOOLEAN NOT NULL DEFAULT false,
-    image_url VARCHAR(500),
+    image_url TEXT,
     attributes JSONB,
     metadata JSONB,
     created_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP,
