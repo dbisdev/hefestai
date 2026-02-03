@@ -1,85 +1,72 @@
-using System.Text.Json;
-using Loremaster.Application.Common.Interfaces;
-using Loremaster.Domain.Entities;
+using Loremaster.Application.Features.LoreEntities.Commands.ChangeEntityVisibility;
+using Loremaster.Application.Features.LoreEntities.Commands.CreateLoreEntity;
+using Loremaster.Application.Features.LoreEntities.Commands.DeleteLoreEntity;
+using Loremaster.Application.Features.LoreEntities.Commands.TransferEntityOwnership;
+using Loremaster.Application.Features.LoreEntities.Commands.UpdateLoreEntity;
+using Loremaster.Application.Features.LoreEntities.DTOs;
+using Loremaster.Application.Features.LoreEntities.Queries.GetCampaignEntities;
+using Loremaster.Application.Features.LoreEntities.Queries.GetLoreEntityById;
 using Loremaster.Domain.Enums;
+using MediatR;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
-using Microsoft.EntityFrameworkCore;
 
 namespace Loremaster.Api.Controllers;
 
+/// <summary>
+/// Controller for managing lore entities (characters, NPCs, locations, items, etc.) within campaigns.
+/// </summary>
 [ApiController]
 [Route("api/campaigns/{campaignId:guid}/[controller]")]
 [Authorize]
 public class EntitiesController : ControllerBase
 {
-    private readonly IApplicationDbContext _dbContext;
-    private readonly ICurrentUserService _currentUserService;
-    private readonly IUnitOfWork _unitOfWork;
-    private readonly ILogger<EntitiesController> _logger;
+    private readonly IMediator _mediator;
 
-    public EntitiesController(
-        IApplicationDbContext dbContext,
-        ICurrentUserService currentUserService,
-        IUnitOfWork unitOfWork,
-        ILogger<EntitiesController> logger)
+    public EntitiesController(IMediator mediator)
     {
-        _dbContext = dbContext;
-        _currentUserService = currentUserService;
-        _unitOfWork = unitOfWork;
-        _logger = logger;
+        _mediator = mediator;
     }
 
     /// <summary>
-    /// Get all visible entities in a campaign for the current user
+    /// Get visible entities in a campaign for the current user with optional pagination.
     /// </summary>
+    /// <param name="campaignId">The campaign ID.</param>
+    /// <param name="entityType">Optional filter by entity type.</param>
+    /// <param name="visibility">Optional filter by visibility level.</param>
+    /// <param name="search">Optional search term to filter by name or description.</param>
+    /// <param name="page">Page number (1-based). If not specified, returns all results.</param>
+    /// <param name="pageSize">Number of items per page. Default is 20, max is 100.</param>
+    /// <param name="cancellationToken">Cancellation token.</param>
     [HttpGet]
-    [ProducesResponseType(typeof(IEnumerable<LoreEntityDto>), StatusCodes.Status200OK)]
+    [ProducesResponseType(typeof(GetCampaignEntitiesResult), StatusCodes.Status200OK)]
     [ProducesResponseType(StatusCodes.Status404NotFound)]
-    public async Task<ActionResult<IEnumerable<LoreEntityDto>>> GetCampaignEntities(
+    public async Task<ActionResult<GetCampaignEntitiesResult>> GetCampaignEntities(
         Guid campaignId,
         [FromQuery] string? entityType,
         [FromQuery] VisibilityLevel? visibility,
-        CancellationToken cancellationToken)
+        [FromQuery] string? search,
+        [FromQuery] int? page,
+        [FromQuery] int pageSize = 20,
+        CancellationToken cancellationToken = default)
     {
-        var userId = _currentUserService.UserId;
-        if (userId == null)
-            return Unauthorized();
-
-        // Check campaign membership
-        var membership = await GetCampaignMembershipAsync(campaignId, userId.Value, cancellationToken);
-        if (membership == null)
-            return NotFound("Campaign not found or you are not a member");
-
-        var query = _dbContext.LoreEntities
-            .Where(e => e.CampaignId == campaignId && e.DeletedAt == null);
-
-        // Filter by entity type if provided
-        if (!string.IsNullOrEmpty(entityType))
-        {
-            query = query.Where(e => e.EntityType == entityType.ToLowerInvariant());
-        }
-
-        // Filter by visibility if provided
-        if (visibility.HasValue)
-        {
-            query = query.Where(e => e.Visibility == visibility.Value);
-        }
-
-        var entities = await query.ToListAsync(cancellationToken);
-
-        // Filter based on visibility rules
-        var visibleEntities = entities
-            .Where(e => e.CanBeReadBy(userId.Value, true, membership.IsMaster))
-            .Select(e => MapToDto(e))
-            .ToList();
-
-        return Ok(visibleEntities);
+        var query = new GetCampaignEntitiesQuery(
+            campaignId, 
+            entityType, 
+            visibility, 
+            search,
+            page, 
+            pageSize);
+        var result = await _mediator.Send(query, cancellationToken);
+        return Ok(result);
     }
 
     /// <summary>
-    /// Get an entity by ID
+    /// Get an entity by ID.
     /// </summary>
+    /// <param name="campaignId">The campaign ID.</param>
+    /// <param name="id">The entity ID.</param>
+    /// <param name="cancellationToken">Cancellation token.</param>
     [HttpGet("{id:guid}")]
     [ProducesResponseType(typeof(LoreEntityDto), StatusCodes.Status200OK)]
     [ProducesResponseType(StatusCodes.Status404NotFound)]
@@ -89,29 +76,17 @@ public class EntitiesController : ControllerBase
         Guid id,
         CancellationToken cancellationToken)
     {
-        var userId = _currentUserService.UserId;
-        if (userId == null)
-            return Unauthorized();
-
-        var membership = await GetCampaignMembershipAsync(campaignId, userId.Value, cancellationToken);
-        if (membership == null)
-            return NotFound("Campaign not found or you are not a member");
-
-        var entity = await _dbContext.LoreEntities
-            .FirstOrDefaultAsync(e => e.Id == id && e.CampaignId == campaignId && e.DeletedAt == null, cancellationToken);
-
-        if (entity == null)
-            return NotFound();
-
-        if (!entity.CanBeReadBy(userId.Value, true, membership.IsMaster))
-            return Forbid();
-
-        return Ok(MapToDto(entity));
+        var query = new GetLoreEntityByIdQuery(campaignId, id);
+        var result = await _mediator.Send(query, cancellationToken);
+        return Ok(result);
     }
 
     /// <summary>
-    /// Create a new lore entity
+    /// Create a new lore entity.
     /// </summary>
+    /// <param name="campaignId">The campaign ID.</param>
+    /// <param name="request">The creation request.</param>
+    /// <param name="cancellationToken">Cancellation token.</param>
     [HttpPost]
     [ProducesResponseType(typeof(LoreEntityDto), StatusCodes.Status201Created)]
     [ProducesResponseType(StatusCodes.Status400BadRequest)]
@@ -121,67 +96,30 @@ public class EntitiesController : ControllerBase
         [FromBody] CreateLoreEntityRequest request,
         CancellationToken cancellationToken)
     {
-        var userId = _currentUserService.UserId;
-        if (userId == null)
-            return Unauthorized();
-
-        var membership = await GetCampaignMembershipAsync(campaignId, userId.Value, cancellationToken);
-        if (membership == null)
-            return NotFound("Campaign not found or you are not a member");
-
-        // Determine ownership type based on role and request
-        var ownershipType = request.OwnershipType ?? (membership.IsMaster ? OwnershipType.Master : OwnershipType.Player);
-        
-        // Players can only create player-owned entities
-        if (!membership.IsMaster && ownershipType != OwnershipType.Player)
-            return Forbid("Players can only create player-owned entities");
-
-        // Parse visibility
-        var visibility = request.Visibility ?? VisibilityLevel.Campaign;
-
-        // Parse attributes and metadata from request
-        JsonDocument? attributes = null;
-        JsonDocument? metadata = null;
-
-        if (request.Attributes != null)
-        {
-            attributes = JsonDocument.Parse(JsonSerializer.Serialize(request.Attributes));
-        }
-
-        if (request.Metadata != null)
-        {
-            metadata = JsonDocument.Parse(JsonSerializer.Serialize(request.Metadata));
-        }
-
-        var entity = LoreEntity.Create(
-            campaignId: campaignId,
-            ownerId: userId.Value,
-            entityType: request.EntityType,
-            name: request.Name,
-            description: request.Description,
-            ownershipType: ownershipType,
-            visibility: visibility,
-            isTemplate: request.IsTemplate ?? false,
-            imageUrl: request.ImageUrl,
-            attributes: attributes,
-            metadata: metadata
+        var command = new CreateLoreEntityCommand(
+            CampaignId: campaignId,
+            EntityType: request.EntityType,
+            Name: request.Name,
+            Description: request.Description,
+            OwnershipType: request.OwnershipType,
+            Visibility: request.Visibility,
+            IsTemplate: request.IsTemplate,
+            ImageUrl: request.ImageUrl,
+            Attributes: request.Attributes,
+            Metadata: request.Metadata
         );
-
-        _dbContext.LoreEntities.Add(entity);
-        await _unitOfWork.SaveChangesAsync(cancellationToken);
-
-        _logger.LogInformation("LoreEntity {EntityId} created by user {UserId} in campaign {CampaignId}", 
-            entity.Id, userId, campaignId);
-
-        return CreatedAtAction(
-            nameof(GetById),
-            new { campaignId, id = entity.Id },
-            MapToDto(entity));
+        
+        var result = await _mediator.Send(command, cancellationToken);
+        return CreatedAtAction(nameof(GetById), new { campaignId, id = result.Id }, result);
     }
 
     /// <summary>
-    /// Update a lore entity
+    /// Update a lore entity.
     /// </summary>
+    /// <param name="campaignId">The campaign ID.</param>
+    /// <param name="id">The entity ID.</param>
+    /// <param name="request">The update request.</param>
+    /// <param name="cancellationToken">Cancellation token.</param>
     [HttpPut("{id:guid}")]
     [ProducesResponseType(typeof(LoreEntityDto), StatusCodes.Status200OK)]
     [ProducesResponseType(StatusCodes.Status404NotFound)]
@@ -192,56 +130,27 @@ public class EntitiesController : ControllerBase
         [FromBody] UpdateLoreEntityRequest request,
         CancellationToken cancellationToken)
     {
-        var userId = _currentUserService.UserId;
-        if (userId == null)
-            return Unauthorized();
-
-        var membership = await GetCampaignMembershipAsync(campaignId, userId.Value, cancellationToken);
-        if (membership == null)
-            return NotFound("Campaign not found or you are not a member");
-
-        var entity = await _dbContext.LoreEntities
-            .FirstOrDefaultAsync(e => e.Id == id && e.CampaignId == campaignId && e.DeletedAt == null, cancellationToken);
-
-        if (entity == null)
-            return NotFound();
-
-        if (!entity.CanBeWrittenBy(userId.Value, membership.IsMaster))
-            return Forbid("You don't have permission to edit this entity");
-
-        // Parse attributes and metadata
-        JsonDocument? attributes = null;
-        JsonDocument? metadata = null;
-
-        if (request.Attributes != null)
-        {
-            attributes = JsonDocument.Parse(JsonSerializer.Serialize(request.Attributes));
-        }
-
-        if (request.Metadata != null)
-        {
-            metadata = JsonDocument.Parse(JsonSerializer.Serialize(request.Metadata));
-        }
-
-        entity.Update(
-            name: request.Name,
-            description: request.Description,
-            visibility: request.Visibility,
-            imageUrl: request.ImageUrl,
-            attributes: attributes,
-            metadata: metadata
+        var command = new UpdateLoreEntityCommand(
+            CampaignId: campaignId,
+            EntityId: id,
+            Name: request.Name,
+            Description: request.Description,
+            Visibility: request.Visibility,
+            ImageUrl: request.ImageUrl,
+            Attributes: request.Attributes,
+            Metadata: request.Metadata
         );
-
-        await _unitOfWork.SaveChangesAsync(cancellationToken);
-
-        _logger.LogInformation("LoreEntity {EntityId} updated by user {UserId}", id, userId);
-
-        return Ok(MapToDto(entity));
+        
+        var result = await _mediator.Send(command, cancellationToken);
+        return Ok(result);
     }
 
     /// <summary>
-    /// Delete a lore entity (soft delete)
+    /// Delete a lore entity (soft delete).
     /// </summary>
+    /// <param name="campaignId">The campaign ID.</param>
+    /// <param name="id">The entity ID.</param>
+    /// <param name="cancellationToken">Cancellation token.</param>
     [HttpDelete("{id:guid}")]
     [ProducesResponseType(StatusCodes.Status204NoContent)]
     [ProducesResponseType(StatusCodes.Status404NotFound)]
@@ -251,34 +160,17 @@ public class EntitiesController : ControllerBase
         Guid id,
         CancellationToken cancellationToken)
     {
-        var userId = _currentUserService.UserId;
-        if (userId == null)
-            return Unauthorized();
-
-        var membership = await GetCampaignMembershipAsync(campaignId, userId.Value, cancellationToken);
-        if (membership == null)
-            return NotFound("Campaign not found or you are not a member");
-
-        var entity = await _dbContext.LoreEntities
-            .FirstOrDefaultAsync(e => e.Id == id && e.CampaignId == campaignId && e.DeletedAt == null, cancellationToken);
-
-        if (entity == null)
-            return NotFound();
-
-        if (!entity.CanBeWrittenBy(userId.Value, membership.IsMaster))
-            return Forbid("You don't have permission to delete this entity");
-
-        entity.SoftDelete();
-        await _unitOfWork.SaveChangesAsync(cancellationToken);
-
-        _logger.LogInformation("LoreEntity {EntityId} deleted by user {UserId}", id, userId);
-
+        await _mediator.Send(new DeleteLoreEntityCommand(campaignId, id), cancellationToken);
         return NoContent();
     }
 
     /// <summary>
-    /// Change entity visibility
+    /// Change entity visibility.
     /// </summary>
+    /// <param name="campaignId">The campaign ID.</param>
+    /// <param name="id">The entity ID.</param>
+    /// <param name="request">The visibility change request.</param>
+    /// <param name="cancellationToken">Cancellation token.</param>
     [HttpPatch("{id:guid}/visibility")]
     [ProducesResponseType(typeof(LoreEntityDto), StatusCodes.Status200OK)]
     [ProducesResponseType(StatusCodes.Status404NotFound)]
@@ -289,90 +181,45 @@ public class EntitiesController : ControllerBase
         [FromBody] ChangeVisibilityRequest request,
         CancellationToken cancellationToken)
     {
-        var userId = _currentUserService.UserId;
-        if (userId == null)
-            return Unauthorized();
-
-        var membership = await GetCampaignMembershipAsync(campaignId, userId.Value, cancellationToken);
-        if (membership == null)
-            return NotFound("Campaign not found or you are not a member");
-
-        var entity = await _dbContext.LoreEntities
-            .FirstOrDefaultAsync(e => e.Id == id && e.CampaignId == campaignId && e.DeletedAt == null, cancellationToken);
-
-        if (entity == null)
-            return NotFound();
-
-        if (!entity.CanBeWrittenBy(userId.Value, membership.IsMaster))
-            return Forbid("You don't have permission to change visibility");
-
-        entity.ChangeVisibility(request.Visibility);
-        await _unitOfWork.SaveChangesAsync(cancellationToken);
-
-        return Ok(MapToDto(entity));
+        var command = new ChangeEntityVisibilityCommand(campaignId, id, request.Visibility);
+        var result = await _mediator.Send(command, cancellationToken);
+        return Ok(result);
     }
 
-    private async Task<CampaignMember?> GetCampaignMembershipAsync(
-        Guid campaignId, 
-        Guid userId, 
+    /// <summary>
+    /// Transfer entity ownership to another campaign member.
+    /// Only the campaign master can transfer entity ownership.
+    /// </summary>
+    /// <param name="campaignId">The campaign ID.</param>
+    /// <param name="id">The entity ID.</param>
+    /// <param name="request">The transfer ownership request.</param>
+    /// <param name="cancellationToken">Cancellation token.</param>
+    [HttpPatch("{id:guid}/owner")]
+    [ProducesResponseType(typeof(LoreEntityDto), StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status404NotFound)]
+    [ProducesResponseType(StatusCodes.Status403Forbidden)]
+    [ProducesResponseType(StatusCodes.Status400BadRequest)]
+    public async Task<ActionResult<LoreEntityDto>> TransferOwnership(
+        Guid campaignId,
+        Guid id,
+        [FromBody] TransferOwnershipRequest request,
         CancellationToken cancellationToken)
     {
-        return await _dbContext.CampaignMembers
-            .Include(cm => cm.Campaign)
-            .FirstOrDefaultAsync(cm => 
-                cm.CampaignId == campaignId && 
-                cm.UserId == userId && 
-                cm.Campaign.DeletedAt == null, 
-                cancellationToken);
-    }
-
-    private static LoreEntityDto MapToDto(LoreEntity entity)
-    {
-        return new LoreEntityDto
-        {
-            Id = entity.Id,
-            CampaignId = entity.CampaignId,
-            OwnerId = entity.OwnerId,
-            EntityType = entity.EntityType,
-            Name = entity.Name,
-            Description = entity.Description,
-            OwnershipType = entity.OwnershipType,
-            Visibility = entity.Visibility,
-            IsTemplate = entity.IsTemplate,
-            ImageUrl = entity.ImageUrl,
-            Attributes = DeserializeJsonDocument(entity.Attributes),
-            Metadata = DeserializeJsonDocument(entity.Metadata),
-            CreatedAt = entity.CreatedAt,
-            UpdatedAt = entity.UpdatedAt
-        };
-    }
-
-    private static Dictionary<string, object>? DeserializeJsonDocument(JsonDocument? doc)
-    {
-        if (doc == null) return null;
-        return JsonSerializer.Deserialize<Dictionary<string, object>>(doc.RootElement.GetRawText());
+        var command = new TransferEntityOwnershipCommand(
+            campaignId, 
+            id, 
+            request.NewOwnerId, 
+            request.NewOwnershipType);
+        var result = await _mediator.Send(command, cancellationToken);
+        return Ok(result);
     }
 }
 
-// DTOs
-public record LoreEntityDto
-{
-    public Guid Id { get; init; }
-    public Guid CampaignId { get; init; }
-    public Guid OwnerId { get; init; }
-    public string EntityType { get; init; } = null!;
-    public string Name { get; init; } = null!;
-    public string? Description { get; init; }
-    public OwnershipType OwnershipType { get; init; }
-    public VisibilityLevel Visibility { get; init; }
-    public bool IsTemplate { get; init; }
-    public string? ImageUrl { get; init; }
-    public Dictionary<string, object>? Attributes { get; init; }
-    public Dictionary<string, object>? Metadata { get; init; }
-    public DateTime CreatedAt { get; init; }
-    public DateTime? UpdatedAt { get; init; }
-}
+#region Request DTOs
 
+/// <summary>
+/// Request to create a new lore entity.
+/// </summary>
 public record CreateLoreEntityRequest
 {
     public string EntityType { get; init; } = null!;
@@ -386,6 +233,9 @@ public record CreateLoreEntityRequest
     public Dictionary<string, object>? Metadata { get; init; }
 }
 
+/// <summary>
+/// Request to update a lore entity.
+/// </summary>
 public record UpdateLoreEntityRequest
 {
     public string Name { get; init; } = null!;
@@ -396,7 +246,28 @@ public record UpdateLoreEntityRequest
     public Dictionary<string, object>? Metadata { get; init; }
 }
 
+/// <summary>
+/// Request to change entity visibility.
+/// </summary>
 public record ChangeVisibilityRequest
 {
     public VisibilityLevel Visibility { get; init; }
 }
+
+/// <summary>
+/// Request to transfer entity ownership to another campaign member.
+/// </summary>
+public record TransferOwnershipRequest
+{
+    /// <summary>
+    /// The ID of the new owner (must be a campaign member).
+    /// </summary>
+    public Guid NewOwnerId { get; init; }
+    
+    /// <summary>
+    /// Optional new ownership type. If not specified, defaults based on new owner's role.
+    /// </summary>
+    public OwnershipType? NewOwnershipType { get; init; }
+}
+
+#endregion

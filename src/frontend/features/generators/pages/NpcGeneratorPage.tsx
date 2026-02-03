@@ -6,9 +6,11 @@
 
 import React, { useState } from 'react';
 import { TerminalLayout } from '@shared/components/layout';
-import { Button } from '@shared/components/ui';
+import { Button, ImageSourceSelector, DynamicStatsPanel } from '@shared/components/ui';
+import type { ImageSourceMode } from '@shared/components/ui';
 import { aiService, entityService } from '@core/services/api';
 import { useCampaign } from '@core/context';
+import { parseJsonResponse } from '@core/utils';
 import type { NpcData } from '@core/types';
 
 interface NpcGeneratorPageProps {
@@ -77,6 +79,11 @@ export const NpcGeneratorPage: React.FC<NpcGeneratorPageProps> = ({ onBack }) =>
     setting: 'space-station'
   });
 
+  /** Image source mode state */
+  const [imageMode, setImageMode] = useState<ImageSourceMode>('generate');
+  /** Uploaded image data (base64) */
+  const [uploadedImageData, setUploadedImageData] = useState<string | null>(null);
+
   /**
    * Adds a log entry to the terminal display
    */
@@ -99,26 +106,43 @@ export const NpcGeneratorPage: React.FC<NpcGeneratorPageProps> = ({ onBack }) =>
     try {
       addLog('CONSTRUYENDO IDENTIDAD...');
       
+      // Only request AI image generation if mode is 'generate'
+      const shouldGenerateImage = imageMode === 'generate';
+      
       const result = await aiService.generateNpc({
+        gameSystemId: activeCampaign?.gameSystemId,
         species: form.species,
         occupation: form.occupation,
         personality: form.personality,
-        setting: form.setting
+        setting: form.setting,
+        generateImage: shouldGenerateImage
       });
 
-      const npcData = JSON.parse(result.npcJson) as NpcData;
+      const npcData = parseJsonResponse<NpcData>(result.npcJson);
       setGeneratedNpc(npcData);
       addLog(`ACTOR REGISTRADO: ${npcData.name.toUpperCase()}`);
 
-      addLog('GENERANDO REPRESENTACION VISUAL...');
-      if (result.imageBase64) {
-        setNpcImage(`data:image/png;base64,${result.imageBase64}`);
-        addLog('SINTESIS VISUAL COMPLETA.');
-      } else if (result.imageUrl) {
-        setNpcImage(result.imageUrl);
-        addLog('SINTESIS VISUAL COMPLETA.');
+      // Handle image based on selected mode
+      if (imageMode === 'upload' && uploadedImageData) {
+        // Use uploaded image
+        setNpcImage(`data:image/png;base64,${uploadedImageData}`);
+        addLog('USANDO IMAGEN CARGADA.');
+      } else if (imageMode === 'generate') {
+        addLog('GENERANDO REPRESENTACION VISUAL...');
+        if (result.imageBase64) {
+          setNpcImage(`data:image/png;base64,${result.imageBase64}`);
+          addLog('SINTESIS VISUAL COMPLETA.');
+        } else if (result.imageUrl) {
+          setNpcImage(result.imageUrl);
+          addLog('SINTESIS VISUAL COMPLETA.');
+        } else {
+          addLog('ADVERTENCIA: RENDER VISUAL FALLIDO. USANDO PLACEHOLDER.');
+          setNpcImage(UNKNOWN_NPC_IMAGE);
+        }
       } else {
-        addLog('ADVERTENCIA: RENDER VISUAL FALLIDO. USANDO PLACEHOLDER.');
+        // Mode is 'none' - use placeholder
+        addLog('GENERACION DE IMAGEN OMITIDA.');
+        setNpcImage(UNKNOWN_NPC_IMAGE);
       }
       
       addLog('PERFIL COMPLETADO CON EXITO.');
@@ -234,6 +258,15 @@ export const NpcGeneratorPage: React.FC<NpcGeneratorPageProps> = ({ onBack }) =>
                 ))}
               </select>
             </div>
+
+            {/* Image Source Selector */}
+            <ImageSourceSelector
+              mode={imageMode}
+              onModeChange={setImageMode}
+              onImageUpload={setUploadedImageData}
+              uploadedImage={uploadedImageData}
+              disabled={isGenerating}
+            />
           </div>
 
           {/* Action Buttons */}
@@ -256,7 +289,7 @@ export const NpcGeneratorPage: React.FC<NpcGeneratorPageProps> = ({ onBack }) =>
               isLoading={isSaving}
               icon="save"
             >
-              GUARDAR_NUCLEO
+              GUARDAR_ENTIDAD
             </Button>
           </div>
         </div>
@@ -283,7 +316,7 @@ export const NpcGeneratorPage: React.FC<NpcGeneratorPageProps> = ({ onBack }) =>
             <div className={`absolute bottom-0 left-0 right-0 z-10 bg-black/80 p-3 border-t border-primary/40 backdrop-blur-sm transition-transform duration-500 ${generatedNpc ? 'translate-y-0' : 'translate-y-full'}`}>
               <p className="font-bold text-primary text-sm uppercase mb-1">{generatedNpc?.name}</p>
               <p className="text-[8px] text-white/60 uppercase mb-1">{generatedNpc?.occupation}</p>
-              <p className="text-[9px] text-white/80 line-clamp-2 leading-tight font-mono">{generatedNpc?.background}</p>
+              <p className="text-[9px] text-white/80 leading-tight font-mono">{generatedNpc?.background}</p>
             </div>
             {!generatedNpc && !isGenerating && (
               <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
@@ -297,21 +330,14 @@ export const NpcGeneratorPage: React.FC<NpcGeneratorPageProps> = ({ onBack }) =>
             {logs.map((log, i) => <p key={i} className={i === logs.length - 1 ? "text-primary font-bold" : "opacity-60"}>{log}</p>)}
           </div>
 
-          {/* Stats Panel */}
-          <div className="grid grid-cols-3 gap-2">
-            {[
-              { label: 'CHA', val: generatedNpc?.stats?.CHA || '--', desc: 'Carisma' },
-              { label: 'INT', val: generatedNpc?.stats?.INT || '--', desc: 'Intelecto' },
-              { label: 'WIS', val: generatedNpc?.stats?.WIS || '--', desc: 'Sabiduria' }
-            ].map(stat => (
-              <div key={stat.label} className="bg-surface-dark border border-primary/20 p-2 text-center relative overflow-hidden group">
-                <p className="text-[9px] text-primary/40 uppercase mb-1">{stat.label}</p>
-                <p className="text-lg font-bold text-primary font-mono">{stat.val}</p>
-                <div className="absolute bottom-0 left-0 h-0.5 bg-primary/20" style={{ width: stat.val !== '--' ? `${stat.val}%` : '0%' }}></div>
-                <span className="absolute top-1 right-1 text-[6px] text-primary/30 opacity-0 group-hover:opacity-100 transition-opacity">{stat.desc}</span>
-              </div>
-            ))}
-          </div>
+          {/* Stats Panel - Dynamic based on game system */}
+          <DynamicStatsPanel 
+            stats={generatedNpc?.stats} 
+            variant="primary"
+            maxColumns={3}
+            showProgressBar={true}
+            maxProgressValue={10}
+          />
         </div>
       </div>
     </TerminalLayout>

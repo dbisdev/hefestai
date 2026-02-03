@@ -6,9 +6,11 @@
 
 import React, { useState } from 'react';
 import { TerminalLayout } from '@shared/components/layout';
-import { Button } from '@shared/components/ui';
+import { Button, ImageSourceSelector, DynamicStatsPanel } from '@shared/components/ui';
+import type { ImageSourceMode } from '@shared/components/ui';
 import { aiService, entityService } from '@core/services/api';
 import { useCampaign } from '@core/context';
+import { parseJsonResponse } from '@core/utils';
 import type { CharacterData } from '@core/types';
 
 interface CharacterGeneratorPageProps {
@@ -20,17 +22,21 @@ const UNKNOWN_CHAR_IMAGE = "https://images.unsplash.com/photo-1518020382113-a7e8
 const SPECIES_OPTIONS = [
   { value: '', label: 'Seleccionar Genotipo...' },
   { value: 'human', label: 'Humano' },
-  { value: 'android', label: 'Androide' },
-  { value: 'xenomorph', label: 'Xenomorfo' },
+  { value: 'android', label: 'Sintético' },  
   { value: 'cyber-enhanced', label: 'Cyber-Aumentado' },
 ];
 
 const ROLE_OPTIONS = [
   { value: '', label: 'Seleccionar Función...' },
-  { value: 'operative', label: 'Operativo' },
-  { value: 'hacker', label: 'Netrunner' },
-  { value: 'medic', label: 'Médico de Combate' },
-  { value: 'bounty-hunter', label: 'Caza-Recompensas' },
+  { value: 'marine', label: 'Colonial Marine' },
+  { value: 'marshal', label: 'Colonial Marshal' },
+  { value: 'agent', label: 'Company Agent' },
+  { value: 'kid', label: 'Kid' },
+  { value: 'medic', label: 'Medic' },
+  { value: 'officer', label: 'Officer' },
+  { value: 'pilot', label: 'Pilot' },
+  { value: 'roughneck', label: 'Roughneck' },
+  { value: 'scientist', label: 'Scientist' },
 ];
 
 const MORPHOLOGY_OPTIONS = ['MASCULINE', 'FEMININE', 'NEUTRAL'] as const;
@@ -55,6 +61,11 @@ export const CharacterGeneratorPage: React.FC<CharacterGeneratorPageProps> = ({ 
     attire: 'Techwear'
   });
 
+  /** Image source mode state */
+  const [imageMode, setImageMode] = useState<ImageSourceMode>('generate');
+  /** Uploaded image data (base64) */
+  const [uploadedImageData, setUploadedImageData] = useState<string | null>(null);
+
   /**
    * Adds a log entry to the terminal display
    */
@@ -77,26 +88,43 @@ export const CharacterGeneratorPage: React.FC<CharacterGeneratorPageProps> = ({ 
     try {
       addLog('FETCHING NEURAL BIOMETRICS...');
       
+      // Only request AI image generation if mode is 'generate'
+      const shouldGenerateImage = imageMode === 'generate';
+      
       const result = await aiService.generateCharacter({
+        gameSystemId: activeCampaign?.gameSystemId,
         species: form.species,
         role: form.role,
         morphology: form.morphology,
-        attire: form.attire
+        attire: form.attire,
+        generateImage: shouldGenerateImage
       });
 
-      const charData = JSON.parse(result.characterJson) as CharacterData;
+      const charData = parseJsonResponse<CharacterData>(result.characterJson);
       setGeneratedChar(charData);
       addLog(`DATA RECEIVED: ${charData.name.toUpperCase()}`);
 
-      addLog('GENERATING VISUAL REPRESENTATION...');
-      if (result.imageBase64) {
-        setCharImage(`data:image/png;base64,${result.imageBase64}`);
-        addLog('VISUAL SYNTHESIS COMPLETE.');
-      } else if (result.imageUrl) {
-        setCharImage(result.imageUrl);
-        addLog('VISUAL SYNTHESIS COMPLETE.');
+      // Handle image based on selected mode
+      if (imageMode === 'upload' && uploadedImageData) {
+        // Use uploaded image
+        setCharImage(`data:image/png;base64,${uploadedImageData}`);
+        addLog('USING UPLOADED IMAGE.');
+      } else if (imageMode === 'generate') {
+        addLog('GENERATING VISUAL REPRESENTATION...');
+        if (result.imageBase64) {
+          setCharImage(`data:image/png;base64,${result.imageBase64}`);
+          addLog('VISUAL SYNTHESIS COMPLETE.');
+        } else if (result.imageUrl) {
+          setCharImage(result.imageUrl);
+          addLog('VISUAL SYNTHESIS COMPLETE.');
+        } else {
+          addLog('WARNING: VISUAL RENDER FAILED. USING PLACEHOLDER.');
+          setCharImage(UNKNOWN_CHAR_IMAGE);
+        }
       } else {
-        addLog('WARNING: VISUAL RENDER FAILED. USING PLACEHOLDER.');
+        // Mode is 'none' - use placeholder
+        addLog('IMAGE GENERATION SKIPPED.');
+        setCharImage(UNKNOWN_CHAR_IMAGE);
       }
       
       addLog(`SYNTHESIS SUCCESSFUL.`);
@@ -222,6 +250,15 @@ export const CharacterGeneratorPage: React.FC<CharacterGeneratorPageProps> = ({ 
                 ))}
               </div>
             </div>
+
+            {/* Image Source Selector */}
+            <ImageSourceSelector
+              mode={imageMode}
+              onModeChange={setImageMode}
+              onImageUpload={setUploadedImageData}
+              uploadedImage={uploadedImageData}
+              disabled={isGenerating}
+            />
           </div>
 
           {/* Action Buttons */}
@@ -244,7 +281,7 @@ export const CharacterGeneratorPage: React.FC<CharacterGeneratorPageProps> = ({ 
               isLoading={isSaving}
               icon="save"
             >
-              GUARDAR_NUCLEO
+              GUARDAR_ENTIDAD
             </Button>
           </div>
         </div>
@@ -270,7 +307,7 @@ export const CharacterGeneratorPage: React.FC<CharacterGeneratorPageProps> = ({ 
             </div>
             <div className={`absolute bottom-0 left-0 right-0 z-10 bg-black/80 p-3 border-t border-primary/40 backdrop-blur-sm transition-transform duration-500 ${generatedChar ? 'translate-y-0' : 'translate-y-full'}`}>
               <p className="font-bold text-primary text-sm uppercase mb-1">{generatedChar?.name}</p>
-              <p className="text-[9px] text-white/80 line-clamp-3 leading-tight font-mono">{generatedChar?.bio}</p>
+              <p className="text-[9px] text-white/80 leading-tight font-mono">{generatedChar?.bio}</p>
             </div>
             {!generatedChar && !isGenerating && (
               <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
@@ -284,20 +321,14 @@ export const CharacterGeneratorPage: React.FC<CharacterGeneratorPageProps> = ({ 
             {logs.map((log, i) => <p key={i} className={i === logs.length - 1 ? "text-primary font-bold" : "opacity-60"}>{log}</p>)}
           </div>
 
-          {/* Stats Panel */}
-          <div className="grid grid-cols-3 gap-2">
-            {[
-              { label: 'STR', val: generatedChar?.stats?.STR || '--' },
-              { label: 'INT', val: generatedChar?.stats?.INT || '--' },
-              { label: 'DEX', val: generatedChar?.stats?.DEX || '--' }
-            ].map(stat => (
-              <div key={stat.label} className="bg-surface-dark border border-primary/20 p-2 text-center relative overflow-hidden">
-                <p className="text-[9px] text-primary/40 uppercase mb-1">{stat.label}</p>
-                <p className="text-lg font-bold text-primary font-mono">{stat.val}</p>
-                <div className="absolute bottom-0 left-0 h-0.5 bg-primary/20" style={{ width: stat.val !== '--' ? `${stat.val}%` : '0%' }}></div>
-              </div>
-            ))}
-          </div>
+          {/* Stats Panel - Dynamic based on game system */}
+          <DynamicStatsPanel 
+            stats={generatedChar?.stats} 
+            variant="primary"
+            maxColumns={3}
+            showProgressBar={true}
+            maxProgressValue={10}
+          />
         </div>
       </div>
     </TerminalLayout>

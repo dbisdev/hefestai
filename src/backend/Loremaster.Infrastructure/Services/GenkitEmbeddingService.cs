@@ -62,6 +62,9 @@ public class GenkitEmbeddingService : IEmbeddingService
             throw new ArgumentException("Text cannot be empty", nameof(text));
 
         var result = await GetEmbeddingsAsync(new[] { text }, cancellationToken);
+        _logger.LogInformation(
+            "GetEmbeddingAsync returned embedding with {Dimensions} dimensions from model {Model}",
+            result.Embeddings[0].Length, result.Model);
         return result.Embeddings[0];
     }
 

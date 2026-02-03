@@ -16,12 +16,21 @@ public interface IDocumentRepository
     /// <summary>
     /// Semantic search using pgvector cosine distance
     /// </summary>
+    /// <param name="queryEmbedding">The embedding vector for the search query.</param>
+    /// <param name="ownerId">The owner ID to filter documents.</param>
+    /// <param name="limit">Maximum number of results to return.</param>
+    /// <param name="threshold">Minimum similarity threshold (0.0 to 1.0).</param>
+    /// <param name="projectId">Optional project ID to filter documents.</param>
+    /// <param name="gameSystemId">Optional game system ID to filter documents (for RAG on manuals).</param>
+    /// <param name="cancellationToken">Cancellation token.</param>
+    /// <returns>List of documents with similarity scores.</returns>
     Task<IReadOnlyList<DocumentSearchResult>> SemanticSearchAsync(
         float[] queryEmbedding,
         Guid ownerId,
         int limit = 5,
         float threshold = 0.7f,
         Guid? projectId = null,
+        Guid? gameSystemId = null,
         CancellationToken cancellationToken = default);
     
     Task<Document> AddAsync(Document document, CancellationToken cancellationToken = default);
@@ -39,6 +48,30 @@ public interface IDocumentRepository
         Guid ownerId,
         int limit = 10,
         CancellationToken cancellationToken = default);
+    
+    /// <summary>
+    /// Get a parent document (manual) with its chunk count.
+    /// </summary>
+    /// <param name="manualId">The parent document ID.</param>
+    /// <param name="ownerId">The owner ID for authorization.</param>
+    /// <param name="cancellationToken">Cancellation token.</param>
+    /// <returns>The manual with chunk count, or null if not found.</returns>
+    Task<ManualWithChunkCount?> GetManualWithChunkCountAsync(
+        Guid manualId,
+        Guid ownerId,
+        CancellationToken cancellationToken = default);
+    
+    /// <summary>
+    /// Get all parent documents (manuals) for a game system with chunk counts.
+    /// </summary>
+    /// <param name="gameSystemId">The game system ID.</param>
+    /// <param name="ownerId">The owner ID for authorization.</param>
+    /// <param name="cancellationToken">Cancellation token.</param>
+    /// <returns>List of manuals with chunk counts.</returns>
+    Task<IReadOnlyList<ManualWithChunkCount>> GetManualsByGameSystemIdAsync(
+        Guid gameSystemId,
+        Guid ownerId,
+        CancellationToken cancellationToken = default);
 }
 
 /// <summary>
@@ -47,3 +80,10 @@ public interface IDocumentRepository
 public record DocumentSearchResult(
     Document Document,
     float SimilarityScore);
+
+/// <summary>
+/// Result containing a manual (parent document) with its chunk count.
+/// </summary>
+public record ManualWithChunkCount(
+    Document Manual,
+    int ChunkCount);

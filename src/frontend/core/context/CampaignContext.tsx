@@ -7,7 +7,7 @@
 import React, { createContext, useContext, useState, useEffect, useCallback, useMemo } from 'react';
 import { campaignService } from '../services/api';
 import { useAuth } from './AuthContext';
-import type { Campaign, CampaignDetail, CampaignRole } from '../types';
+import type { Campaign, CampaignDetail, CampaignRole, UpdateCampaignInput, UpdateCampaignStatusInput } from '../types';
 
 interface CampaignState {
   /** List of all campaigns the user is a member of */
@@ -35,6 +35,12 @@ interface CampaignContextValue extends CampaignState {
   leaveCampaign: (campaignId: string) => Promise<void>;
   /** Delete a campaign */
   deleteCampaign: (campaignId: string) => Promise<void>;
+  /** Update campaign details (Master only) */
+  updateCampaign: (campaignId: string, input: UpdateCampaignInput) => Promise<CampaignDetail>;
+  /** Update campaign status - activate/deactivate (Master only) */
+  updateCampaignStatus: (campaignId: string, isActive: boolean) => Promise<void>;
+  /** Regenerate campaign join code (Master only) */
+  regenerateJoinCode: (campaignId: string) => Promise<string>;
   /** Clear any error message */
   clearError: () => void;
   /** Check if user is master of active campaign */
@@ -237,6 +243,92 @@ export const CampaignProvider: React.FC<CampaignProviderProps> = ({ children }) 
   }, [activeCampaign]);
 
   /**
+   * Update campaign details (Master only)
+   */
+  const updateCampaign = useCallback(async (
+    campaignId: string, 
+    input: UpdateCampaignInput
+  ): Promise<CampaignDetail> => {
+    setIsLoading(true);
+    setError(null);
+    try {
+      const updatedCampaign = await campaignService.update(campaignId, input);
+      
+      // Update active campaign if it's the one being updated
+      if (activeCampaign?.id === campaignId) {
+        setActiveCampaign(updatedCampaign);
+      }
+      
+      // Refresh campaigns list
+      const updatedCampaigns = await campaignService.getAll();
+      setCampaigns(updatedCampaigns);
+      
+      return updatedCampaign;
+    } catch (err) {
+      const message = err instanceof Error ? err.message : 'Error al actualizar campaña';
+      setError(message);
+      throw err;
+    } finally {
+      setIsLoading(false);
+    }
+  }, [activeCampaign]);
+
+  /**
+   * Update campaign status - activate or deactivate (Master only)
+   */
+  const updateCampaignStatus = useCallback(async (
+    campaignId: string, 
+    isActive: boolean
+  ): Promise<void> => {
+    setIsLoading(true);
+    setError(null);
+    try {
+      await campaignService.updateStatus(campaignId, { isActive });
+      
+      // Refresh campaign details if it's the active one
+      if (activeCampaign?.id === campaignId) {
+        const details = await campaignService.getById(campaignId);
+        setActiveCampaign(details);
+      }
+      
+      // Refresh campaigns list
+      const updatedCampaigns = await campaignService.getAll();
+      setCampaigns(updatedCampaigns);
+    } catch (err) {
+      const message = err instanceof Error ? err.message : 'Error al cambiar estado de campaña';
+      setError(message);
+      throw err;
+    } finally {
+      setIsLoading(false);
+    }
+  }, [activeCampaign]);
+
+  /**
+   * Regenerate campaign join code (Master only)
+   */
+  const regenerateJoinCode = useCallback(async (campaignId: string): Promise<string> => {
+    setIsLoading(true);
+    setError(null);
+    try {
+      const response = await campaignService.regenerateJoinCode(campaignId);
+      
+      // Refresh campaign details to get new join code
+      if (activeCampaign?.id === campaignId) {
+        const details = await campaignService.getById(campaignId);
+        setActiveCampaign(details);
+      }
+      
+      return response.joinCode;
+    } catch (err) {
+      const message = err instanceof Error ? err.message : 'Error al regenerar código';
+      setError(message);
+      throw err;
+    } finally {
+      setIsLoading(false);
+    }
+  }, [activeCampaign]);
+
+  /**
    * Clear error message
    */
   const clearError = useCallback(() => {
@@ -269,6 +361,9 @@ export const CampaignProvider: React.FC<CampaignProviderProps> = ({ children }) 
     joinCampaign,
     leaveCampaign,
     deleteCampaign,
+    updateCampaign,
+    updateCampaignStatus,
+    regenerateJoinCode,
     clearError,
     isActiveCampaignMaster,
     activeCampaignId,
@@ -284,6 +379,9 @@ export const CampaignProvider: React.FC<CampaignProviderProps> = ({ children }) 
     joinCampaign,
     leaveCampaign,
     deleteCampaign,
+    updateCampaign,
+    updateCampaignStatus,
+    regenerateJoinCode,
     clearError,
     isActiveCampaignMaster,
     activeCampaignId,

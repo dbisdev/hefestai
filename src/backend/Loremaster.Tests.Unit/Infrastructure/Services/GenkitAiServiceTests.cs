@@ -149,13 +149,14 @@ public class GenkitAiServiceTests
         var context = "This is a fantasy world with dragons";
         var expectedResponse = new { message = "In this world...", usage = (object?)null };
 
-        HttpRequestMessage? capturedRequest = null;
+        string? capturedContent = null;
         _httpHandlerMock.Protected()
             .Setup<Task<HttpResponseMessage>>(
                 "SendAsync",
                 ItExpr.IsAny<HttpRequestMessage>(),
                 ItExpr.IsAny<CancellationToken>())
-            .Callback<HttpRequestMessage, CancellationToken>((req, _) => capturedRequest = req)
+            .Callback<HttpRequestMessage, CancellationToken>((req, _) => 
+                capturedContent = req.Content?.ReadAsStringAsync().GetAwaiter().GetResult())
             .ReturnsAsync(new HttpResponseMessage(HttpStatusCode.OK)
             {
                 Content = JsonContent.Create(expectedResponse)
@@ -165,9 +166,8 @@ public class GenkitAiServiceTests
         await _sut.ChatAsync(messages, context);
 
         // Assert
-        capturedRequest.Should().NotBeNull();
-        var content = await capturedRequest!.Content!.ReadAsStringAsync();
-        content.Should().Contain("fantasy world with dragons");
+        capturedContent.Should().NotBeNull();
+        capturedContent.Should().Contain("fantasy world with dragons");
     }
 
     [Fact]
@@ -180,13 +180,14 @@ public class GenkitAiServiceTests
             new(ChatRole.User, "Hello")
         };
 
-        HttpRequestMessage? capturedRequest = null;
+        string? capturedContent = null;
         _httpHandlerMock.Protected()
             .Setup<Task<HttpResponseMessage>>(
                 "SendAsync",
                 ItExpr.IsAny<HttpRequestMessage>(),
                 ItExpr.IsAny<CancellationToken>())
-            .Callback<HttpRequestMessage, CancellationToken>((req, _) => capturedRequest = req)
+            .Callback<HttpRequestMessage, CancellationToken>((req, _) => 
+                capturedContent = req.Content?.ReadAsStringAsync().GetAwaiter().GetResult())
             .ReturnsAsync(new HttpResponseMessage(HttpStatusCode.OK)
             {
                 Content = JsonContent.Create(new { message = "Hi", usage = (object?)null })
@@ -196,9 +197,8 @@ public class GenkitAiServiceTests
         await _sut.ChatAsync(messages);
 
         // Assert
-        var content = await capturedRequest!.Content!.ReadAsStringAsync();
-        content.Should().Contain("\"role\":\"system\"");
-        content.Should().Contain("\"role\":\"user\"");
+        capturedContent.Should().Contain("\"role\":\"system\"");
+        capturedContent.Should().Contain("\"role\":\"user\"");
     }
 
     #endregion
@@ -242,13 +242,14 @@ public class GenkitAiServiceTests
         SummarizeStyle style, string expectedStyleString)
     {
         // Arrange
-        HttpRequestMessage? capturedRequest = null;
+        string? capturedContent = null;
         _httpHandlerMock.Protected()
             .Setup<Task<HttpResponseMessage>>(
                 "SendAsync",
                 ItExpr.IsAny<HttpRequestMessage>(),
                 ItExpr.IsAny<CancellationToken>())
-            .Callback<HttpRequestMessage, CancellationToken>((req, _) => capturedRequest = req)
+            .Callback<HttpRequestMessage, CancellationToken>((req, _) => 
+                capturedContent = req.Content?.ReadAsStringAsync().GetAwaiter().GetResult())
             .ReturnsAsync(new HttpResponseMessage(HttpStatusCode.OK)
             {
                 Content = JsonContent.Create(new
@@ -265,21 +266,21 @@ public class GenkitAiServiceTests
         await _sut.SummarizeAsync("Some text to summarize", style);
 
         // Assert
-        var content = await capturedRequest!.Content!.ReadAsStringAsync();
-        content.Should().Contain($"\"style\":\"{expectedStyleString}\"");
+        capturedContent.Should().Contain($"\"style\":\"{expectedStyleString}\"");
     }
 
     [Fact]
     public async Task SummarizeAsync_WithLanguageParameter_SendsLanguageInRequest()
     {
         // Arrange
-        HttpRequestMessage? capturedRequest = null;
+        string? capturedContent = null;
         _httpHandlerMock.Protected()
             .Setup<Task<HttpResponseMessage>>(
                 "SendAsync",
                 ItExpr.IsAny<HttpRequestMessage>(),
                 ItExpr.IsAny<CancellationToken>())
-            .Callback<HttpRequestMessage, CancellationToken>((req, _) => capturedRequest = req)
+            .Callback<HttpRequestMessage, CancellationToken>((req, _) => 
+                capturedContent = req.Content?.ReadAsStringAsync().GetAwaiter().GetResult())
             .ReturnsAsync(new HttpResponseMessage(HttpStatusCode.OK)
             {
                 Content = JsonContent.Create(new
@@ -296,8 +297,7 @@ public class GenkitAiServiceTests
         await _sut.SummarizeAsync("Texto para resumir", language: "es");
 
         // Assert
-        var content = await capturedRequest!.Content!.ReadAsStringAsync();
-        content.Should().Contain("\"language\":\"es\"");
+        capturedContent.Should().Contain("\"language\":\"es\"");
     }
 
     #endregion
@@ -428,7 +428,7 @@ public class GenkitAiServiceTests
         var exception = await Assert.ThrowsAsync<HttpRequestException>(() =>
             _sut.GenerateTextAsync("Test"));
 
-        exception.Message.Should().Contain("401");
+        exception.Message.Should().Contain("Unauthorized");
     }
 
     [Fact]
@@ -441,7 +441,7 @@ public class GenkitAiServiceTests
         var exception = await Assert.ThrowsAsync<HttpRequestException>(() =>
             _sut.GenerateTextAsync("Test"));
 
-        exception.Message.Should().Contain("403");
+        exception.Message.Should().Contain("Forbidden");
     }
 
     [Fact]
@@ -454,7 +454,7 @@ public class GenkitAiServiceTests
         var exception = await Assert.ThrowsAsync<HttpRequestException>(() =>
             _sut.GenerateTextAsync("Test"));
 
-        exception.Message.Should().Contain("400");
+        exception.Message.Should().Contain("BadRequest");
     }
 
     #endregion

@@ -2,7 +2,6 @@ using System.IdentityModel.Tokens.Jwt;
 using System.Security.Claims;
 using System.Security.Cryptography;
 using System.Text;
-using ClaimTypes = System.Security.Claims.ClaimTypes;
 using Loremaster.Application.Common.Interfaces;
 using Loremaster.Domain.Entities;
 using Microsoft.Extensions.Configuration;
@@ -10,10 +9,20 @@ using Microsoft.IdentityModel.Tokens;
 
 namespace Loremaster.Infrastructure.Identity;
 
+/// <summary>
+/// Generates JWT access tokens and refresh tokens for user authentication.
+/// </summary>
 public class JwtTokenGenerator : IJwtTokenGenerator
 {
     private readonly IConfiguration _configuration;
     private readonly IDateTimeProvider _dateTimeProvider;
+    
+    /// <summary>
+    /// The claim type used for user roles in JWT tokens.
+    /// Using simple "role" instead of ClaimTypes.Role URI for compatibility
+    /// with MapInboundClaims = false configuration.
+    /// </summary>
+    public const string RoleClaimType = "role";
 
     public JwtTokenGenerator(IConfiguration configuration, IDateTimeProvider dateTimeProvider)
     {
@@ -32,7 +41,7 @@ public class JwtTokenGenerator : IJwtTokenGenerator
             new Claim(JwtRegisteredClaimNames.Sub, user.Id.ToString()),
             new Claim(JwtRegisteredClaimNames.Email, user.Email),
             new Claim(JwtRegisteredClaimNames.Jti, Guid.NewGuid().ToString()),
-            new Claim(ClaimTypes.Role, user.Role.ToString()),
+            new Claim(RoleClaimType, user.Role.ToString()),
             new Claim("displayName", user.DisplayName ?? string.Empty)
         };
 

@@ -6,9 +6,11 @@
 
 import React, { useState } from 'react';
 import { TerminalLayout } from '@shared/components/layout';
-import { Button } from '@shared/components/ui';
+import { Button, ImageSourceSelector } from '@shared/components/ui';
+import type { ImageSourceMode } from '@shared/components/ui';
 import { aiService, entityService } from '@core/services/api';
 import { useCampaign } from '@core/context';
+import { parseJsonResponse } from '@core/utils';
 import type { SystemData } from '@core/types';
 
 interface SolarSystemGeneratorPageProps {
@@ -33,22 +35,43 @@ export const SolarSystemGeneratorPage: React.FC<SolarSystemGeneratorPageProps> =
   const [systemData, setSystemData] = useState<SystemData | null>(null);
   const [systemImage, setSystemImage] = useState<string>(SYSTEM_PLACEHOLDER_IMAGE);
 
+  /** Image source mode state */
+  const [imageMode, setImageMode] = useState<ImageSourceMode>('generate');
+  /** Uploaded image data (base64) */
+  const [uploadedImageData, setUploadedImageData] = useState<string | null>(null);
+
   const handleInitialize = async () => {
     setIsInitializing(true);
     setSystemData(null);
     try {
+      // Only request AI image generation if mode is 'generate'
+      const shouldGenerateImage = imageMode === 'generate';
+      
       const result = await aiService.generateSolarSystem({
+        gameSystemId: activeCampaign?.gameSystemId,
         spectralClass,
-        planetCount
+        planetCount,
+        generateImage: shouldGenerateImage
       });
 
-      const data = JSON.parse(result.systemJson) as SystemData;
+      const data = parseJsonResponse<SystemData>(result.systemJson);
       setSystemData(data);
 
-      if (result.imageBase64) {
-        setSystemImage(`data:image/png;base64,${result.imageBase64}`);
-      } else if (result.imageUrl) {
-        setSystemImage(result.imageUrl);
+      // Handle image based on selected mode
+      if (imageMode === 'upload' && uploadedImageData) {
+        // Use uploaded image
+        setSystemImage(`data:image/png;base64,${uploadedImageData}`);
+      } else if (imageMode === 'generate') {
+        if (result.imageBase64) {
+          setSystemImage(`data:image/png;base64,${result.imageBase64}`);
+        } else if (result.imageUrl) {
+          setSystemImage(result.imageUrl);
+        } else {
+          setSystemImage(SYSTEM_PLACEHOLDER_IMAGE);
+        }
+      } else {
+        // Mode is 'none' - use placeholder
+        setSystemImage(SYSTEM_PLACEHOLDER_IMAGE);
       }
 
     } catch (error) {
@@ -147,6 +170,15 @@ export const SolarSystemGeneratorPage: React.FC<SolarSystemGeneratorPageProps> =
               />
             </div>
 
+            {/* Image Source Selector */}
+            <ImageSourceSelector
+              mode={imageMode}
+              onModeChange={setImageMode}
+              onImageUpload={setUploadedImageData}
+              uploadedImage={uploadedImageData}
+              disabled={isInitializing}
+            />
+
             {/* Action Buttons */}
             <div className="mt-auto pt-4 flex flex-col gap-3">
               <Button
@@ -169,7 +201,7 @@ export const SolarSystemGeneratorPage: React.FC<SolarSystemGeneratorPageProps> =
                 isLoading={isSaving}
                 icon="save"
               >
-                GUARDAR_NUCLEO
+                GUARDAR_ENTIDAD
               </Button>
             </div>
           </div>

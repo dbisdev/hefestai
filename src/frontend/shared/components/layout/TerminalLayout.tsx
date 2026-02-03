@@ -5,6 +5,8 @@
 
 import React, { useState } from 'react';
 import DiceRoller from '../../../components/DiceRoller';
+import RuleQuery from '../../../components/RuleQuery';
+import { ManualUploadModal } from '../modals';
 
 interface TerminalLayoutProps {
   children: React.ReactNode;
@@ -12,6 +14,12 @@ interface TerminalLayoutProps {
   subtitle: string;
   onLogout?: () => void;
   actions?: React.ReactNode;
+  /** Optional game system ID for RAG rule queries */
+  gameSystemId?: string;
+  /** Optional game system name for display */
+  gameSystemName?: string;
+  /** Whether the current user is a Master (enables manual upload) */
+  isMaster?: boolean;
 }
 
 export const TerminalLayout: React.FC<TerminalLayoutProps> = ({ 
@@ -19,9 +27,14 @@ export const TerminalLayout: React.FC<TerminalLayoutProps> = ({
   title, 
   subtitle, 
   onLogout, 
-  actions 
+  actions,
+  gameSystemId,
+  gameSystemName,
+  isMaster = false
 }) => {
   const [showDice, setShowDice] = useState(false);
+  const [showRuleQuery, setShowRuleQuery] = useState(false);
+  const [showManualUpload, setShowManualUpload] = useState(false);
 
   return (
     <div className="flex flex-col h-screen p-4 md:p-8 bg-background-dark font-mono relative">
@@ -53,6 +66,27 @@ export const TerminalLayout: React.FC<TerminalLayoutProps> = ({
             <span className="hidden sm:inline">DADOS</span>
           </button>
 
+          <button 
+            onClick={() => setShowRuleQuery(true)}
+            className="flex items-center gap-2 border border-primary/40 px-3 py-1 text-xs uppercase hover:bg-primary/20 transition-all text-primary font-bold"
+            aria-label="Consultar reglas"
+          >
+            <span className="material-icons text-sm">menu_book</span>
+            <span className="hidden sm:inline">REGLAS</span>
+          </button>
+
+          {/* Manual Upload Button (Master only) */}
+          {isMaster && gameSystemId && (
+            <button 
+              onClick={() => setShowManualUpload(true)}
+              className="flex items-center gap-2 border border-cyan-500/40 px-3 py-1 text-xs uppercase hover:bg-cyan-500/20 transition-all text-cyan-500 font-bold"
+              aria-label="Cargar manual RAG"
+            >
+              <span className="material-icons text-sm">upload_file</span>
+              <span className="hidden sm:inline">MANUAL</span>
+            </button>
+          )}
+
           {actions}
           
           {onLogout && (
@@ -82,6 +116,24 @@ export const TerminalLayout: React.FC<TerminalLayoutProps> = ({
       </footer>
 
       {showDice && <DiceRoller onClose={() => setShowDice(false)} />}
+      {showRuleQuery && (
+        <RuleQuery 
+          onClose={() => setShowRuleQuery(false)} 
+          gameSystemId={gameSystemId}
+          gameSystemName={gameSystemName}
+        />
+      )}
+      {showManualUpload && gameSystemId && (
+        <ManualUploadModal
+          onClose={() => setShowManualUpload(false)}
+          gameSystemId={gameSystemId}
+          gameSystemName={gameSystemName}
+          onSuccess={() => {
+            // Optionally show a success notification
+            setShowManualUpload(false);
+          }}
+        />
+      )}
     </div>
   );
 };

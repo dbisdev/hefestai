@@ -206,13 +206,16 @@ export const embeddingsFlow = ai.defineFlow(
       const embeddingVector = Array.isArray(result) 
         ? result[0].embedding 
         : (result as any).embedding || result;
+      
       embeddings.push(embeddingVector);
     }
+
+    const dimensions = embeddings[0]?.length || 768;
 
     return {
       embeddings,
       model: input.model || 'text-embedding-004',
-      dimensions: embeddings[0]?.length || 768,
+      dimensions,
     };
   }
 );

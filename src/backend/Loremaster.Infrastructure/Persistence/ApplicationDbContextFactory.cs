@@ -24,17 +24,22 @@ public class ApplicationDbContextFactory : IDesignTimeDbContextFactory<Applicati
 
         var connectionString = configuration.GetConnectionString("DefaultConnection");
 
-        // Configure NpgsqlDataSource with PostgreSQL enum mappings
+        // Configure NpgsqlDataSource with PostgreSQL enum mappings and pgvector support
         var dataSourceBuilder = new NpgsqlDataSourceBuilder(connectionString);
-        dataSourceBuilder.MapEnum<UserRole>("user_role");
-        dataSourceBuilder.MapEnum<CampaignRole>("campaign_role");
-        dataSourceBuilder.MapEnum<OwnershipType>("ownership_type");
-        dataSourceBuilder.MapEnum<VisibilityLevel>("visibility_level");
+        dataSourceBuilder.MapEnum<UserRole>("public.user_role");
+        dataSourceBuilder.MapEnum<CampaignRole>("public.campaign_role");
+        dataSourceBuilder.MapEnum<OwnershipType>("public.ownership_type");
+        dataSourceBuilder.MapEnum<VisibilityLevel>("public.visibility_level");
+        // Enable pgvector support on the data source builder
+        dataSourceBuilder.UseVector();
         var dataSource = dataSourceBuilder.Build();
 
         var optionsBuilder = new DbContextOptionsBuilder<ApplicationDbContext>();
-        optionsBuilder.UseNpgsql(dataSource, b => 
-            b.MigrationsAssembly(typeof(ApplicationDbContext).Assembly.FullName));
+        optionsBuilder.UseNpgsql(dataSource, b =>
+        {
+            b.MigrationsAssembly(typeof(ApplicationDbContext).Assembly.FullName);
+            b.UseVector();
+        });
 
         // Create a dummy interceptor for design time
         var interceptor = new AuditableEntityInterceptor(

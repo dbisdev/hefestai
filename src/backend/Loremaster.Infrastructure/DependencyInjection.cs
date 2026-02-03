@@ -19,45 +19,65 @@ namespace Loremaster.Infrastructure;
 
 public static class DependencyInjection
 {
+    /// <summary>
+    /// Adds infrastructure services to the service collection.
+    /// </summary>
+    /// <param name="services">The service collection.</param>
+    /// <param name="configuration">The configuration.</param>
+    /// <param name="environmentName">The environment name (e.g., "Development", "Testing", "Production").</param>
+    /// <returns>The service collection for chaining.</returns>
     public static IServiceCollection AddInfrastructureServices(
         this IServiceCollection services, 
-        IConfiguration configuration)
+        IConfiguration configuration,
+        string environmentName)
     {
-        var environment = configuration["ASPNETCORE_ENVIRONMENT"] ?? "Production";
-        var isDevelopment = environment == "Development";
+        var isDevelopment = environmentName == "Development";
+        var isTesting = environmentName == "Testing";
 
         // Database
         services.AddScoped<AuditableEntityInterceptor>();
         
-        // Use different connection strings based on environment
-        var connectionString = isDevelopment 
-            ? configuration.GetConnectionString("DefaultConnection") 
-            : configuration.GetConnectionString("SupabaseConnection") 
-              ?? configuration.GetConnectionString("DefaultConnection");
-        
-        // Configure NpgsqlDataSource with PostgreSQL enum mappings
-        var dataSourceBuilder = new NpgsqlDataSourceBuilder(connectionString);
-        dataSourceBuilder.MapEnum<UserRole>("user_role");
-        dataSourceBuilder.MapEnum<CampaignRole>("campaign_role");
-        dataSourceBuilder.MapEnum<OwnershipType>("ownership_type");
-        dataSourceBuilder.MapEnum<VisibilityLevel>("visibility_level");
-        var dataSource = dataSourceBuilder.Build();
-        
-        services.AddDbContext<ApplicationDbContext>((sp, options) =>
+        // Skip PostgreSQL/Npgsql setup for testing environment
+        // The CustomWebApplicationFactory will provide an InMemory database instead
+        if (!isTesting)
         {
-            options.UseNpgsql(
-                dataSource,
-                b => {
-                    b.MigrationsAssembly(typeof(ApplicationDbContext).Assembly.FullName);
-                    // Enable pgvector
-                    b.UseVector();
-                });
-        });
+            // Use different connection strings based on environment
+            var connectionString = isDevelopment 
+                ? configuration.GetConnectionString("DefaultConnection") 
+                : configuration.GetConnectionString("SupabaseConnection") 
+                  ?? configuration.GetConnectionString("DefaultConnection");
+            
+            // Configure NpgsqlDataSource with PostgreSQL enum mappings and pgvector support
+            var dataSourceBuilder = new NpgsqlDataSourceBuilder(connectionString);
+            dataSourceBuilder.MapEnum<UserRole>("public.user_role");
+            dataSourceBuilder.MapEnum<CampaignRole>("public.campaign_role");
+            dataSourceBuilder.MapEnum<OwnershipType>("public.ownership_type");
+            dataSourceBuilder.MapEnum<VisibilityLevel>("public.visibility_level");
+            // Enable pgvector support on the data source builder (required for writing Vector types)
+            dataSourceBuilder.UseVector();
+            var dataSource = dataSourceBuilder.Build();
+            
+            // Register the NpgsqlDataSource as singleton for direct SQL queries (e.g., semantic search)
+            services.AddSingleton(dataSource);
+            
+            services.AddDbContext<ApplicationDbContext>((sp, options) =>
+            {
+                options.UseNpgsql(
+                    dataSource,
+                    b => {
+                        b.MigrationsAssembly(typeof(ApplicationDbContext).Assembly.FullName);
+                        // Enable pgvector
+                        b.UseVector();
+                    });
+            });
 
-        services.AddScoped<IApplicationDbContext>(provider => 
-            provider.GetRequiredService<ApplicationDbContext>());
-        services.AddScoped<IUnitOfWork>(provider => 
-            provider.GetRequiredService<ApplicationDbContext>());
+            services.AddScoped<IApplicationDbContext>(provider => 
+                provider.GetRequiredService<ApplicationDbContext>());
+            services.AddScoped<IUnitOfWork>(provider => 
+                provider.GetRequiredService<ApplicationDbContext>());
+        }
+        // Note: For testing environment, DbContext registration is skipped here
+        // The CustomWebApplicationFactory in Loremaster.Tests.Integration handles it
 
         // Repositories
         services.AddScoped<IUserRepository, UserRepository>();
@@ -65,6 +85,7 @@ public static class DependencyInjection
         services.AddScoped<ICampaignMemberRepository, CampaignMemberRepository>();
         services.AddScoped<ILoreEntityRepository, LoreEntityRepository>();
         services.AddScoped<IGameSystemRepository, GameSystemRepository>();
+        services.AddScoped<IEntityTemplateRepository, EntityTemplateRepository>();
         services.AddScoped<IGenerationRequestRepository, GenerationRequestRepository>();
         services.AddScoped<IRagSourceRepository, RagSourceRepository>();
         
@@ -77,9 +98,17 @@ public static class DependencyInjection
         services.AddScoped<IPasswordHasher, PasswordHasher>();
         services.AddScoped<IJwtTokenGenerator, JwtTokenGenerator>();
         services.AddScoped<IServiceTokenGenerator, ServiceTokenGenerator>();
+        
+        // Document processing services
+        services.AddScoped<IPdfParsingService, PdfParsingService>();
+        services.AddSingleton<ITextChunkingService, TextChunkingService>();
+        
+        // Entity generation services (RAG-assisted)
+        services.AddScoped<IRagContextProvider, RagContextProvider>();
+        services.AddScoped<IEntityGenerationService, EntityGenerationService>();
 
         // Genkit service URL based on environment
-        var genkitBaseUrl = isDevelopment
+        var genkitBaseUrl = isDevelopment || isTesting
             ? configuration["GenkitService:BaseUrl"] ?? "http://localhost:3000"
             : configuration["GenkitService:ProductionUrl"] ?? configuration["GenkitService:BaseUrl"] ?? "http://genkit:3000";
         
@@ -113,6 +142,9 @@ public static class DependencyInjection
         })
         .AddJwtBearer(options =>
         {
+            // Disable default claim type mapping to preserve original JWT claim names
+            options.MapInboundClaims = false;
+            
             options.TokenValidationParameters = new TokenValidationParameters
             {
                 ValidateIssuer = true,
@@ -123,7 +155,9 @@ public static class DependencyInjection
                 ValidAudience = configuration["Jwt:Audience"],
                 IssuerSigningKey = new SymmetricSecurityKey(
                     Encoding.UTF8.GetBytes(configuration["Jwt:Secret"]!)),
-                ClockSkew = TimeSpan.Zero
+                ClockSkew = TimeSpan.Zero,
+                // Use simple "role" claim type to match JwtTokenGenerator
+                RoleClaimType = JwtTokenGenerator.RoleClaimType
             };
         });
 

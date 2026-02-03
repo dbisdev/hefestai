@@ -26,18 +26,40 @@ AI-powered worldbuilding and lore management platform for tabletop RPG game mast
 
 | Component | Technology | Port (Dev) | Deployment |
 |-----------|------------|------------|------------|
-| Frontend | React 19 + Vite + TypeScript | 5173 | Vercel |
-| Backend API | .NET 8 + EF Core | 5000 | Fly.io |
-| AI Service | Node.js + Genkit + Gemini | 3000 | Fly.io |
+| Frontend | React 19 + Vite 6 + TypeScript | 5173 | Vercel |
+| Backend API | .NET 8 + EF Core 8 | 5000 | Fly.io |
+| AI Service | Node.js 20 + Genkit 1.0 + Gemini | 3000 | Fly.io |
 | Database | PostgreSQL 16 + pgvector | 5432 | Supabase |
 
 ## Features
 
-- **AI-Powered Content Generation**: Characters, locations, items, lore using Google Gemini
-- **RAG (Retrieval-Augmented Generation)**: Semantic search with pgvector embeddings
-- **Project Management**: Organize worlds, campaigns, and lore
-- **Multi-Role Support**: Player, Master, Admin roles
-- **3D Visualizations**: Three.js powered generators (characters, solar systems, vehicles)
+### Core Features
+- **AI-Powered Content Generation**: Characters, NPCs, enemies, locations, items, missions, encounters using Google Gemini 2.0 Flash
+- **Image Generation**: AI-generated images using Gemini 2.5 Flash with style options (realistic, artistic, anime, fantasy, sketch)
+- **RAG (Retrieval-Augmented Generation)**: Semantic search with pgvector embeddings for context-aware generation
+- **Campaign Management**: Create and manage campaigns with join codes for players
+- **Multi-Role Support**: Player, Master, Admin roles with role-based access control
+
+### Generators (9 Types)
+| Generator | Description | Role Required |
+|-----------|-------------|---------------|
+| Character | Player character creation with 3D visualization | Player+ |
+| NPC | Non-player character generation | Master+ |
+| Enemy | Antagonist and monster generation | Master+ |
+| Vehicle | Starships, ground vehicles, etc. | Master+ |
+| Solar System | Planetary systems with 3D visualization | Master+ |
+| Mission | Quest and mission generation | Master+ |
+| Encounter | Combat and social encounter design | Master+ |
+| Campaign | Full campaign outline generation | Master+ |
+| Campaign Settings | Campaign configuration and management | Master+ |
+
+### Additional Features
+- **3D Visualizations**: Three.js powered character, solar system, and vehicle viewers
+- **PDF Export**: Character sheet generation and export via jsPDF
+- **Entity Gallery**: Browse, edit, and manage all created lore entities
+- **Document Import**: Import PDFs/manuals for RAG context
+- **Dice Roller**: Built-in dice rolling utility
+- **Rule Query**: AI-powered rules lookup
 
 ## Quick Start
 
@@ -52,7 +74,7 @@ AI-powered worldbuilding and lore management platform for tabletop RPG game mast
 
 ```bash
 git clone <repository-url>
-cd loremaster
+cd hefestai
 
 # Copy environment file
 cp .env.example .env
@@ -109,40 +131,85 @@ Open http://localhost:5173 in your browser.
 ## Project Structure
 
 ```
-loremaster/
+hefestai/
 ├── src/
-│   ├── frontend/                 # React + Vite frontend
-│   │   ├── src/
-│   │   │   ├── core/             # Hooks, context, services, types
-│   │   │   ├── features/         # Feature modules (auth, generators, gallery)
-│   │   │   └── shared/           # Shared UI components
-│   │   ├── package.json
-│   │   └── vercel.json           # Vercel deployment config
+│   ├── frontend/                    # React 19 + Vite + TypeScript
+│   │   ├── core/                    # Core services & hooks
+│   │   │   ├── context/             # AuthContext, CampaignContext
+│   │   │   ├── hooks/               # useApi, useTransition, useCharacterSheetPdf
+│   │   │   ├── services/            # API clients, PDF generation, storage
+│   │   │   ├── types/               # TypeScript type definitions
+│   │   │   └── utils/               # Security, validation utilities
+│   │   ├── features/                # Feature modules
+│   │   │   ├── auth/                # Login, Signup pages
+│   │   │   ├── gallery/             # Entity gallery & management
+│   │   │   └── generators/          # 9 generator pages
+│   │   ├── shared/                  # Shared components
+│   │   │   ├── components/          # UI, layout, feedback, modals
+│   │   │   └── guards/              # AuthGuard, RoleGuard
+│   │   └── components/              # DiceRoller, RuleQuery
 │   │
-│   ├── backend/                  # .NET 8 Clean Architecture
-│   │   ├── Loremaster.Api/       # ASP.NET Core Web API
+│   ├── backend/                     # .NET 8 Clean Architecture
+│   │   ├── Loremaster.Api/          # ASP.NET Core Web API
+│   │   │   └── Controllers/         # REST endpoints
 │   │   ├── Loremaster.Application/  # CQRS commands/queries (MediatR)
-│   │   ├── Loremaster.Domain/    # Entities, enums, exceptions
-│   │   ├── Loremaster.Infrastructure/  # EF Core, repositories, services
-│   │   ├── Loremaster.Shared/    # Helpers, extensions
-│   │   ├── Loremaster.Tests.Unit/
-│   │   ├── Loremaster.Tests.Integration/
-│   │   └── Dockerfile
+│   │   │   └── Features/            # Feature-based organization
+│   │   ├── Loremaster.Domain/       # Domain layer
+│   │   │   ├── Entities/            # Campaign, User, LoreEntity, etc.
+│   │   │   ├── Enums/               # UserRole, CampaignRole, etc.
+│   │   │   └── ValueObjects/        # FieldDefinition, EntityGenerationConfig
+│   │   ├── Loremaster.Infrastructure/  # Data access & external services
+│   │   │   ├── Persistence/         # EF Core, repositories, migrations
+│   │   │   ├── Identity/            # JWT, password hashing
+│   │   │   └── Services/            # GenkitAiService, TextChunkingService
+│   │   ├── Loremaster.Shared/       # Helpers, extensions
+│   │   ├── Loremaster.Tests.Unit/   # xUnit + FluentAssertions + Moq
+│   │   └── Loremaster.Tests.Integration/  # Testcontainers integration tests
 │   │
-│   └── genkit-service/           # Node.js AI microservice
-│       ├── src/
-│       │   ├── index.ts          # Express server
-│       │   ├── flows.ts          # Genkit AI flows
-│       │   ├── schemas.ts        # Zod validation
-│       │   └── middleware/       # JWT auth
-│       └── Dockerfile
+│   └── genkit-service/              # Node.js AI microservice
+│       └── src/
+│           ├── index.ts             # Express server
+│           ├── flows.ts             # Genkit AI flows (6 flows)
+│           ├── schemas.ts           # Zod validation
+│           └── middleware/          # JWT auth
 │
 ├── docker/
-│   └── init.sql                  # PostgreSQL initialization
-├── docker-compose.yml            # Full stack (production-like)
-├── docker-compose.dev.yml        # Development (DB only)
-└── .env.example                  # Environment template
+│   └── init.sql                     # PostgreSQL initialization
+├── docker-compose.yml               # Full stack (production-like)
+├── docker-compose.dev.yml           # Development (DB only)
+└── .env.example                     # Environment template
 ```
+
+## Domain Model
+
+### Core Entities
+
+| Entity | Description |
+|--------|-------------|
+| **User** | Users with roles (Player, Master, Admin) and JWT auth |
+| **Campaign** | Game campaigns with join codes and game system |
+| **CampaignMember** | User participation with campaign-specific roles |
+| **GameSystem** | Supported RPG systems |
+| **LoreEntity** | Polymorphic entity for all lore content |
+| **EntityTemplate** | Reusable templates with field definitions |
+| **Document** | Ingested documents for RAG |
+| **RagSource** | RAG document sources (rulebooks, supplements) |
+| **GenerationRequest** | AI generation request tracking |
+| **GenerationResult** | AI generation outputs with source tracing |
+
+### Entity Categories
+
+- **Characters** - Player characters, NPCs, enemies
+- **Planets** - Locations, solar systems
+- **Vehicles** - Ships, vehicles, mounts
+
+### User Roles
+
+| Role | Permissions |
+|------|-------------|
+| **Player** | Create characters, view allowed entities, join campaigns |
+| **Master** | All player permissions + create campaigns, all generators, manage entities |
+| **Admin** | Full system access, user management |
 
 ## API Endpoints
 
@@ -155,28 +222,32 @@ loremaster/
 | `/api/auth/refresh-token` | POST | Refresh access token | No |
 | `/api/auth/me` | GET | Get current user | Yes |
 | `/api/auth/logout` | POST | Logout, revoke refresh token | Yes |
-| `/api/projects` | GET/POST | List/create projects | Yes |
-| `/api/projects/{id}` | GET/PUT/DELETE | Project CRUD | Yes |
-| `/api/projects/{id}/archive` | POST | Archive project | Yes |
-| `/api/projects/{id}/restore` | POST | Restore project | Yes |
-| `/api/entities` | GET/POST | List/create world entities | Yes |
+| `/api/campaigns` | GET/POST | List/create campaigns | Yes |
+| `/api/campaigns/{id}` | GET/PUT/DELETE | Campaign CRUD | Yes |
+| `/api/campaigns/{id}/join` | POST | Join campaign with code | Yes |
+| `/api/entities` | GET/POST | List/create lore entities | Yes |
 | `/api/entities/{id}` | GET/PUT/DELETE | Entity CRUD | Yes |
+| `/api/entity-templates` | GET/POST | List/create templates | Yes |
+| `/api/entity-templates/{id}` | GET/PUT/DELETE | Template CRUD | Yes |
+| `/api/game-systems` | GET/POST | List/create game systems | Yes |
 | `/api/documents/ingest` | POST | Ingest document for RAG | Yes |
 | `/api/documents/search` | POST | Semantic search | Yes |
 | `/api/ai/generate` | POST | Generate text content | Yes |
 | `/api/ai/chat` | POST | Multi-turn chat | Yes |
 | `/health` | GET | Health check | No |
+| `/health/ready` | GET | Readiness probe | No |
+| `/health/live` | GET | Liveness probe | No |
 
 ### Genkit Service (Port 3000)
 
 | Endpoint | Method | Description |
 |----------|--------|-------------|
-| `/api/generate` | POST | Text generation |
+| `/api/generate` | POST | Text generation (Gemini 2.0 Flash) |
 | `/api/chat` | POST | Multi-turn conversation |
-| `/api/summarize` | POST | Text summarization |
-| `/api/embeddings` | POST | Generate vector embeddings |
+| `/api/summarize` | POST | Text summarization (concise/detailed/bullet-points) |
+| `/api/embeddings` | POST | Vector embeddings (text-embedding-004) |
 | `/api/rag/generate` | POST | RAG-based generation |
-| `/api/generate-image` | POST | Image generation (placeholder) |
+| `/api/generate-image` | POST | Image generation (Gemini 2.5 Flash) |
 | `/health` | GET | Health check |
 
 ## Environment Configuration
@@ -272,18 +343,26 @@ fly deploy
 ```bash
 cd src/backend
 
-# Unit tests
+# Unit tests (36+ test files)
 dotnet test Loremaster.Tests.Unit
 
-# Integration tests (requires Docker)
+# Integration tests (8+ test files, requires Docker)
 dotnet test Loremaster.Tests.Integration
 ```
 
-### Frontend Build
+### Frontend Tests
 
 ```bash
 cd src/frontend
-npm run build
+
+# Run tests
+npm run test
+
+# Run tests once
+npm run test:run
+
+# Run with coverage
+npm run test:coverage
 ```
 
 ### Genkit Build
@@ -307,7 +386,7 @@ npm run build
      │  {accessToken, refreshToken} │                              │
      │◀─────────────────────────────│                              │
      │                              │                              │
-     │  GET /api/projects           │                              │
+     │  GET /api/entities           │                              │
      │  Authorization: Bearer token │                              │
      │─────────────────────────────▶│                              │
      │                              │                              │
@@ -318,39 +397,90 @@ npm run build
      │                              │  AI Response                 │
      │                              │◀─────────────────────────────│
      │                              │                              │
-     │  Projects + AI Content       │                              │
+     │  Entities + AI Content       │                              │
      │◀─────────────────────────────│                              │
 ```
 
 ## Key Technologies
 
 ### Frontend
-- **React 19** - UI framework
-- **Vite** - Build tool
-- **TypeScript** - Type safety
-- **Three.js** - 3D visualizations
-- **TanStack Query** - Server state management
+| Technology | Version | Purpose |
+|------------|---------|---------|
+| React | 19.x | UI framework |
+| Vite | 6.x | Build tool & dev server |
+| TypeScript | 5.8.x | Type safety |
+| Three.js | 0.160.0 | 3D visualizations |
+| cannon-es | 0.20.0 | Physics engine |
+| jsPDF | 4.x | PDF generation |
+| Vitest | 4.x | Testing framework |
+| Testing Library | 16.x | Component testing |
 
 ### Backend
-- **.NET 8** - Runtime
-- **ASP.NET Core** - Web API
-- **Entity Framework Core** - ORM
-- **MediatR** - CQRS pattern
-- **FluentValidation** - Request validation
-- **Serilog** - Structured logging
-- **Polly** - Resilience policies
+| Technology | Version | Purpose |
+|------------|---------|---------|
+| .NET | 8.0 | Runtime |
+| ASP.NET Core | 8.0 | Web API framework |
+| Entity Framework Core | 8.0.0 | ORM |
+| MediatR | 12.2.0 | CQRS pattern |
+| FluentValidation | 11.9.0 | Request validation |
+| Serilog | 8.0.0 | Structured logging |
+| Polly | - | Resilience policies |
+| BCrypt.Net-Next | 4.0.3 | Password hashing |
+| PdfPig | 0.1.9 | PDF parsing |
+| Npgsql + pgvector | 8.0.0 | PostgreSQL + vectors |
+| xUnit | 2.6.4 | Unit testing |
+| Testcontainers | 3.7.0 | Integration testing |
 
 ### AI Service
-- **Genkit** - AI orchestration framework
-- **Google Gemini 1.5 Flash** - LLM
-- **text-embedding-004** - Embeddings model
-- **Express** - HTTP server
-- **Zod** - Schema validation
+| Technology | Version | Purpose |
+|------------|---------|---------|
+| Node.js | 20+ | Runtime |
+| Express | 4.21.0 | HTTP server |
+| Genkit | 1.0.0 | AI orchestration |
+| @genkit-ai/google-genai | 1.28.0 | Gemini integration |
+| Zod | 3.23.8 | Schema validation |
+| Pino | 9.5.0 | Logging |
+| Helmet | 8.0.0 | Security headers |
+
+### AI Models
+| Model | Purpose |
+|-------|---------|
+| Gemini 2.0 Flash | Text generation, chat, summarization |
+| Gemini 2.5 Flash | Image generation |
+| text-embedding-004 | Vector embeddings for RAG |
 
 ### Database
 - **PostgreSQL 16** - Relational database
 - **pgvector** - Vector similarity search
 - **Supabase** - Managed PostgreSQL (production)
+
+## Architecture Patterns
+
+### Clean Architecture (.NET Backend)
+```
+Domain (no dependencies)
+    ↑
+Application (depends on Domain)
+    ↑
+Infrastructure (depends on Application)
+    ↑
+Api (composes all layers via DI)
+```
+
+### CQRS with MediatR
+- Commands and Queries are separate concerns
+- Each operation has its own handler
+- FluentValidation for request validation
+- Pipeline behaviors for cross-cutting concerns
+
+### Security
+- JWT authentication (user tokens + service-to-service tokens)
+- Refresh token rotation
+- Rate limiting (per-user, per-endpoint)
+- CORS configuration
+- Security headers (X-Content-Type-Options, X-Frame-Options, etc.)
+- Password hashing with BCrypt
+- Input sanitization
 
 ## License
 

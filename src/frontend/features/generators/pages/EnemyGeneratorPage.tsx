@@ -6,9 +6,11 @@
 
 import React, { useState } from 'react';
 import { TerminalLayout } from '@shared/components/layout';
-import { Button } from '@shared/components/ui';
+import { Button, ImageSourceSelector, DynamicStatsPanel } from '@shared/components/ui';
+import type { ImageSourceMode } from '@shared/components/ui';
 import { aiService, entityService } from '@core/services/api';
 import { useCampaign } from '@core/context';
+import { parseJsonResponse } from '@core/utils';
 import type { EnemyData } from '@core/types';
 
 interface EnemyGeneratorPageProps {
@@ -75,6 +77,11 @@ export const EnemyGeneratorPage: React.FC<EnemyGeneratorPageProps> = ({ onBack }
     environment: 'space-station'
   });
 
+  /** Image source mode state */
+  const [imageMode, setImageMode] = useState<ImageSourceMode>('generate');
+  /** Uploaded image data (base64) */
+  const [uploadedImageData, setUploadedImageData] = useState<string | null>(null);
+
   /**
    * Adds a log entry to the terminal display
    */
@@ -97,26 +104,43 @@ export const EnemyGeneratorPage: React.FC<EnemyGeneratorPageProps> = ({ onBack }
     try {
       addLog('ESCANEANDO PERFIL HOSTIL...');
       
+      // Only request AI image generation if mode is 'generate'
+      const shouldGenerateImage = imageMode === 'generate';
+      
       const result = await aiService.generateEnemy({
+        gameSystemId: activeCampaign?.gameSystemId,
         species: form.species,
         threatLevel: form.threatLevel,
         behavior: form.behavior,
-        environment: form.environment
+        environment: form.environment,
+        generateImage: shouldGenerateImage
       });
 
-      const enemyData = JSON.parse(result.enemyJson) as EnemyData;
+      const enemyData = parseJsonResponse<EnemyData>(result.enemyJson);
       setGeneratedEnemy(enemyData);
       addLog(`AMENAZA IDENTIFICADA: ${enemyData.name.toUpperCase()}`);
 
-      addLog('GENERANDO REPRESENTACION VISUAL...');
-      if (result.imageBase64) {
-        setEnemyImage(`data:image/png;base64,${result.imageBase64}`);
-        addLog('SINTESIS VISUAL COMPLETA.');
-      } else if (result.imageUrl) {
-        setEnemyImage(result.imageUrl);
-        addLog('SINTESIS VISUAL COMPLETA.');
+      // Handle image based on selected mode
+      if (imageMode === 'upload' && uploadedImageData) {
+        // Use uploaded image
+        setEnemyImage(`data:image/png;base64,${uploadedImageData}`);
+        addLog('USANDO IMAGEN CARGADA.');
+      } else if (imageMode === 'generate') {
+        addLog('GENERANDO REPRESENTACION VISUAL...');
+        if (result.imageBase64) {
+          setEnemyImage(`data:image/png;base64,${result.imageBase64}`);
+          addLog('SINTESIS VISUAL COMPLETA.');
+        } else if (result.imageUrl) {
+          setEnemyImage(result.imageUrl);
+          addLog('SINTESIS VISUAL COMPLETA.');
+        } else {
+          addLog('ADVERTENCIA: RENDER VISUAL FALLIDO. USANDO PLACEHOLDER.');
+          setEnemyImage(UNKNOWN_ENEMY_IMAGE);
+        }
       } else {
-        addLog('ADVERTENCIA: RENDER VISUAL FALLIDO. USANDO PLACEHOLDER.');
+        // Mode is 'none' - use placeholder
+        addLog('GENERACION DE IMAGEN OMITIDA.');
+        setEnemyImage(UNKNOWN_ENEMY_IMAGE);
       }
       
       addLog('PERFIL DE AMENAZA COMPLETADO.');
@@ -248,6 +272,15 @@ export const EnemyGeneratorPage: React.FC<EnemyGeneratorPageProps> = ({ onBack }
                 ))}
               </select>
             </div>
+
+            {/* Image Source Selector */}
+            <ImageSourceSelector
+              mode={imageMode}
+              onModeChange={setImageMode}
+              onImageUpload={setUploadedImageData}
+              uploadedImage={uploadedImageData}
+              disabled={isGenerating}
+            />
           </div>
 
           {/* Action Buttons */}
@@ -270,7 +303,7 @@ export const EnemyGeneratorPage: React.FC<EnemyGeneratorPageProps> = ({ onBack }
               isLoading={isSaving}
               icon="save"
             >
-              GUARDAR_NUCLEO
+              GUARDAR_ENTIDAD
             </Button>
           </div>
         </div>
@@ -304,7 +337,7 @@ export const EnemyGeneratorPage: React.FC<EnemyGeneratorPageProps> = ({ onBack }
             <div className={`absolute bottom-0 left-0 right-0 z-10 bg-black/80 p-3 border-t border-danger/40 backdrop-blur-sm transition-transform duration-500 ${generatedEnemy ? 'translate-y-0' : 'translate-y-full'}`}>
               <p className="font-bold text-danger text-sm uppercase mb-1">{generatedEnemy?.name}</p>
               <p className="text-[8px] text-white/60 uppercase mb-1">{generatedEnemy?.species}</p>
-              <p className="text-[9px] text-white/80 line-clamp-2 leading-tight font-mono">{generatedEnemy?.abilities}</p>
+              <p className="text-[9px] text-white/80 leading-tight font-mono">{generatedEnemy?.abilities}</p>
             </div>
             {!generatedEnemy && !isGenerating && (
               <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
@@ -318,22 +351,14 @@ export const EnemyGeneratorPage: React.FC<EnemyGeneratorPageProps> = ({ onBack }
             {logs.map((log, i) => <p key={i} className={i === logs.length - 1 ? "text-danger font-bold" : "opacity-60"}>{log}</p>)}
           </div>
 
-          {/* Stats Panel */}
-          <div className="grid grid-cols-4 gap-2">
-            {[
-              { label: 'HP', val: generatedEnemy?.stats?.HP || '--', desc: 'Salud' },
-              { label: 'ATK', val: generatedEnemy?.stats?.ATK || '--', desc: 'Ataque' },
-              { label: 'DEF', val: generatedEnemy?.stats?.DEF || '--', desc: 'Defensa' },
-              { label: 'SPD', val: generatedEnemy?.stats?.SPD || '--', desc: 'Velocidad' }
-            ].map(stat => (
-              <div key={stat.label} className="bg-surface-dark border border-danger/20 p-2 text-center relative overflow-hidden group">
-                <p className="text-[9px] text-danger/40 uppercase mb-1">{stat.label}</p>
-                <p className="text-lg font-bold text-danger font-mono">{stat.val}</p>
-                <div className="absolute bottom-0 left-0 h-0.5 bg-danger/20" style={{ width: stat.val !== '--' ? `${Math.min(Number(stat.val), 100)}%` : '0%' }}></div>
-                <span className="absolute top-1 right-1 text-[6px] text-danger/30 opacity-0 group-hover:opacity-100 transition-opacity">{stat.desc}</span>
-              </div>
-            ))}
-          </div>
+          {/* Stats Panel - Dynamic based on game system */}
+          <DynamicStatsPanel 
+            stats={generatedEnemy?.stats} 
+            variant="danger"
+            maxColumns={4}
+            showProgressBar={true}
+            maxProgressValue={100}
+          />
 
           {/* Weakness Display */}
           {generatedEnemy?.weakness && (

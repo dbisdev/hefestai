@@ -1,26 +1,143 @@
+using System.Security.Claims;
 using Loremaster.Application.Common.Interfaces;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 
 namespace Loremaster.Api.Controllers;
 
+/// <summary>
+/// AI Controller for generating campaign entities using RAG-enhanced AI generation.
+/// Leverages game system manuals for lore-accurate content generation.
+/// </summary>
 [ApiController]
 [Route("api/[controller]")]
 [Authorize]
 public class AiController : ControllerBase
 {
     private readonly IAiService _aiService;
+    private readonly IRagContextProvider _ragContextProvider;
+    private readonly IEmbeddingService _embeddingService;
     private readonly ILogger<AiController> _logger;
 
-    public AiController(IAiService aiService, ILogger<AiController> logger)
+    public AiController(
+        IAiService aiService,
+        IRagContextProvider ragContextProvider,
+        IEmbeddingService embeddingService,
+        ILogger<AiController> logger)
     {
         _aiService = aiService;
+        _ragContextProvider = ragContextProvider;
+        _embeddingService = embeddingService;
         _logger = logger;
     }
 
     /// <summary>
-    /// Generate a character with stats and description
+    /// Gets the current authenticated user's ID from JWT claims.
     /// </summary>
+    /// <returns>User ID as Guid.</returns>
+    /// <exception cref="UnauthorizedAccessException">If user token is invalid.</exception>
+    private Guid GetCurrentUserId()
+    {
+        var userIdClaim = User.FindFirst("sub")?.Value
+            ?? User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+        
+        if (string.IsNullOrEmpty(userIdClaim) || !Guid.TryParse(userIdClaim, out var userId))
+        {
+            throw new UnauthorizedAccessException("Invalid user token");
+        }
+
+        return userId;
+    }
+
+    /// <summary>
+    /// Generates entity content using RAG-enhanced AI or fallback to basic generation.
+    /// </summary>
+    /// <param name="gameSystemId">Optional game system ID for RAG context.</param>
+    /// <param name="userId">The owner/user ID.</param>
+    /// <param name="entityType">Entity type name for RAG query (e.g., "character", "npc").</param>
+    /// <param name="additionalContext">Additional context for RAG search query.</param>
+    /// <param name="systemPrompt">System prompt for RAG-enhanced generation.</param>
+    /// <param name="userQuery">User query for RAG-enhanced generation.</param>
+    /// <param name="fallbackPrompt">Fallback prompt if no RAG context available.</param>
+    /// <param name="fallbackSystemPrompt">Fallback system prompt.</param>
+    /// <param name="cancellationToken">Cancellation token.</param>
+    /// <returns>Tuple of (generated JSON, RAG context chunks used).</returns>
+    private async Task<(string Json, IReadOnlyList<RagContextChunk> RagContext)> GenerateWithRagAsync(
+        Guid? gameSystemId,
+        Guid userId,
+        string entityType,
+        string additionalContext,
+        string systemPrompt,
+        string userQuery,
+        string fallbackPrompt,
+        string fallbackSystemPrompt,
+        CancellationToken cancellationToken)
+    {
+        IReadOnlyList<RagContextChunk> ragContext = Array.Empty<RagContextChunk>();
+        
+        // Step 1: Retrieve RAG context if game system ID is provided
+        if (gameSystemId.HasValue)
+        {
+            _logger.LogDebug("Retrieving RAG context for {EntityType} generation from game system {GameSystemId}", 
+                entityType, gameSystemId);
+            
+            ragContext = await _ragContextProvider.GetContextForEntityGenerationAsync(
+                gameSystemId.Value,
+                userId,
+                entityTypeName: entityType,
+                additionalContext: additionalContext,
+                maxChunks: 5,
+                cancellationToken: cancellationToken);
+
+            _logger.LogDebug("Retrieved {ChunkCount} RAG context chunks for {EntityType} generation", 
+                ragContext.Count, entityType);
+        }
+
+        // Step 2: Generate using RAG context or fallback
+        string resultJson;
+
+        if (ragContext.Any())
+        {
+            // RAG-enhanced generation
+            var contextTexts = ragContext.Select(c => c.Content).ToList();
+            
+            _logger.LogDebug("Using RAG-enhanced generation with {ContextCount} context chunks", contextTexts.Count);
+            
+            var ragResult = await _embeddingService.GenerateWithContextAsync(
+                query: userQuery,
+                context: contextTexts,
+                systemPrompt: systemPrompt,
+                temperature: 0.8f,
+                maxTokens: 512,
+                cancellationToken: cancellationToken);
+
+            resultJson = ragResult.Answer;
+        }
+        else
+        {
+            // Fallback: Basic generation without RAG context
+            _logger.LogDebug("No RAG context available for {EntityType}, using basic generation", entityType);
+            
+            var textResult = await _aiService.GenerateJsonAsync(
+                fallbackPrompt,
+                fallbackSystemPrompt,
+                0.8f,
+                512,
+                cancellationToken);
+
+            resultJson = textResult.Json;
+        }
+
+        return (resultJson, ragContext);
+    }
+
+    /// <summary>
+    /// Generate a character with stats and description using RAG-enhanced AI.
+    /// Retrieves relevant lore from game system manuals to ensure lore-accurate generation.
+    /// </summary>
+    /// <param name="request">Character generation parameters including game system context.</param>
+    /// <param name="cancellationToken">Cancellation token.</param>
+    /// <returns>Generated character data with optional image.</returns>
     [HttpPost("generate/character")]
     [ProducesResponseType(typeof(CharacterGenerationResponse), StatusCodes.Status200OK)]
     [ProducesResponseType(StatusCodes.Status500InternalServerError)]
@@ -30,10 +147,94 @@ public class AiController : ControllerBase
     {
         try
         {
-            _logger.LogInformation("Generating character: Species={Species}, Role={Role}", 
-                request.Species, request.Role);
+            var userId = GetCurrentUserId();
+            
+            _logger.LogInformation(
+                "Generating character: Species={Species}, Role={Role}, GameSystemId={GameSystemId}", 
+                request.Species, request.Role, request.GameSystemId);
 
-            var prompt = $@"Generate a sci-fi character based on:
+            // Step 1: Build additional context from request parameters
+            var additionalContext = $"Species: {request.Species}, Role: {request.Role}, Morphology: {request.Morphology}, Style: {request.Attire}";
+
+            // Step 2: Retrieve RAG context from game system manuals (if gameSystemId provided)
+            IReadOnlyList<RagContextChunk> ragContext = Array.Empty<RagContextChunk>();
+            
+            if (request.GameSystemId.HasValue)
+            {
+                _logger.LogDebug("Retrieving RAG context for character generation from game system {GameSystemId}", request.GameSystemId);
+                
+                ragContext = await _ragContextProvider.GetContextForEntityGenerationAsync(
+                    request.GameSystemId.Value,
+                    userId,
+                    entityTypeName: "character",
+                    additionalContext: additionalContext,
+                    maxChunks: 5,
+                    cancellationToken: cancellationToken);
+
+                _logger.LogDebug("Retrieved {ChunkCount} RAG context chunks for character generation", ragContext.Count);
+            }
+
+            // Step 3: Generate character using RAG context or fallback to basic generation
+            string characterJson;
+
+            if (ragContext.Any())
+            {
+                // RAG-enhanced generation: Use lore context from manuals
+                var contextTexts = ragContext.Select(c => c.Content).ToList();
+                
+                var systemPrompt = @"You are a character generator for a tabletop RPG. 
+Use the provided lore context from the game manuals to create a character that fits the game's setting and rules.
+The character must be consistent with the game system's lore, species, classes, and mechanics.
+Respond only with valid JSON.";
+
+                var userQuery = $@"Based on the game system lore provided, generate a character with these parameters:
+Species: {request.Species}
+Role: {request.Role}
+Morphology: {request.Morphology}
+Style: {request.Attire}
+
+Generate a JSON object with:
+- name: A unique character name fitting the setting
+- bio: A 2-3 paragraphs backstory based on the lore
+- stats: An object with the attributes required by the character creation rules
+
+The character should reflect the game world's themes, factions, and available character options from the lore.
+
+Example format:
+{{""name"":""Zephyr-9"",""bio"":""A rogue android..."",""stats"":{{
+    ""STRENGTH"": 3,
+    ""AGILITY"": 4,
+    ""WITS"": 4,
+    ""EMPATHY"": 5,
+    ""SKILLS"": {{
+      ""MOBILITY"": 2,
+      ""OBSERVATION"": 4,
+      ""MEDICAL AID"": 4
+    }},
+    ""TALENT"": ""Field Medic"",
+    ""GEAR"": ""Medkit, Surgical kit, Four doses of Naproleve"",
+    ""CASH"": 1000}}}}";
+
+                _logger.LogDebug("Using RAG-enhanced generation with {ContextCount} context chunks", contextTexts.Count);
+                
+                var ragResult = await _embeddingService.GenerateWithContextAsync(
+                    query: userQuery,
+                    context: contextTexts,
+                    systemPrompt: systemPrompt,
+                    temperature: 0.8f,
+                    maxTokens: 512,
+                    cancellationToken: cancellationToken);
+
+                characterJson = ragResult.Answer;
+
+                _logger.LogDebug(characterJson);
+            }
+            else
+            {
+                // Fallback: Basic generation without RAG context
+                _logger.LogDebug("No RAG context available, using basic generation");
+                
+                var prompt = $@"Generate a sci-fi character based on:
 Species: {request.Species}
 Role: {request.Role}
 Morphology: {request.Morphology}
@@ -47,25 +248,58 @@ Respond with a JSON object containing:
 Example format:
 {{""name"":""Zephyr-9"",""bio"":""A rogue android..."",""stats"":{{""STR"":75,""INT"":90,""DEX"":85}}}}";
 
-            var textResult = await _aiService.GenerateJsonAsync(
-                prompt,
-                "You are a sci-fi character generator. Respond only with valid JSON.",
-                0.8f,
-                512,
-                cancellationToken);
+                var textResult = await _aiService.GenerateJsonAsync(
+                    prompt,
+                    "You are a sci-fi character generator. Respond only with valid JSON.",
+                    0.8f,
+                    512,
+                    cancellationToken);
 
-            // Generate image
-            var imagePrompt = $"High-quality futuristic sci-fi portrait of a {request.Species} {request.Role}, {request.Morphology}, wearing {request.Attire}. Cinematic lighting, cyberpunk aesthetic, detailed face, 8k resolution, professional concept art, black background.";
+                characterJson = textResult.Json;
+            }
+
+            // Step 4: Conditionally generate image based on request parameter
+            string? imageBase64 = null;
+            string? imageUrl = null;
             
-            var imageResult = await _aiService.GenerateImageAsync(imagePrompt, cancellationToken: cancellationToken);
+            if (request.GenerateImage)
+            {
+                // Optionally enhance image prompt with style context from RAG
+                string imagePromptContext = "";
+                
+                if (request.GameSystemId.HasValue)
+                {
+                    var styleContext = await _ragContextProvider.GetStyleContextAsync(
+                        request.GameSystemId.Value,
+                        userId,
+                        "character",
+                        cancellationToken);
+                    
+                    if (styleContext.Any())
+                    {
+                        imagePromptContext = $" Art style based on: {string.Join(" ", styleContext.Take(2).Select(c => c.Content.Substring(0, Math.Min(200, c.Content.Length))))}";
+                    }
+                }
+
+                var imagePrompt = $"High-quality futuristic sci-fi portrait of a {request.Species} {request.Role}, {request.Morphology}, wearing {request.Attire}. Cinematic lighting, detailed face, 8k resolution, professional concept art, black background.{imagePromptContext}";
+                var imageResult = await _aiService.GenerateImageAsync(imagePrompt, cancellationToken: cancellationToken);
+                imageBase64 = imageResult.ImageBase64;
+                imageUrl = imageResult.ImageUrl;
+            }
 
             return Ok(new CharacterGenerationResponse
             {
                 Success = true,
-                CharacterJson = textResult.Json,
-                ImageBase64 = imageResult.ImageBase64,
-                ImageUrl = imageResult.ImageUrl
+                CharacterJson = characterJson,
+                ImageBase64 = imageBase64,
+                ImageUrl = imageUrl,
+                RagContextUsed = ragContext.Any(),
+                RagSourceCount = ragContext.Count
             });
+        }
+        catch (UnauthorizedAccessException)
+        {
+            return Unauthorized();
         }
         catch (Exception ex)
         {
@@ -79,8 +313,12 @@ Example format:
     }
 
     /// <summary>
-    /// Generate a solar system with planets
+    /// Generate a solar system with planets using RAG-enhanced AI.
+    /// Retrieves relevant lore from game system manuals to ensure lore-accurate generation.
     /// </summary>
+    /// <param name="request">Solar system generation parameters including game system context.</param>
+    /// <param name="cancellationToken">Cancellation token.</param>
+    /// <returns>Generated solar system data with optional image.</returns>
     [HttpPost("generate/solar-system")]
     [ProducesResponseType(typeof(SolarSystemGenerationResponse), StatusCodes.Status200OK)]
     [ProducesResponseType(StatusCodes.Status500InternalServerError)]
@@ -90,10 +328,38 @@ Example format:
     {
         try
         {
-            _logger.LogInformation("Generating solar system: SpectralClass={SpectralClass}, Planets={PlanetCount}", 
-                request.SpectralClass, request.PlanetCount);
+            var userId = GetCurrentUserId();
+            
+            _logger.LogInformation(
+                "Generating solar system: SpectralClass={SpectralClass}, Planets={PlanetCount}, GameSystemId={GameSystemId}", 
+                request.SpectralClass, request.PlanetCount, request.GameSystemId);
 
-            var prompt = $@"Create a futuristic solar system with {request.PlanetCount} planets orbiting a {request.SpectralClass} class star.
+            // Build context for RAG query
+            var additionalContext = $"Star spectral class: {request.SpectralClass}, Planet count: {request.PlanetCount}";
+
+            // RAG-enhanced system prompt
+            var systemPrompt = @"You are a solar system generator for a tabletop RPG.
+Use the provided lore context from the game manuals to create a star system that fits the game's setting.
+The system must be consistent with the game system's lore, factions, and cosmic geography.
+Respond only with valid JSON.";
+
+            // RAG user query
+            var userQuery = $@"Based on the game system lore provided, generate a solar system with these parameters:
+Star Spectral Class: {request.SpectralClass}
+Number of Planets: {request.PlanetCount}
+
+Generate a JSON object with:
+- name: A unique star system name fitting the setting
+- description: A 2-3 sentence description
+- planets: An array of {request.PlanetCount} planet names
+
+The system should reflect the game world's cosmic themes and known regions from the lore.
+
+Example format:
+{{""name"":""Nexus Prime"",""description"":""A binary system..."",""planets"":[""Arkon"",""Vela"",""Theron""]}}";
+
+            // Fallback prompts
+            var fallbackPrompt = $@"Create a futuristic solar system with {request.PlanetCount} planets orbiting a {request.SpectralClass} class star.
 Provide a unique sci-fi name, a brief overview of the system, and a name for each planet.
 
 Respond with a JSON object containing:
@@ -104,25 +370,62 @@ Respond with a JSON object containing:
 Example format:
 {{""name"":""Nexus Prime"",""description"":""A binary system..."",""planets"":[""Arkon"",""Vela"",""Theron""]}}";
 
-            var textResult = await _aiService.GenerateJsonAsync(
-                prompt,
-                "You are a sci-fi world builder. Respond only with valid JSON.",
-                0.8f,
-                512,
+            var fallbackSystemPrompt = "You are a sci-fi world builder. Respond only with valid JSON.";
+
+            // Generate with RAG
+            var (systemJson, ragContext) = await GenerateWithRagAsync(
+                request.GameSystemId,
+                userId,
+                entityType: "solar-system",
+                additionalContext: additionalContext,
+                systemPrompt: systemPrompt,
+                userQuery: userQuery,
+                fallbackPrompt: fallbackPrompt,
+                fallbackSystemPrompt: fallbackSystemPrompt,
                 cancellationToken);
 
-            // Generate image
-            var imagePrompt = $"Breathtaking wide-angle cinematic view of a {request.SpectralClass}-type star solar system. Visible planets orbiting, vibrant cosmic nebulas in background, high detail, photorealistic space photography, sci-fi concept art, deep blacks, vivid colors.";
+            // Conditionally generate image based on request parameter
+            string? imageBase64 = null;
+            string? imageUrl = null;
             
-            var imageResult = await _aiService.GenerateImageAsync(imagePrompt, cancellationToken: cancellationToken);
+            if (request.GenerateImage)
+            {
+                // Optionally enhance image prompt with style context from RAG
+                string imagePromptContext = "";
+                
+                if (request.GameSystemId.HasValue)
+                {
+                    var styleContext = await _ragContextProvider.GetStyleContextAsync(
+                        request.GameSystemId.Value,
+                        userId,
+                        "solar-system",
+                        cancellationToken);
+                    
+                    if (styleContext.Any())
+                    {
+                        imagePromptContext = $" Art style based on: {string.Join(" ", styleContext.Take(2).Select(c => c.Content.Substring(0, Math.Min(200, c.Content.Length))))}";
+                    }
+                }
+
+                var imagePrompt = $"Breathtaking wide-angle cinematic view of a {request.SpectralClass}-type star solar system. Visible planets orbiting, vibrant cosmic nebulas in background, high detail, photorealistic space photography, sci-fi concept art, deep blacks, vivid colors.{imagePromptContext}";
+                var imageResult = await _aiService.GenerateImageAsync(imagePrompt, cancellationToken: cancellationToken);
+                imageBase64 = imageResult.ImageBase64;
+                imageUrl = imageResult.ImageUrl;
+            }
 
             return Ok(new SolarSystemGenerationResponse
             {
                 Success = true,
-                SystemJson = textResult.Json,
-                ImageBase64 = imageResult.ImageBase64,
-                ImageUrl = imageResult.ImageUrl
+                SystemJson = systemJson,
+                ImageBase64 = imageBase64,
+                ImageUrl = imageUrl,
+                RagContextUsed = ragContext.Any(),
+                RagSourceCount = ragContext.Count
             });
+        }
+        catch (UnauthorizedAccessException)
+        {
+            return Unauthorized();
         }
         catch (Exception ex)
         {
@@ -136,8 +439,12 @@ Example format:
     }
 
     /// <summary>
-    /// Generate a vehicle with stats
+    /// Generate a vehicle with stats using RAG-enhanced AI.
+    /// Retrieves relevant lore from game system manuals to ensure lore-accurate generation.
     /// </summary>
+    /// <param name="request">Vehicle generation parameters including game system context.</param>
+    /// <param name="cancellationToken">Cancellation token.</param>
+    /// <returns>Generated vehicle data with optional image.</returns>
     [HttpPost("generate/vehicle")]
     [ProducesResponseType(typeof(VehicleGenerationResponse), StatusCodes.Status200OK)]
     [ProducesResponseType(StatusCodes.Status500InternalServerError)]
@@ -147,10 +454,39 @@ Example format:
     {
         try
         {
-            _logger.LogInformation("Generating vehicle: Type={Type}, Class={Class}", 
-                request.Type, request.Class);
+            var userId = GetCurrentUserId();
+            
+            _logger.LogInformation(
+                "Generating vehicle: Type={Type}, Class={Class}, GameSystemId={GameSystemId}", 
+                request.Type, request.Class, request.GameSystemId);
 
-            var prompt = $@"Create a futuristic vehicle:
+            // Build context for RAG query
+            var additionalContext = $"Vehicle type: {request.Type}, Class: {request.Class}, Engine: {request.Engine}";
+
+            // RAG-enhanced system prompt
+            var systemPrompt = @"You are a vehicle generator for a tabletop RPG.
+Use the provided lore context from the game manuals to create a vehicle that fits the game's setting and technology level.
+The vehicle must be consistent with the game system's lore, factions, and available technology.
+Respond only with valid JSON.";
+
+            // RAG user query
+            var userQuery = $@"Based on the game system lore provided, generate a vehicle with these parameters:
+Type: {request.Type}
+Class: {request.Class}
+Engine: {request.Engine}
+
+Generate a JSON object with:
+- name: A unique vehicle designation/name fitting the setting
+- specs: A 2-3 sentence description of capabilities
+- stats: An object with SPEED (1-100), ARMOR (1-100), CARGO (1-100)
+
+The vehicle should reflect the game world's technology and design aesthetics from the lore.
+
+Example format:
+{{""name"":""Phantom-X7"",""specs"":""A stealth interceptor..."",""stats"":{{""SPEED"":95,""ARMOR"":40,""CARGO"":20}}}}";
+
+            // Fallback prompts
+            var fallbackPrompt = $@"Create a futuristic vehicle:
 Type: {request.Type}
 Class: {request.Class}
 Engine: {request.Engine}
@@ -163,18 +499,62 @@ Respond with a JSON object containing:
 Example format:
 {{""name"":""Phantom-X7"",""specs"":""A stealth interceptor..."",""stats"":{{""SPEED"":95,""ARMOR"":40,""CARGO"":20}}}}";
 
-            var textResult = await _aiService.GenerateJsonAsync(
-                prompt,
-                "You are a sci-fi vehicle designer. Respond only with valid JSON.",
-                0.8f,
-                512,
+            var fallbackSystemPrompt = "You are a sci-fi vehicle designer. Respond only with valid JSON.";
+
+            // Generate with RAG
+            var (vehicleJson, ragContext) = await GenerateWithRagAsync(
+                request.GameSystemId,
+                userId,
+                entityType: "vehicle",
+                additionalContext: additionalContext,
+                systemPrompt: systemPrompt,
+                userQuery: userQuery,
+                fallbackPrompt: fallbackPrompt,
+                fallbackSystemPrompt: fallbackSystemPrompt,
                 cancellationToken);
+
+            // Conditionally generate image based on request parameter
+            string? imageBase64 = null;
+            string? imageUrl = null;
+            
+            if (request.GenerateImage)
+            {
+                // Optionally enhance image prompt with style context from RAG
+                string imagePromptContext = "";
+                
+                if (request.GameSystemId.HasValue)
+                {
+                    var styleContext = await _ragContextProvider.GetStyleContextAsync(
+                        request.GameSystemId.Value,
+                        userId,
+                        "vehicle",
+                        cancellationToken);
+                    
+                    if (styleContext.Any())
+                    {
+                        imagePromptContext = $" Art style based on: {string.Join(" ", styleContext.Take(2).Select(c => c.Content.Substring(0, Math.Min(200, c.Content.Length))))}";
+                    }
+                }
+
+                var imagePrompt = $"Stunning sci-fi {request.Type} design, {request.Class} class, powered by {request.Engine} engine. Sleek futuristic vehicle, detailed mechanical components, cinematic lighting, concept art style, black space background, 8k resolution.{imagePromptContext}";
+                var imageResult = await _aiService.GenerateImageAsync(imagePrompt, cancellationToken: cancellationToken);
+                imageBase64 = imageResult.ImageBase64;
+                imageUrl = imageResult.ImageUrl;
+            }
 
             return Ok(new VehicleGenerationResponse
             {
                 Success = true,
-                VehicleJson = textResult.Json
+                VehicleJson = vehicleJson,
+                ImageBase64 = imageBase64,
+                ImageUrl = imageUrl,
+                RagContextUsed = ragContext.Any(),
+                RagSourceCount = ragContext.Count
             });
+        }
+        catch (UnauthorizedAccessException)
+        {
+            return Unauthorized();
         }
         catch (Exception ex)
         {
@@ -188,8 +568,12 @@ Example format:
     }
 
     /// <summary>
-    /// Generate an NPC (Non-Player Character) with personality and background
+    /// Generate an NPC (Non-Player Character) with personality and background using RAG-enhanced AI.
+    /// Retrieves relevant lore from game system manuals to ensure lore-accurate generation.
     /// </summary>
+    /// <param name="request">NPC generation parameters including game system context.</param>
+    /// <param name="cancellationToken">Cancellation token.</param>
+    /// <returns>Generated NPC data with optional image.</returns>
     [HttpPost("generate/npc")]
     [ProducesResponseType(typeof(NpcGenerationResponse), StatusCodes.Status200OK)]
     [ProducesResponseType(StatusCodes.Status500InternalServerError)]
@@ -199,10 +583,42 @@ Example format:
     {
         try
         {
-            _logger.LogInformation("Generating NPC: Species={Species}, Occupation={Occupation}, Personality={Personality}", 
-                request.Species, request.Occupation, request.Personality);
+            var userId = GetCurrentUserId();
+            
+            _logger.LogInformation(
+                "Generating NPC: Species={Species}, Occupation={Occupation}, GameSystemId={GameSystemId}", 
+                request.Species, request.Occupation, request.GameSystemId);
 
-            var prompt = $@"Create a sci-fi NPC (non-player character) for a tabletop RPG:
+            // Build context for RAG query
+            var additionalContext = $"Species: {request.Species}, Occupation: {request.Occupation}, Personality: {request.Personality}, Setting: {request.Setting}";
+
+            // RAG-enhanced system prompt
+            var systemPrompt = @"You are an NPC generator for a tabletop RPG.
+Use the provided lore context from the game manuals to create an NPC that fits the game's setting.
+The NPC must be consistent with the game system's lore, factions, species, and social structures.
+Respond only with valid JSON.";
+
+            // RAG user query
+            var userQuery = $@"Based on the game system lore provided, generate an NPC with these parameters:
+Species: {request.Species}
+Occupation: {request.Occupation}
+Personality: {request.Personality}
+Setting: {request.Setting}
+
+Generate a JSON object with:
+- name: A unique sci-fi name fitting their species and the setting's naming conventions
+- occupation: Their job/role description
+- personality: A brief personality summary
+- background: A 2-3 sentence backstory explaining who they are and their motivations
+- stats: An object with CHA (charisma, 1-100), INT (intelligence, 1-100), WIS (wisdom, 1-100)
+
+The NPC should reflect the game world's factions, cultures, and social dynamics from the lore.
+
+Example format:
+{{""name"":""Vex Morrow"",""occupation"":""Information Broker"",""personality"":""Cunning but fair"",""background"":""Former corporate spy..."",""stats"":{{""CHA"":85,""INT"":75,""WIS"":60}}}}";
+
+            // Fallback prompts
+            var fallbackPrompt = $@"Create a sci-fi NPC (non-player character) for a tabletop RPG:
 Species: {request.Species}
 Occupation: {request.Occupation}
 Personality: {request.Personality}
@@ -218,25 +634,62 @@ Respond with a JSON object containing:
 Example format:
 {{""name"":""Vex Morrow"",""occupation"":""Information Broker"",""personality"":""Cunning but fair"",""background"":""Former corporate spy..."",""stats"":{{""CHA"":85,""INT"":75,""WIS"":60}}}}";
 
-            var textResult = await _aiService.GenerateJsonAsync(
-                prompt,
-                "You are a sci-fi RPG character creator. Create interesting NPCs with depth. Respond only with valid JSON.",
-                0.8f,
-                512,
+            var fallbackSystemPrompt = "You are a sci-fi RPG character creator. Create interesting NPCs with depth. Respond only with valid JSON.";
+
+            // Generate with RAG
+            var (npcJson, ragContext) = await GenerateWithRagAsync(
+                request.GameSystemId,
+                userId,
+                entityType: "npc",
+                additionalContext: additionalContext,
+                systemPrompt: systemPrompt,
+                userQuery: userQuery,
+                fallbackPrompt: fallbackPrompt,
+                fallbackSystemPrompt: fallbackSystemPrompt,
                 cancellationToken);
 
-            // Generate image for the NPC
-            var imagePrompt = $"High-quality futuristic sci-fi portrait of a {request.Species} {request.Occupation}, {request.Personality} expression. Cinematic lighting, cyberpunk aesthetic, detailed face, professional concept art, neutral background, 8k resolution.";
+            // Conditionally generate image based on request parameter
+            string? imageBase64 = null;
+            string? imageUrl = null;
             
-            var imageResult = await _aiService.GenerateImageAsync(imagePrompt, cancellationToken: cancellationToken);
+            if (request.GenerateImage)
+            {
+                // Optionally enhance image prompt with style context from RAG
+                string imagePromptContext = "";
+                
+                if (request.GameSystemId.HasValue)
+                {
+                    var styleContext = await _ragContextProvider.GetStyleContextAsync(
+                        request.GameSystemId.Value,
+                        userId,
+                        "npc",
+                        cancellationToken);
+                    
+                    if (styleContext.Any())
+                    {
+                        imagePromptContext = $" Art style based on: {string.Join(" ", styleContext.Take(2).Select(c => c.Content.Substring(0, Math.Min(200, c.Content.Length))))}";
+                    }
+                }
+
+                var imagePrompt = $"High-quality futuristic sci-fi portrait of a {request.Species} {request.Occupation}, {request.Personality} expression. Cinematic lighting, cyberpunk aesthetic, detailed face, professional concept art, neutral background, 8k resolution.{imagePromptContext}";
+                var imageResult = await _aiService.GenerateImageAsync(imagePrompt, cancellationToken: cancellationToken);
+                imageBase64 = imageResult.ImageBase64;
+                imageUrl = imageResult.ImageUrl;
+            }
 
             return Ok(new NpcGenerationResponse
             {
                 Success = true,
-                NpcJson = textResult.Json,
-                ImageBase64 = imageResult.ImageBase64,
-                ImageUrl = imageResult.ImageUrl
+                NpcJson = npcJson,
+                ImageBase64 = imageBase64,
+                ImageUrl = imageUrl,
+                RagContextUsed = ragContext.Any(),
+                RagSourceCount = ragContext.Count
             });
+        }
+        catch (UnauthorizedAccessException)
+        {
+            return Unauthorized();
         }
         catch (Exception ex)
         {
@@ -250,8 +703,12 @@ Example format:
     }
 
     /// <summary>
-    /// Generate an enemy/hostile creature with combat stats
+    /// Generate an enemy/hostile creature with combat stats using RAG-enhanced AI.
+    /// Retrieves relevant lore from game system manuals to ensure lore-accurate generation.
     /// </summary>
+    /// <param name="request">Enemy generation parameters including game system context.</param>
+    /// <param name="cancellationToken">Cancellation token.</param>
+    /// <returns>Generated enemy data with optional image.</returns>
     [HttpPost("generate/enemy")]
     [ProducesResponseType(typeof(EnemyGenerationResponse), StatusCodes.Status200OK)]
     [ProducesResponseType(StatusCodes.Status500InternalServerError)]
@@ -261,10 +718,43 @@ Example format:
     {
         try
         {
-            _logger.LogInformation("Generating enemy: Species={Species}, ThreatLevel={ThreatLevel}, Behavior={Behavior}", 
-                request.Species, request.ThreatLevel, request.Behavior);
+            var userId = GetCurrentUserId();
+            
+            _logger.LogInformation(
+                "Generating enemy: Species={Species}, ThreatLevel={ThreatLevel}, GameSystemId={GameSystemId}", 
+                request.Species, request.ThreatLevel, request.GameSystemId);
 
-            var prompt = $@"Create a hostile sci-fi creature/enemy for a tabletop RPG:
+            // Build context for RAG query
+            var additionalContext = $"Species type: {request.Species}, Threat level: {request.ThreatLevel}, Behavior: {request.Behavior}, Environment: {request.Environment}";
+
+            // RAG-enhanced system prompt
+            var systemPrompt = @"You are an enemy/creature generator for a tabletop RPG.
+Use the provided lore context from the game manuals to create an enemy that fits the game's setting.
+The enemy must be consistent with the game system's lore, bestiary, and combat mechanics.
+Respond only with valid JSON.";
+
+            // RAG user query
+            var userQuery = $@"Based on the game system lore provided, generate a hostile creature/enemy with these parameters:
+Species Type: {request.Species}
+Threat Level: {request.ThreatLevel}
+Behavior Pattern: {request.Behavior}
+Environment: {request.Environment}
+
+Generate a JSON object with:
+- name: A threatening designation or creature name fitting the setting
+- species: The creature type/classification
+- threatLevel: The danger level ({request.ThreatLevel})
+- abilities: A description of 2-3 special abilities or attacks
+- weakness: One exploitable vulnerability
+- stats: An object with HP (health, 50-500 based on threat), ATK (attack power, 1-100), DEF (defense, 1-100), SPD (speed, 1-100)
+
+The enemy should reflect the game world's creatures, factions, and known threats from the lore.
+
+Example format:
+{{""name"":""Void Stalker"",""species"":""Alien Predator"",""threatLevel"":""dangerous"",""abilities"":""Cloaking field, venomous claws..."",""weakness"":""Sensitive to bright light"",""stats"":{{""HP"":150,""ATK"":75,""DEF"":40,""SPD"":90}}}}";
+
+            // Fallback prompts
+            var fallbackPrompt = $@"Create a hostile sci-fi creature/enemy for a tabletop RPG:
 Species Type: {request.Species}
 Threat Level: {request.ThreatLevel}
 Behavior Pattern: {request.Behavior}
@@ -281,25 +771,62 @@ Respond with a JSON object containing:
 Example format:
 {{""name"":""Void Stalker"",""species"":""Alien Predator"",""threatLevel"":""dangerous"",""abilities"":""Cloaking field, venomous claws..."",""weakness"":""Sensitive to bright light"",""stats"":{{""HP"":150,""ATK"":75,""DEF"":40,""SPD"":90}}}}";
 
-            var textResult = await _aiService.GenerateJsonAsync(
-                prompt,
-                "You are a sci-fi monster designer. Create terrifying but balanced enemies. Respond only with valid JSON.",
-                0.8f,
-                512,
+            var fallbackSystemPrompt = "You are a sci-fi monster designer. Create terrifying but balanced enemies. Respond only with valid JSON.";
+
+            // Generate with RAG
+            var (enemyJson, ragContext) = await GenerateWithRagAsync(
+                request.GameSystemId,
+                userId,
+                entityType: "enemy",
+                additionalContext: additionalContext,
+                systemPrompt: systemPrompt,
+                userQuery: userQuery,
+                fallbackPrompt: fallbackPrompt,
+                fallbackSystemPrompt: fallbackSystemPrompt,
                 cancellationToken);
 
-            // Generate image for the enemy
-            var imagePrompt = $"Terrifying sci-fi creature concept art, {request.Species}, {request.Behavior} posture, menacing, dark atmosphere, highly detailed, horror sci-fi aesthetic, professional illustration, dramatic lighting, 8k resolution.";
+            // Conditionally generate image based on request parameter
+            string? imageBase64 = null;
+            string? imageUrl = null;
             
-            var imageResult = await _aiService.GenerateImageAsync(imagePrompt, cancellationToken: cancellationToken);
+            if (request.GenerateImage)
+            {
+                // Optionally enhance image prompt with style context from RAG
+                string imagePromptContext = "";
+                
+                if (request.GameSystemId.HasValue)
+                {
+                    var styleContext = await _ragContextProvider.GetStyleContextAsync(
+                        request.GameSystemId.Value,
+                        userId,
+                        "enemy",
+                        cancellationToken);
+                    
+                    if (styleContext.Any())
+                    {
+                        imagePromptContext = $" Art style based on: {string.Join(" ", styleContext.Take(2).Select(c => c.Content.Substring(0, Math.Min(200, c.Content.Length))))}";
+                    }
+                }
+
+                var imagePrompt = $"Terrifying sci-fi creature concept art, {request.Species}, {request.Behavior} posture, menacing, dark atmosphere, highly detailed, horror sci-fi aesthetic, professional illustration, dramatic lighting, 8k resolution.{imagePromptContext}";
+                var imageResult = await _aiService.GenerateImageAsync(imagePrompt, cancellationToken: cancellationToken);
+                imageBase64 = imageResult.ImageBase64;
+                imageUrl = imageResult.ImageUrl;
+            }
 
             return Ok(new EnemyGenerationResponse
             {
                 Success = true,
-                EnemyJson = textResult.Json,
-                ImageBase64 = imageResult.ImageBase64,
-                ImageUrl = imageResult.ImageUrl
+                EnemyJson = enemyJson,
+                ImageBase64 = imageBase64,
+                ImageUrl = imageUrl,
+                RagContextUsed = ragContext.Any(),
+                RagSourceCount = ragContext.Count
             });
+        }
+        catch (UnauthorizedAccessException)
+        {
+            return Unauthorized();
         }
         catch (Exception ex)
         {
@@ -313,8 +840,12 @@ Example format:
     }
 
     /// <summary>
-    /// Generate a mission/quest with objectives and rewards
+    /// Generate a mission/quest with objectives and rewards using RAG-enhanced AI.
+    /// Retrieves relevant lore from game system manuals to ensure lore-accurate generation.
     /// </summary>
+    /// <param name="request">Mission generation parameters including game system context.</param>
+    /// <param name="cancellationToken">Cancellation token.</param>
+    /// <returns>Generated mission data with optional image.</returns>
     [HttpPost("generate/mission")]
     [ProducesResponseType(typeof(MissionGenerationResponse), StatusCodes.Status200OK)]
     [ProducesResponseType(StatusCodes.Status500InternalServerError)]
@@ -324,10 +855,43 @@ Example format:
     {
         try
         {
-            _logger.LogInformation("Generating mission: Type={MissionType}, Difficulty={Difficulty}", 
-                request.MissionType, request.Difficulty);
+            var userId = GetCurrentUserId();
+            
+            _logger.LogInformation(
+                "Generating mission: Type={MissionType}, Difficulty={Difficulty}, GameSystemId={GameSystemId}", 
+                request.MissionType, request.Difficulty, request.GameSystemId);
 
-            var prompt = $@"Create a sci-fi RPG mission/quest:
+            // Build context for RAG query
+            var additionalContext = $"Mission type: {request.MissionType}, Difficulty: {request.Difficulty}, Environment: {request.Environment}, Faction: {request.FactionInvolved}";
+
+            // RAG-enhanced system prompt
+            var systemPrompt = @"You are a mission/quest generator for a tabletop RPG.
+Use the provided lore context from the game manuals to create a mission that fits the game's setting.
+The mission must be consistent with the game system's lore, factions, and narrative themes.
+Respond only with valid JSON.";
+
+            // RAG user query
+            var userQuery = $@"Based on the game system lore provided, generate a mission with these parameters:
+Mission Type: {request.MissionType}
+Difficulty: {request.Difficulty}
+Environment: {request.Environment}
+Faction Involved: {request.FactionInvolved}
+
+Generate a JSON object with:
+- name: A code name or operation title (e.g., ""Operation Silent Dawn"") fitting the setting
+- briefing: A 2-3 sentence mission briefing explaining the situation
+- objective: The primary goal in one clear sentence
+- rewards: Expected compensation/rewards for completion
+- difficulty: The difficulty level ({request.Difficulty})
+- estimatedDuration: Approximate time to complete (e.g., ""2-3 hours"")
+
+The mission should reflect the game world's factions, conflicts, and narrative themes from the lore.
+
+Example format:
+{{""name"":""Operation Blackout"",""briefing"":""Corporate forces have seized..."",""objective"":""Infiltrate the facility and retrieve the data core"",""rewards"":""5000 credits + reputation boost"",""difficulty"":""HARD"",""estimatedDuration"":""3-4 hours""}}";
+
+            // Fallback prompts
+            var fallbackPrompt = $@"Create a sci-fi RPG mission/quest:
 Mission Type: {request.MissionType}
 Difficulty: {request.Difficulty}
 Environment: {request.Environment}
@@ -344,18 +908,62 @@ Respond with a JSON object containing:
 Example format:
 {{""name"":""Operation Blackout"",""briefing"":""Corporate forces have seized..."",""objective"":""Infiltrate the facility and retrieve the data core"",""rewards"":""5000 credits + reputation boost"",""difficulty"":""HARD"",""estimatedDuration"":""3-4 hours""}}";
 
-            var textResult = await _aiService.GenerateJsonAsync(
-                prompt,
-                "You are a sci-fi mission designer. Create engaging quests with clear objectives. Respond only with valid JSON.",
-                0.8f,
-                512,
+            var fallbackSystemPrompt = "You are a sci-fi mission designer. Create engaging quests with clear objectives. Respond only with valid JSON.";
+
+            // Generate with RAG
+            var (missionJson, ragContext) = await GenerateWithRagAsync(
+                request.GameSystemId,
+                userId,
+                entityType: "mission",
+                additionalContext: additionalContext,
+                systemPrompt: systemPrompt,
+                userQuery: userQuery,
+                fallbackPrompt: fallbackPrompt,
+                fallbackSystemPrompt: fallbackSystemPrompt,
                 cancellationToken);
+
+            // Conditionally generate image based on request parameter
+            string? imageBase64 = null;
+            string? imageUrl = null;
+            
+            if (request.GenerateImage)
+            {
+                // Optionally enhance image prompt with style context from RAG
+                string imagePromptContext = "";
+                
+                if (request.GameSystemId.HasValue)
+                {
+                    var styleContext = await _ragContextProvider.GetStyleContextAsync(
+                        request.GameSystemId.Value,
+                        userId,
+                        "mission",
+                        cancellationToken);
+                    
+                    if (styleContext.Any())
+                    {
+                        imagePromptContext = $" Art style based on: {string.Join(" ", styleContext.Take(2).Select(c => c.Content.Substring(0, Math.Min(200, c.Content.Length))))}";
+                    }
+                }
+
+                var imagePrompt = $"Cinematic sci-fi scene depicting a {request.MissionType} mission in a {request.Environment}. Dramatic atmosphere, {request.Difficulty} difficulty feel, tactical environment, concept art style, moody lighting, 8k resolution.{imagePromptContext}";
+                var imageResult = await _aiService.GenerateImageAsync(imagePrompt, cancellationToken: cancellationToken);
+                imageBase64 = imageResult.ImageBase64;
+                imageUrl = imageResult.ImageUrl;
+            }
 
             return Ok(new MissionGenerationResponse
             {
                 Success = true,
-                MissionJson = textResult.Json
+                MissionJson = missionJson,
+                ImageBase64 = imageBase64,
+                ImageUrl = imageUrl,
+                RagContextUsed = ragContext.Any(),
+                RagSourceCount = ragContext.Count
             });
+        }
+        catch (UnauthorizedAccessException)
+        {
+            return Unauthorized();
         }
         catch (Exception ex)
         {
@@ -369,8 +977,12 @@ Example format:
     }
 
     /// <summary>
-    /// Generate a combat encounter with participants and environment
+    /// Generate a combat encounter with participants and environment using RAG-enhanced AI.
+    /// Retrieves relevant lore from game system manuals to ensure lore-accurate generation.
     /// </summary>
+    /// <param name="request">Encounter generation parameters including game system context.</param>
+    /// <param name="cancellationToken">Cancellation token.</param>
+    /// <returns>Generated encounter data with optional image.</returns>
     [HttpPost("generate/encounter")]
     [ProducesResponseType(typeof(EncounterGenerationResponse), StatusCodes.Status200OK)]
     [ProducesResponseType(StatusCodes.Status500InternalServerError)]
@@ -380,10 +992,43 @@ Example format:
     {
         try
         {
-            _logger.LogInformation("Generating encounter: Type={EncounterType}, Difficulty={Difficulty}, EnemyCount={EnemyCount}", 
-                request.EncounterType, request.Difficulty, request.EnemyCount);
+            var userId = GetCurrentUserId();
+            
+            _logger.LogInformation(
+                "Generating encounter: Type={EncounterType}, Difficulty={Difficulty}, GameSystemId={GameSystemId}", 
+                request.EncounterType, request.Difficulty, request.GameSystemId);
 
-            var prompt = $@"Create a sci-fi RPG combat/tactical encounter:
+            // Build context for RAG query
+            var additionalContext = $"Encounter type: {request.EncounterType}, Difficulty: {request.Difficulty}, Environment: {request.Environment}, Enemy count: {request.EnemyCount}";
+
+            // RAG-enhanced system prompt
+            var systemPrompt = @"You are a combat encounter generator for a tabletop RPG.
+Use the provided lore context from the game manuals to create an encounter that fits the game's setting.
+The encounter must be consistent with the game system's lore, combat rules, and enemy types.
+Respond only with valid JSON.";
+
+            // RAG user query
+            var userQuery = $@"Based on the game system lore provided, generate a combat encounter with these parameters:
+Encounter Type: {request.EncounterType}
+Difficulty: {request.Difficulty}
+Environment: {request.Environment}
+Enemy Count: {request.EnemyCount}
+
+Generate a JSON object with:
+- name: An evocative encounter name (e.g., ""Ambush at Sector 7"") fitting the setting
+- description: A 2-3 sentence description of the situation and how the encounter begins
+- environment: Detailed description of the tactical environment and any hazards
+- participants: An array of enemy types/names involved in this encounter
+- difficulty: The challenge level ({request.Difficulty})
+- loot: Potential rewards if the encounter is won
+
+The encounter should reflect the game world's enemies, factions, and combat scenarios from the lore.
+
+Example format:
+{{""name"":""Cargo Bay Showdown"",""description"":""The party enters the cargo bay to find..."",""environment"":""Large open space with shipping containers providing cover"",""participants"":[""Security Droid x2"",""Corporate Enforcer""],""difficulty"":""MEDIUM"",""loot"":""Prototype weapon, 1200 credits""}}";
+
+            // Fallback prompts
+            var fallbackPrompt = $@"Create a sci-fi RPG combat/tactical encounter:
 Encounter Type: {request.EncounterType}
 Difficulty: {request.Difficulty}
 Environment: {request.Environment}
@@ -400,18 +1045,62 @@ Respond with a JSON object containing:
 Example format:
 {{""name"":""Cargo Bay Showdown"",""description"":""The party enters the cargo bay to find..."",""environment"":""Large open space with shipping containers providing cover"",""participants"":[""Security Droid x2"",""Corporate Enforcer""],""difficulty"":""MEDIUM"",""loot"":""Prototype weapon, 1200 credits""}}";
 
-            var textResult = await _aiService.GenerateJsonAsync(
-                prompt,
-                "You are a sci-fi encounter designer. Create tactical and exciting combat scenarios. Respond only with valid JSON.",
-                0.8f,
-                512,
+            var fallbackSystemPrompt = "You are a sci-fi encounter designer. Create tactical and exciting combat scenarios. Respond only with valid JSON.";
+
+            // Generate with RAG
+            var (encounterJson, ragContext) = await GenerateWithRagAsync(
+                request.GameSystemId,
+                userId,
+                entityType: "encounter",
+                additionalContext: additionalContext,
+                systemPrompt: systemPrompt,
+                userQuery: userQuery,
+                fallbackPrompt: fallbackPrompt,
+                fallbackSystemPrompt: fallbackSystemPrompt,
                 cancellationToken);
+
+            // Conditionally generate image based on request parameter
+            string? imageBase64 = null;
+            string? imageUrl = null;
+            
+            if (request.GenerateImage)
+            {
+                // Optionally enhance image prompt with style context from RAG
+                string imagePromptContext = "";
+                
+                if (request.GameSystemId.HasValue)
+                {
+                    var styleContext = await _ragContextProvider.GetStyleContextAsync(
+                        request.GameSystemId.Value,
+                        userId,
+                        "encounter",
+                        cancellationToken);
+                    
+                    if (styleContext.Any())
+                    {
+                        imagePromptContext = $" Art style based on: {string.Join(" ", styleContext.Take(2).Select(c => c.Content.Substring(0, Math.Min(200, c.Content.Length))))}";
+                    }
+                }
+
+                var imagePrompt = $"Intense sci-fi {request.EncounterType} encounter in a {request.Environment} environment. {request.EnemyCount} enemies, tactical combat scene, dramatic lighting, action-packed atmosphere, concept art style, 8k resolution.{imagePromptContext}";
+                var imageResult = await _aiService.GenerateImageAsync(imagePrompt, cancellationToken: cancellationToken);
+                imageBase64 = imageResult.ImageBase64;
+                imageUrl = imageResult.ImageUrl;
+            }
 
             return Ok(new EncounterGenerationResponse
             {
                 Success = true,
-                EncounterJson = textResult.Json
+                EncounterJson = encounterJson,
+                ImageBase64 = imageBase64,
+                ImageUrl = imageUrl,
+                RagContextUsed = ragContext.Any(),
+                RagSourceCount = ragContext.Count
             });
+        }
+        catch (UnauthorizedAccessException)
+        {
+            return Unauthorized();
         }
         catch (Exception ex)
         {
@@ -488,29 +1177,114 @@ Example format:
 }
 
 // Request/Response DTOs
+
+/// <summary>
+/// Request parameters for character generation with RAG support.
+/// </summary>
 public record CharacterGenerationRequest
 {
+    /// <summary>
+    /// Optional game system ID for RAG-enhanced generation using manual lore.
+    /// If not provided, basic generation will be used without lore context.
+    /// </summary>
+    public Guid? GameSystemId { get; init; }
+    
+    /// <summary>
+    /// Character species/race (e.g., "human", "android", "alien").
+    /// </summary>
     public string Species { get; init; } = "human";
+    
+    /// <summary>
+    /// Character role/class (e.g., "operative", "hacker", "medic").
+    /// </summary>
     public string Role { get; init; } = "operative";
+    
+    /// <summary>
+    /// Character morphology/body type (e.g., "MASCULINE", "FEMININE", "NEUTRAL").
+    /// </summary>
     public string Morphology { get; init; } = "NEUTRAL";
+    
+    /// <summary>
+    /// Character style/attire description.
+    /// </summary>
     public string Attire { get; init; } = "Techwear";
+    
+    /// <summary>
+    /// Whether to generate an AI image for this entity. Defaults to true.
+    /// </summary>
+    public bool GenerateImage { get; init; } = true;
 }
 
+/// <summary>
+/// Response from character generation including RAG metadata.
+/// </summary>
 public record CharacterGenerationResponse
 {
+    /// <summary>
+    /// Whether generation was successful.
+    /// </summary>
     public bool Success { get; init; }
+    
+    /// <summary>
+    /// Generated character data as JSON string.
+    /// </summary>
     public string? CharacterJson { get; init; }
+    
+    /// <summary>
+    /// Generated image as base64 string (if requested).
+    /// </summary>
     public string? ImageBase64 { get; init; }
+    
+    /// <summary>
+    /// Generated image URL (if available from provider).
+    /// </summary>
     public string? ImageUrl { get; init; }
+    
+    /// <summary>
+    /// Error message if generation failed.
+    /// </summary>
     public string? Error { get; init; }
+    
+    /// <summary>
+    /// Whether RAG context from game manuals was used for generation.
+    /// </summary>
+    public bool RagContextUsed { get; init; }
+    
+    /// <summary>
+    /// Number of RAG context chunks used (0 if none).
+    /// </summary>
+    public int RagSourceCount { get; init; }
 }
 
+/// <summary>
+/// Request parameters for solar system generation with RAG support.
+/// </summary>
 public record SolarSystemGenerationRequest
 {
+    /// <summary>
+    /// Optional game system ID for RAG-enhanced generation using manual lore.
+    /// </summary>
+    public Guid? GameSystemId { get; init; }
+    
+    /// <summary>
+    /// Star spectral class (e.g., "G", "M", "K", "O").
+    /// </summary>
     public string SpectralClass { get; init; } = "G";
+    
+    /// <summary>
+    /// Number of planets in the system.
+    /// </summary>
     public int PlanetCount { get; init; } = 8;
+    
+    /// <summary>
+    /// Whether to generate an AI image for this entity. Defaults to true.
+    /// </summary>
+    public bool GenerateImage { get; init; } = true;
 }
 
+/// <summary>
+/// Response from solar system generation including RAG metadata.
+/// </summary>
 public record SolarSystemGenerationResponse
 {
     public bool Success { get; init; }
@@ -518,20 +1292,69 @@ public record SolarSystemGenerationResponse
     public string? ImageBase64 { get; init; }
     public string? ImageUrl { get; init; }
     public string? Error { get; init; }
+    
+    /// <summary>
+    /// Whether RAG context from game manuals was used for generation.
+    /// </summary>
+    public bool RagContextUsed { get; init; }
+    
+    /// <summary>
+    /// Number of RAG context chunks used (0 if none).
+    /// </summary>
+    public int RagSourceCount { get; init; }
 }
 
+/// <summary>
+/// Request parameters for vehicle generation with RAG support.
+/// </summary>
 public record VehicleGenerationRequest
 {
+    /// <summary>
+    /// Optional game system ID for RAG-enhanced generation using manual lore.
+    /// </summary>
+    public Guid? GameSystemId { get; init; }
+    
+    /// <summary>
+    /// Vehicle type (e.g., "starship", "ground vehicle", "mech").
+    /// </summary>
     public string Type { get; init; } = "starship";
+    
+    /// <summary>
+    /// Vehicle class (e.g., "interceptor", "freighter", "battleship").
+    /// </summary>
     public string Class { get; init; } = "interceptor";
+    
+    /// <summary>
+    /// Engine type (e.g., "fusion", "ion", "warp").
+    /// </summary>
     public string Engine { get; init; } = "fusion";
+    
+    /// <summary>
+    /// Whether to generate an AI image for this entity. Defaults to true.
+    /// </summary>
+    public bool GenerateImage { get; init; } = true;
 }
 
+/// <summary>
+/// Response from vehicle generation including RAG metadata.
+/// </summary>
 public record VehicleGenerationResponse
 {
     public bool Success { get; init; }
     public string? VehicleJson { get; init; }
+    public string? ImageBase64 { get; init; }
+    public string? ImageUrl { get; init; }
     public string? Error { get; init; }
+    
+    /// <summary>
+    /// Whether RAG context from game manuals was used for generation.
+    /// </summary>
+    public bool RagContextUsed { get; init; }
+    
+    /// <summary>
+    /// Number of RAG context chunks used (0 if none).
+    /// </summary>
+    public int RagSourceCount { get; init; }
 }
 
 public record TestAiRequest
@@ -564,15 +1387,45 @@ public record HealthResponse
     public DateTime Timestamp { get; init; }
 }
 
-// NPC Generation DTOs
+/// <summary>
+/// Request parameters for NPC generation with RAG support.
+/// </summary>
 public record NpcGenerationRequest
 {
+    /// <summary>
+    /// Optional game system ID for RAG-enhanced generation using manual lore.
+    /// </summary>
+    public Guid? GameSystemId { get; init; }
+    
+    /// <summary>
+    /// NPC species/race.
+    /// </summary>
     public string Species { get; init; } = "human";
+    
+    /// <summary>
+    /// NPC occupation/role.
+    /// </summary>
     public string Occupation { get; init; } = "merchant";
+    
+    /// <summary>
+    /// NPC personality traits.
+    /// </summary>
     public string Personality { get; init; } = "friendly";
+    
+    /// <summary>
+    /// Setting where NPC is found.
+    /// </summary>
     public string Setting { get; init; } = "space-station";
+    
+    /// <summary>
+    /// Whether to generate an AI image for this entity. Defaults to true.
+    /// </summary>
+    public bool GenerateImage { get; init; } = true;
 }
 
+/// <summary>
+/// Response from NPC generation including RAG metadata.
+/// </summary>
 public record NpcGenerationResponse
 {
     public bool Success { get; init; }
@@ -580,17 +1433,57 @@ public record NpcGenerationResponse
     public string? ImageBase64 { get; init; }
     public string? ImageUrl { get; init; }
     public string? Error { get; init; }
+    
+    /// <summary>
+    /// Whether RAG context from game manuals was used for generation.
+    /// </summary>
+    public bool RagContextUsed { get; init; }
+    
+    /// <summary>
+    /// Number of RAG context chunks used (0 if none).
+    /// </summary>
+    public int RagSourceCount { get; init; }
 }
 
-// Enemy Generation DTOs
+/// <summary>
+/// Request parameters for enemy generation with RAG support.
+/// </summary>
 public record EnemyGenerationRequest
 {
+    /// <summary>
+    /// Optional game system ID for RAG-enhanced generation using manual lore.
+    /// </summary>
+    public Guid? GameSystemId { get; init; }
+    
+    /// <summary>
+    /// Enemy species/type.
+    /// </summary>
     public string Species { get; init; } = "alien-beast";
+    
+    /// <summary>
+    /// Threat level (e.g., "low", "moderate", "high", "extreme").
+    /// </summary>
     public string ThreatLevel { get; init; } = "moderate";
+    
+    /// <summary>
+    /// Behavior pattern (e.g., "aggressive", "territorial", "pack-hunter").
+    /// </summary>
     public string Behavior { get; init; } = "aggressive";
+    
+    /// <summary>
+    /// Environment where enemy is found.
+    /// </summary>
     public string Environment { get; init; } = "space-station";
+    
+    /// <summary>
+    /// Whether to generate an AI image for this entity. Defaults to true.
+    /// </summary>
+    public bool GenerateImage { get; init; } = true;
 }
 
+/// <summary>
+/// Response from enemy generation including RAG metadata.
+/// </summary>
 public record EnemyGenerationResponse
 {
     public bool Success { get; init; }
@@ -598,36 +1491,130 @@ public record EnemyGenerationResponse
     public string? ImageBase64 { get; init; }
     public string? ImageUrl { get; init; }
     public string? Error { get; init; }
+    
+    /// <summary>
+    /// Whether RAG context from game manuals was used for generation.
+    /// </summary>
+    public bool RagContextUsed { get; init; }
+    
+    /// <summary>
+    /// Number of RAG context chunks used (0 if none).
+    /// </summary>
+    public int RagSourceCount { get; init; }
 }
 
-// Mission Generation DTOs
+/// <summary>
+/// Request parameters for mission generation with RAG support.
+/// </summary>
 public record MissionGenerationRequest
 {
+    /// <summary>
+    /// Optional game system ID for RAG-enhanced generation using manual lore.
+    /// </summary>
+    public Guid? GameSystemId { get; init; }
+    
+    /// <summary>
+    /// Mission type (e.g., "extraction", "assassination", "escort").
+    /// </summary>
     public string MissionType { get; init; } = "extraction";
+    
+    /// <summary>
+    /// Mission difficulty.
+    /// </summary>
     public string Difficulty { get; init; } = "MEDIUM";
+    
+    /// <summary>
+    /// Environment setting for the mission.
+    /// </summary>
     public string Environment { get; init; } = "space-station";
+    
+    /// <summary>
+    /// Faction involved in the mission.
+    /// </summary>
     public string FactionInvolved { get; init; } = "corporate";
+    
+    /// <summary>
+    /// Whether to generate an AI image for this entity. Defaults to true.
+    /// </summary>
+    public bool GenerateImage { get; init; } = true;
 }
 
+/// <summary>
+/// Response from mission generation including RAG metadata.
+/// </summary>
 public record MissionGenerationResponse
 {
     public bool Success { get; init; }
     public string? MissionJson { get; init; }
+    public string? ImageBase64 { get; init; }
+    public string? ImageUrl { get; init; }
     public string? Error { get; init; }
+    
+    /// <summary>
+    /// Whether RAG context from game manuals was used for generation.
+    /// </summary>
+    public bool RagContextUsed { get; init; }
+    
+    /// <summary>
+    /// Number of RAG context chunks used (0 if none).
+    /// </summary>
+    public int RagSourceCount { get; init; }
 }
 
-// Encounter Generation DTOs
+/// <summary>
+/// Request parameters for encounter generation with RAG support.
+/// </summary>
 public record EncounterGenerationRequest
 {
+    /// <summary>
+    /// Optional game system ID for RAG-enhanced generation using manual lore.
+    /// </summary>
+    public Guid? GameSystemId { get; init; }
+    
+    /// <summary>
+    /// Encounter type (e.g., "combat", "ambush", "negotiation").
+    /// </summary>
     public string EncounterType { get; init; } = "combat";
+    
+    /// <summary>
+    /// Encounter difficulty.
+    /// </summary>
     public string Difficulty { get; init; } = "MEDIUM";
+    
+    /// <summary>
+    /// Environment setting for the encounter.
+    /// </summary>
     public string Environment { get; init; } = "open-area";
+    
+    /// <summary>
+    /// Number/type of enemies (e.g., "solo", "squad", "horde").
+    /// </summary>
     public string EnemyCount { get; init; } = "squad";
+    
+    /// <summary>
+    /// Whether to generate an AI image for this entity. Defaults to true.
+    /// </summary>
+    public bool GenerateImage { get; init; } = true;
 }
 
+/// <summary>
+/// Response from encounter generation including RAG metadata.
+/// </summary>
 public record EncounterGenerationResponse
 {
     public bool Success { get; init; }
     public string? EncounterJson { get; init; }
+    public string? ImageBase64 { get; init; }
+    public string? ImageUrl { get; init; }
     public string? Error { get; init; }
+    
+    /// <summary>
+    /// Whether RAG context from game manuals was used for generation.
+    /// </summary>
+    public bool RagContextUsed { get; init; }
+    
+    /// <summary>
+    /// Number of RAG context chunks used (0 if none).
+    /// </summary>
+    public int RagSourceCount { get; init; }
 }

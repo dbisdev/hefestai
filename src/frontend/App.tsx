@@ -16,7 +16,9 @@ import {
   EnemyGeneratorPage,
   MissionGeneratorPage,
   EncounterGeneratorPage,
-  CampaignGeneratorPage
+  CampaignGeneratorPage,
+  CampaignSettingsPage,
+  GameSystemsPage
 } from '@features/generators';
 import { AccessDenied, ErrorScreen } from '@shared/components/feedback';
 import { Screen } from '@core/types';
@@ -47,7 +49,9 @@ const AppContent: React.FC = () => {
       Screen.ENEMY_GEN,
       Screen.MISSION_GEN,
       Screen.ENCOUNTER_GEN,
-      Screen.CAMPAIGN_GEN
+      Screen.CAMPAIGN_GEN,
+      Screen.CAMPAIGN_SETTINGS,
+      Screen.GAME_SYSTEMS
     ];
     if (!user && !isLoading && protectedScreens.includes(displayScreen)) {
       setDisplayScreen(Screen.LOGIN);
@@ -182,6 +186,14 @@ const AppContent: React.FC = () => {
       // Campaign creation is available to all authenticated users
       case Screen.CAMPAIGN_GEN:
         return <CampaignGeneratorPage onBack={() => navigate(Screen.GALLERY)} />;
+      
+      // Campaign settings (Master only - access control in component)
+      case Screen.CAMPAIGN_SETTINGS:
+        return <CampaignSettingsPage onBack={() => navigate(Screen.GALLERY)} />;
+      
+      // Game systems management (Master or Admin only - access control in component)
+      case Screen.GAME_SYSTEMS:
+        return <GameSystemsPage onBack={() => navigate(Screen.GALLERY)} />;
       
       case Screen.ERROR:
         return <ErrorScreen onReboot={() => navigate(Screen.LOGIN)} />;

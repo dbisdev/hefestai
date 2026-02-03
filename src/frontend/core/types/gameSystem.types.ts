@@ -16,6 +16,7 @@ export interface GameSystem {
   version?: string;
   description?: string;
   supportedEntityTypes: string[];
+  isActive?: boolean;
 }
 
 /**
@@ -25,4 +26,37 @@ export interface GameSystemOption {
   id: string;
   name: string;
   code: string;
+}
+
+/**
+ * Request payload for creating a new game system
+ * Matches backend CreateGameSystemRequest
+ */
+export interface CreateGameSystemRequest {
+  code: string;
+  name: string;
+  publisher?: string;
+  version?: string;
+  description?: string;
+  supportedEntityTypes?: string[];
+}
+
+/**
+ * Request payload for updating an existing game system
+ * Matches backend UpdateGameSystemRequest
+ */
+export interface UpdateGameSystemRequest {
+  name: string;
+  publisher?: string;
+  version?: string;
+  description?: string;
+  supportedEntityTypes?: string[];
+}
+
+/**
+ * Request payload for updating game system status
+ * Matches backend UpdateGameSystemStatusRequest
+ */
+export interface UpdateGameSystemStatusRequest {
+  isActive: boolean;
 }

@@ -1,10 +1,12 @@
 using Loremaster.Domain.Common;
+using Loremaster.Domain.Enums;
 using Pgvector;
 
 namespace Loremaster.Domain.Entities;
 
 /// <summary>
-/// Document entity for RAG - stores text content with vector embeddings
+/// Document entity for RAG - stores text content with vector embeddings.
+/// Can be associated with a GameSystem for game-specific RAG queries.
 /// </summary>
 public class Document : AuditableEntity
 {
@@ -34,6 +36,30 @@ public class Document : AuditableEntity
     /// </summary>
     public Guid? ProjectId { get; private set; }
     public Project? Project { get; private set; }
+    
+    /// <summary>
+    /// Optional game system association for system-specific RAG queries.
+    /// When set, this document will only be included in searches for this game system.
+    /// </summary>
+    public Guid? GameSystemId { get; private set; }
+    public GameSystem? GameSystem { get; private set; }
+    
+    /// <summary>
+    /// Type of RAG source (Rulebook, Supplement, Custom)
+    /// </summary>
+    public RagSourceType? SourceType { get; private set; }
+    
+    /// <summary>
+    /// Chunk index if this document is part of a larger document.
+    /// Null if this is a standalone document.
+    /// </summary>
+    public int? ChunkIndex { get; private set; }
+    
+    /// <summary>
+    /// Parent document ID if this is a chunk.
+    /// Used to link chunks back to their source document.
+    /// </summary>
+    public Guid? ParentDocumentId { get; private set; }
 
     private Document() { } // EF Core
 
@@ -43,7 +69,9 @@ public class Document : AuditableEntity
         Guid ownerId,
         string? source = null,
         string? metadata = null,
-        Guid? projectId = null)
+        Guid? projectId = null,
+        Guid? gameSystemId = null,
+        RagSourceType? sourceType = null)
     {
         if (string.IsNullOrWhiteSpace(title))
             throw new ArgumentException("Title cannot be empty", nameof(title));
@@ -57,7 +85,42 @@ public class Document : AuditableEntity
             OwnerId = ownerId,
             Source = source?.Trim(),
             Metadata = metadata,
-            ProjectId = projectId
+            ProjectId = projectId,
+            GameSystemId = gameSystemId,
+            SourceType = sourceType
+        };
+    }
+
+    /// <summary>
+    /// Creates a document chunk from a larger document.
+    /// </summary>
+    public static Document CreateChunk(
+        string title,
+        string content,
+        Guid ownerId,
+        Guid parentDocumentId,
+        int chunkIndex,
+        string? source = null,
+        Guid? gameSystemId = null,
+        RagSourceType? sourceType = null)
+    {
+        if (string.IsNullOrWhiteSpace(title))
+            throw new ArgumentException("Title cannot be empty", nameof(title));
+        if (string.IsNullOrWhiteSpace(content))
+            throw new ArgumentException("Content cannot be empty", nameof(content));
+        if (chunkIndex < 0)
+            throw new ArgumentException("Chunk index must be non-negative", nameof(chunkIndex));
+
+        return new Document
+        {
+            Title = title.Trim(),
+            Content = content,
+            OwnerId = ownerId,
+            Source = source?.Trim(),
+            ParentDocumentId = parentDocumentId,
+            ChunkIndex = chunkIndex,
+            GameSystemId = gameSystemId,
+            SourceType = sourceType
         };
     }
 
@@ -96,4 +159,28 @@ public class Document : AuditableEntity
     public bool HasEmbedding => Embedding != null && EmbeddingDimensions > 0;
 
     public bool IsOwnedBy(Guid userId) => OwnerId == userId;
+    
+    /// <summary>
+    /// Checks if this document is a chunk of a larger document.
+    /// </summary>
+    public bool IsChunk => ParentDocumentId.HasValue && ChunkIndex.HasValue;
+    
+    /// <summary>
+    /// Associates this document with a game system.
+    /// </summary>
+    public void SetGameSystem(Guid gameSystemId, RagSourceType? sourceType = null)
+    {
+        GameSystemId = gameSystemId;
+        if (sourceType.HasValue)
+            SourceType = sourceType.Value;
+    }
+    
+    /// <summary>
+    /// Removes the game system association.
+    /// </summary>
+    public void ClearGameSystem()
+    {
+        GameSystemId = null;
+        SourceType = null;
+    }
 }

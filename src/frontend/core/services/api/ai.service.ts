@@ -35,6 +35,8 @@ export interface GeneratedSolarSystem {
 
 export interface GeneratedVehicle {
   vehicleJson: string;
+  imageBase64?: string;
+  imageUrl?: string;
 }
 
 export interface GeneratedNpc {
@@ -51,10 +53,14 @@ export interface GeneratedEnemy {
 
 export interface GeneratedMission {
   missionJson: string;
+  imageBase64?: string;
+  imageUrl?: string;
 }
 
 export interface GeneratedEncounter {
   encounterJson: string;
+  imageBase64?: string;
+  imageUrl?: string;
 }
 
 export const aiService = {
@@ -113,6 +119,8 @@ export const aiService = {
 
     return {
       vehicleJson: data.vehicleJson!,
+      imageBase64: data.imageBase64,
+      imageUrl: data.imageUrl,
     };
   },
 
@@ -171,6 +179,8 @@ export const aiService = {
 
     return {
       missionJson: data.missionJson!,
+      imageBase64: data.imageBase64,
+      imageUrl: data.imageUrl,
     };
   },
 
@@ -189,6 +199,8 @@ export const aiService = {
 
     return {
       encounterJson: data.encounterJson!,
+      imageBase64: data.imageBase64,
+      imageUrl: data.imageUrl,
     };
   },
 };

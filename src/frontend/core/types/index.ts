@@ -26,6 +26,7 @@ export type {
   CreateLoreEntityInput,
   UpdateLoreEntityInput,
   ChangeVisibilityInput,
+  DynamicStats,
   CharacterData,
   SystemData,
   VehicleData,
@@ -59,6 +60,9 @@ export type {
 export type {
   GameSystem,
   GameSystemOption,
+  CreateGameSystemRequest,
+  UpdateGameSystemRequest,
+  UpdateGameSystemStatusRequest,
 } from './gameSystem.types';
 
 // API types

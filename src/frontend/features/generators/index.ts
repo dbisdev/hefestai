@@ -12,3 +12,5 @@ export { EnemyGeneratorPage } from './pages/EnemyGeneratorPage';
 export { MissionGeneratorPage } from './pages/MissionGeneratorPage';
 export { EncounterGeneratorPage } from './pages/EncounterGeneratorPage';
 export { CampaignGeneratorPage } from './pages/CampaignGeneratorPage';
+export { CampaignSettingsPage } from './pages/CampaignSettingsPage';
+export { GameSystemsPage } from './pages/GameSystemsPage';

@@ -14,6 +14,29 @@ import type {
 } from '../../types';
 
 /**
+ * Paginated result from the backend
+ */
+export interface PaginatedEntitiesResult {
+  items: LoreEntity[];
+  totalCount: number;
+  pageNumber: number | null;
+  totalPages: number | null;
+  hasNextPage: boolean;
+  hasPreviousPage: boolean;
+}
+
+/**
+ * Options for fetching entities with pagination and filtering
+ */
+export interface GetEntitiesOptions {
+  entityType?: EntityCategory;
+  visibility?: number;
+  search?: string;
+  page?: number;
+  pageSize?: number;
+}
+
+/**
  * Build the base URL for campaign-scoped entity endpoints
  */
 function buildEntityUrl(campaignId: string, entityId?: string): string {
@@ -23,7 +46,31 @@ function buildEntityUrl(campaignId: string, entityId?: string): string {
 
 export const entityService = {
   /**
-   * Get all visible entities in a campaign for the current user
+   * Get visible entities in a campaign with optional pagination and filtering
+   * @param campaignId - The campaign ID to fetch entities from
+   * @param options - Optional filters, search, and pagination parameters
+   * @returns Paginated result with entities and metadata
+   */
+  async getByCampaignPaginated(
+    campaignId: string,
+    options: GetEntitiesOptions = {}
+  ): Promise<PaginatedEntitiesResult> {
+    const params = new URLSearchParams();
+    
+    if (options.entityType) params.append('entityType', options.entityType);
+    if (options.visibility !== undefined) params.append('visibility', options.visibility.toString());
+    if (options.search) params.append('search', options.search);
+    if (options.page !== undefined) params.append('page', options.page.toString());
+    if (options.pageSize !== undefined) params.append('pageSize', options.pageSize.toString());
+    
+    const queryString = params.toString();
+    const url = buildEntityUrl(campaignId) + (queryString ? `?${queryString}` : '');
+    
+    return httpClient.get<PaginatedEntitiesResult>(url);
+  },
+
+  /**
+   * Get all visible entities in a campaign for the current user (unpaginated)
    * @param campaignId - The campaign ID to fetch entities from
    * @param entityType - Optional filter by entity type
    * @param visibility - Optional filter by visibility level
@@ -33,14 +80,9 @@ export const entityService = {
     entityType?: EntityCategory,
     visibility?: number
   ): Promise<LoreEntity[]> {
-    const params = new URLSearchParams();
-    if (entityType) params.append('entityType', entityType);
-    if (visibility !== undefined) params.append('visibility', visibility.toString());
-    
-    const queryString = params.toString();
-    const url = buildEntityUrl(campaignId) + (queryString ? `?${queryString}` : '');
-    
-    return httpClient.get<LoreEntity[]>(url);
+    // Use paginated endpoint without page number to get all results
+    const result = await this.getByCampaignPaginated(campaignId, { entityType, visibility });
+    return result.items;
   },
 
   /**

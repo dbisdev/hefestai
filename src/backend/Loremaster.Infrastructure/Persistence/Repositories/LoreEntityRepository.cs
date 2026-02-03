@@ -142,6 +142,18 @@ public class LoreEntityRepository : ILoreEntityRepository
             .ToListAsync(cancellationToken);
     }
 
+    /// <inheritdoc />
+    public async Task<int> CountByEntityTypeAsync(Guid gameSystemId, string entityType, CancellationToken cancellationToken = default)
+    {
+        var normalizedType = entityType.ToLowerInvariant().Trim();
+        return await _context.LoreEntities
+            .Include(e => e.Campaign)
+            .Where(e => e.Campaign.GameSystemId == gameSystemId && 
+                        e.EntityType == normalizedType && 
+                        e.DeletedAt == null)
+            .CountAsync(cancellationToken);
+    }
+
     public async Task AddAsync(LoreEntity entity, CancellationToken cancellationToken = default)
     {
         await _context.LoreEntities.AddAsync(entity, cancellationToken);

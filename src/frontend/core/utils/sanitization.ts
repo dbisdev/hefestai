@@ -143,3 +143,47 @@ export function sanitizeObject<T extends Record<string, unknown>>(obj: T): T {
 export function createSafeTextNode(text: string): Text {
   return document.createTextNode(text);
 }
+
+/**
+ * Cleans a JSON string that may be wrapped in markdown code blocks.
+ * AI services sometimes return JSON wrapped in ```json ... ``` blocks.
+ * 
+ * @param jsonString - The potentially wrapped JSON string
+ * @returns Clean JSON string ready for parsing
+ * 
+ * @example
+ * const clean = cleanJsonResponse('```json\n{"name": "test"}\n```');
+ * const data = JSON.parse(clean); // { name: "test" }
+ */
+export function cleanJsonResponse(jsonString: string): string {
+  if (!jsonString) return jsonString;
+  
+  let cleaned = jsonString.trim();
+  
+  // Remove markdown code block wrapper if present
+  // Matches: ```json ... ``` or ``` ... ```
+  const codeBlockRegex = /^```(?:json)?\s*\n?([\s\S]*?)\n?```$/;
+  const match = cleaned.match(codeBlockRegex);
+  
+  if (match) {
+    cleaned = match[1].trim();
+  }
+  
+  return cleaned;
+}
+
+/**
+ * Safely parses a JSON string that may be wrapped in markdown code blocks.
+ * Combines cleaning and parsing with proper error handling.
+ * 
+ * @param jsonString - The potentially wrapped JSON string
+ * @returns Parsed JSON object
+ * @throws SyntaxError if JSON is invalid after cleaning
+ * 
+ * @example
+ * const data = parseJsonResponse<CharacterData>('```json\n{"name": "test"}\n```');
+ */
+export function parseJsonResponse<T>(jsonString: string): T {
+  const cleaned = cleanJsonResponse(jsonString);
+  return JSON.parse(cleaned) as T;
+}

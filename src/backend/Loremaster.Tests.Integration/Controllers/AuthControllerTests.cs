@@ -25,7 +25,8 @@ public class AuthControllerTests : IClassFixture<CustomWebApplicationFactory>
         {
             Email = $"newuser-{Guid.NewGuid()}@example.com",
             Password = "ValidPassword123!",
-            DisplayName = "New User"
+            DisplayName = "New User",
+            Role = "Master" // Masters don't require invitation code
         };
 
         // Act
@@ -40,7 +41,7 @@ public class AuthControllerTests : IClassFixture<CustomWebApplicationFactory>
         content.DisplayName.Should().Be(request.DisplayName);
         content.AccessToken.Should().NotBeNullOrEmpty();
         content.RefreshToken.Should().NotBeNullOrEmpty();
-        content.Role.Should().Be("User");
+        content.Role.Should().Be("Master");
     }
 
     [Theory]
@@ -69,7 +70,8 @@ public class AuthControllerTests : IClassFixture<CustomWebApplicationFactory>
         {
             Email = email,
             Password = "ValidPassword123!",
-            DisplayName = "User"
+            DisplayName = "User",
+            Role = "Master"
         };
 
         // First registration should succeed
@@ -93,12 +95,13 @@ public class AuthControllerTests : IClassFixture<CustomWebApplicationFactory>
         var email = $"logintest-{Guid.NewGuid()}@example.com";
         var password = "ValidPassword123!";
         
-        // Register first
+        // Register first (as Master to avoid invitation code requirement)
         await _client.PostAsJsonAsync("/api/auth/register", new
         {
             Email = email,
             Password = password,
-            DisplayName = "Login Test User"
+            DisplayName = "Login Test User",
+            Role = "Master"
         });
 
         // Act
@@ -123,12 +126,13 @@ public class AuthControllerTests : IClassFixture<CustomWebApplicationFactory>
         // Arrange
         var email = $"wrongpass-{Guid.NewGuid()}@example.com";
         
-        // Register first
+        // Register first (as Master to avoid invitation code requirement)
         await _client.PostAsJsonAsync("/api/auth/register", new
         {
             Email = email,
             Password = "CorrectPassword123!",
-            DisplayName = "User"
+            DisplayName = "User",
+            Role = "Master"
         });
 
         // Act

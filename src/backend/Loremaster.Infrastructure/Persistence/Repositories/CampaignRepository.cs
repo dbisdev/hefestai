@@ -34,7 +34,7 @@ public class CampaignRepository : ICampaignRepository
         var normalizedCode = joinCode.ToUpperInvariant().Trim();
         return await _context.Campaigns
             .Include(c => c.GameSystem)
-            .FirstOrDefaultAsync(c => c.JoinCode == normalizedCode && c.DeletedAt == null && c.IsActive, cancellationToken);
+            .FirstOrDefaultAsync(c => c.JoinCode == normalizedCode && c.DeletedAt == null, cancellationToken);
     }
 
     public async Task<IEnumerable<Campaign>> GetByOwnerIdAsync(Guid ownerId, CancellationToken cancellationToken = default)

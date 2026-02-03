@@ -36,6 +36,7 @@ public class SemanticSearchQueryHandler : IRequestHandler<SemanticSearchQuery, S
             request.Limit,
             request.Threshold,
             request.ProjectId,
+            request.GameSystemId,
             cancellationToken);
 
         // Map to DTOs

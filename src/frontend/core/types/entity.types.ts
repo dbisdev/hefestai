@@ -99,17 +99,24 @@ export interface ChangeVisibilityInput {
 // ============================================
 
 /**
+ * Dynamic stats object from AI generation.
+ * Stats vary by game system, so we use a flexible Record type.
+ * Values can be numbers, strings, or nested objects (like SKILLS).
+ */
+export type DynamicStats = Record<string, unknown>;
+
+/**
  * Character data structure
  * Used for player characters
  */
 export interface CharacterData {
   name: string;
   bio: string;
-  stats: {
-    STR: number;
-    INT: number;
-    DEX: number;
-  };
+  /** Dynamic stats that vary by game system */
+  stats: DynamicStats;
+  morphology?: string;
+  role?: string;
+  style?: string;
 }
 
 /**
@@ -127,11 +134,8 @@ export interface SystemData {
 export interface VehicleData {
   name: string;
   specs: string;
-  stats: {
-    SPEED: number;
-    ARMOR: number;
-    CARGO: number;
-  };
+  /** Dynamic stats that vary by game system */
+  stats: DynamicStats;
 }
 
 /**
@@ -143,11 +147,8 @@ export interface NpcData {
   occupation: string;
   personality: string;
   background: string;
-  stats: {
-    CHA: number;  // Charisma - social influence
-    INT: number;  // Intelligence
-    WIS: number;  // Wisdom - perception, insight
-  };
+  /** Dynamic stats that vary by game system */
+  stats: DynamicStats;
 }
 
 /**
@@ -160,12 +161,8 @@ export interface EnemyData {
   threatLevel: string;
   abilities: string;
   weakness: string;
-  stats: {
-    HP: number;   // Health Points
-    ATK: number;  // Attack power
-    DEF: number;  // Defense
-    SPD: number;  // Speed/Initiative
-  };
+  /** Dynamic stats that vary by game system */
+  stats: DynamicStats;
 }
 
 /**

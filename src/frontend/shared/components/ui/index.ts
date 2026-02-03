@@ -12,3 +12,9 @@ export { Select } from './Select';
 export { Card, CardHeader } from './Card';
 
 export { LoadingSpinner, InlineLoader, ProgressLoader } from './LoadingSpinner';
+
+export { ImageSourceSelector } from './ImageSourceSelector';
+export type { ImageSourceMode, ImageSourceSelectorProps } from './ImageSourceSelector';
+
+export { DynamicStatsPanel } from './DynamicStatsPanel';
+export type { DynamicStatsPanelProps } from './DynamicStatsPanel';

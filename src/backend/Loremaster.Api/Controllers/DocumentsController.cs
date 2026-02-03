@@ -1,6 +1,10 @@
+using Loremaster.Application.Features.Documents.Commands.GenerateMissingEmbeddings;
 using Loremaster.Application.Features.Documents.Commands.IngestDocument;
+using Loremaster.Application.Features.Documents.Commands.UploadManual;
 using Loremaster.Application.Features.Documents.DTOs;
+using Loremaster.Application.Features.Documents.Queries.GetManual;
 using Loremaster.Application.Features.Documents.Queries.SemanticSearch;
+using Loremaster.Domain.Enums;
 using MediatR;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
@@ -68,12 +72,98 @@ public class DocumentsController : ControllerBase
             request.Limit ?? 5,
             request.Threshold ?? 0.7f,
             request.ProjectId,
+            request.GameSystemId,
             request.GenerateAnswer ?? false,
             request.SystemPrompt);
 
         var result = await _mediator.Send(query, cancellationToken);
         
         return Ok(result);
+    }
+
+    /// <summary>
+    /// Upload a PDF manual for a game system (RAG ingestion with chunking)
+    /// </summary>
+    /// <param name="gameSystemId">The game system this manual belongs to.</param>
+    /// <param name="request">The upload request containing PDF file and metadata.</param>
+    /// <param name="cancellationToken">Cancellation token.</param>
+    /// <returns>Result containing manual ID and chunk statistics.</returns>
+    [HttpPost("game-systems/{gameSystemId:guid}/manuals")]
+    [ProducesResponseType(typeof(UploadManualResult), StatusCodes.Status201Created)]
+    [ProducesResponseType(StatusCodes.Status400BadRequest)]
+    [ProducesResponseType(StatusCodes.Status401Unauthorized)]
+    [RequestSizeLimit(52_428_800)] // 50 MB limit
+    public async Task<ActionResult<UploadManualResult>> UploadManual(
+        [FromRoute] Guid gameSystemId,
+        [FromForm] UploadManualRequest request,
+        CancellationToken cancellationToken)
+    {
+        var userId = GetCurrentUserId();
+
+        if (request.File == null || request.File.Length == 0)
+        {
+            return BadRequest("PDF file is required");
+        }
+
+        // Read file content into byte array
+        byte[] pdfContent;
+        using (var memoryStream = new MemoryStream())
+        {
+            await request.File.CopyToAsync(memoryStream, cancellationToken);
+            pdfContent = memoryStream.ToArray();
+        }
+
+        var command = new UploadManualCommand(
+            gameSystemId,
+            userId,
+            request.Title,
+            pdfContent,
+            request.SourceType ?? RagSourceType.Rulebook,
+            request.Version);
+
+        var result = await _mediator.Send(command, cancellationToken);
+
+        return CreatedAtAction(
+            nameof(GetManual),
+            new { gameSystemId, manualId = result.ManualId },
+            result);
+    }
+
+    /// <summary>
+    /// Get a manual by ID
+    /// </summary>
+    /// <param name="gameSystemId">The game system ID.</param>
+    /// <param name="manualId">The manual document ID.</param>
+    /// <param name="cancellationToken">Cancellation token.</param>
+    /// <returns>The manual document details.</returns>
+    [HttpGet("game-systems/{gameSystemId:guid}/manuals/{manualId:guid}")]
+    [ProducesResponseType(typeof(ManualDto), StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status404NotFound)]
+    [ProducesResponseType(StatusCodes.Status401Unauthorized)]
+    public async Task<ActionResult<ManualDto>> GetManual(
+        [FromRoute] Guid gameSystemId,
+        [FromRoute] Guid manualId,
+        CancellationToken cancellationToken)
+    {
+        var userId = GetCurrentUserId();
+
+        var query = new GetManualQuery(manualId, gameSystemId, userId);
+        var result = await _mediator.Send(query, cancellationToken);
+
+        if (result == null)
+        {
+            return NotFound($"Manual with ID {manualId} not found");
+        }
+
+        return Ok(new ManualDto(
+            result.Id,
+            result.GameSystemId,
+            result.Title,
+            PageCount: 0, // PageCount is not stored, could be calculated from chunks
+            result.ChunkCount,
+            result.SourceType ?? RagSourceType.Rulebook,
+            result.Source,
+            result.CreatedAt));
     }
 
     /// <summary>
@@ -119,10 +209,41 @@ public class DocumentsController : ControllerBase
             errors));
     }
 
+    /// <summary>
+    /// Generate embeddings for documents that don't have them.
+    /// Useful for backfilling embeddings after manual imports or migration.
+    /// </summary>
+    /// <param name="request">Request parameters for batch processing.</param>
+    /// <param name="cancellationToken">Cancellation token.</param>
+    /// <returns>Result with success/failure counts.</returns>
+    [HttpPost("embeddings/generate")]
+    [ProducesResponseType(typeof(GenerateMissingEmbeddingsResult), StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status400BadRequest)]
+    [ProducesResponseType(StatusCodes.Status401Unauthorized)]
+    public async Task<ActionResult<GenerateMissingEmbeddingsResult>> GenerateMissingEmbeddings(
+        [FromBody] GenerateMissingEmbeddingsRequest request,
+        CancellationToken cancellationToken)
+    {
+        var userId = GetCurrentUserId();
+
+        var command = new GenerateMissingEmbeddingsCommand(
+            userId,
+            request.BatchSize ?? 10,
+            request.MaxDocuments ?? 100,
+            request.GameSystemId,
+            request.ProjectId);
+
+        var result = await _mediator.Send(command, cancellationToken);
+
+        return Ok(result);
+    }
+
     private Guid GetCurrentUserId()
     {
-        var userIdClaim = User.FindFirst(ClaimTypes.NameIdentifier)?.Value
-            ?? User.FindFirst("sub")?.Value;
+        // Try JWT standard claim "sub" first (when MapInboundClaims = false)
+        // Fall back to ClaimTypes.NameIdentifier for compatibility
+        var userIdClaim = User.FindFirst("sub")?.Value
+            ?? User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
         
         if (string.IsNullOrEmpty(userIdClaim) || !Guid.TryParse(userIdClaim, out var userId))
         {
@@ -147,6 +268,7 @@ public record SemanticSearchRequest(
     int? Limit = 5,
     float? Threshold = 0.7f,
     Guid? ProjectId = null,
+    Guid? GameSystemId = null,
     bool? GenerateAnswer = false,
     string? SystemPrompt = null);
 
@@ -165,3 +287,42 @@ public record BulkIngestResult(
     int TotalIngested,
     int EmbeddingsGenerated,
     List<string> Errors);
+
+/// <summary>
+/// Request for uploading a PDF manual.
+/// </summary>
+/// <param name="File">The PDF file to upload.</param>
+/// <param name="Title">Optional title (extracted from PDF if not provided).</param>
+/// <param name="SourceType">Type of RAG source (Rulebook, Supplement, Custom).</param>
+/// <param name="Version">Optional version identifier.</param>
+public record UploadManualRequest(
+    IFormFile File,
+    string? Title = null,
+    RagSourceType? SourceType = null,
+    string? Version = null);
+
+/// <summary>
+/// DTO for manual document information.
+/// </summary>
+public record ManualDto(
+    Guid Id,
+    Guid GameSystemId,
+    string Title,
+    int PageCount,
+    int ChunkCount,
+    RagSourceType SourceType,
+    string? Version,
+    DateTime CreatedAt);
+
+/// <summary>
+/// Request for generating missing embeddings.
+/// </summary>
+/// <param name="BatchSize">Number of documents to process per batch (default 10).</param>
+/// <param name="MaxDocuments">Maximum total documents to process (default 100, 0 = unlimited).</param>
+/// <param name="GameSystemId">Optional filter by game system.</param>
+/// <param name="ProjectId">Optional filter by project.</param>
+public record GenerateMissingEmbeddingsRequest(
+    int? BatchSize = 10,
+    int? MaxDocuments = 100,
+    Guid? GameSystemId = null,
+    Guid? ProjectId = null);

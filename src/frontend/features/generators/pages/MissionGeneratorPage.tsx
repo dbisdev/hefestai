@@ -7,14 +7,19 @@
 
 import React, { useState } from 'react';
 import { TerminalLayout } from '@shared/components/layout';
-import { Button } from '@shared/components/ui';
+import { Button, ImageSourceSelector } from '@shared/components/ui';
+import type { ImageSourceMode } from '@shared/components/ui';
 import { aiService, entityService } from '@core/services/api';
 import { useCampaign } from '@core/context';
+import { parseJsonResponse } from '@core/utils';
 import type { MissionData } from '@core/types';
 
 interface MissionGeneratorPageProps {
   onBack: () => void;
 }
+
+/** Placeholder image for missions without generated images */
+const MISSION_PLACEHOLDER_IMAGE = "https://images.unsplash.com/photo-1451187580459-43490279c0fa?q=80&w=400&auto=format&fit=crop";
 
 /**
  * Mission type options
@@ -64,6 +69,7 @@ export const MissionGeneratorPage: React.FC<MissionGeneratorPageProps> = ({ onBa
   const [isGenerating, setIsGenerating] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
   const [generatedMission, setGeneratedMission] = useState<MissionData | null>(null);
+  const [missionImage, setMissionImage] = useState<string>(MISSION_PLACEHOLDER_IMAGE);
 
   const [form, setForm] = useState({
     missionType: '',
@@ -71,6 +77,11 @@ export const MissionGeneratorPage: React.FC<MissionGeneratorPageProps> = ({ onBa
     environment: 'space-station',
     factionInvolved: 'corporate'
   });
+
+  /** Image source mode state */
+  const [imageMode, setImageMode] = useState<ImageSourceMode>('generate');
+  /** Uploaded image data (base64) */
+  const [uploadedImageData, setUploadedImageData] = useState<string | null>(null);
 
   /**
    * Adds a log entry to the terminal display
@@ -94,16 +105,45 @@ export const MissionGeneratorPage: React.FC<MissionGeneratorPageProps> = ({ onBa
     try {
       addLog('COMPILANDO OBJETIVOS...');
       
+      // Only request AI image generation if mode is 'generate'
+      const shouldGenerateImage = imageMode === 'generate';
+      
       const result = await aiService.generateMission({
+        gameSystemId: activeCampaign?.gameSystemId,
         missionType: form.missionType,
         difficulty: form.difficulty,
         environment: form.environment,
-        factionInvolved: form.factionInvolved
+        factionInvolved: form.factionInvolved,
+        generateImage: shouldGenerateImage
       });
 
-      const missionData = JSON.parse(result.missionJson) as MissionData;
+      const missionData = parseJsonResponse<MissionData>(result.missionJson);
       setGeneratedMission(missionData);
       addLog(`MISION GENERADA: ${missionData.name.toUpperCase()}`);
+
+      // Handle image based on selected mode
+      if (imageMode === 'upload' && uploadedImageData) {
+        // Use uploaded image
+        setMissionImage(`data:image/png;base64,${uploadedImageData}`);
+        addLog('USANDO IMAGEN CARGADA.');
+      } else if (imageMode === 'generate') {
+        addLog('GENERANDO REPRESENTACION VISUAL...');
+        if (result.imageBase64) {
+          setMissionImage(`data:image/png;base64,${result.imageBase64}`);
+          addLog('SINTESIS VISUAL COMPLETA.');
+        } else if (result.imageUrl) {
+          setMissionImage(result.imageUrl);
+          addLog('SINTESIS VISUAL COMPLETA.');
+        } else {
+          setMissionImage(MISSION_PLACEHOLDER_IMAGE);
+          addLog('ADVERTENCIA: RENDER VISUAL FALLIDO. USANDO PLACEHOLDER.');
+        }
+      } else {
+        // Mode is 'none' - use placeholder
+        setMissionImage(MISSION_PLACEHOLDER_IMAGE);
+        addLog('GENERACION DE IMAGEN OMITIDA.');
+      }
+
       addLog('BRIEFING TACTICO COMPLETADO.');
     } catch (error: unknown) {
       const message = error instanceof Error ? error.message : 'GENERACION FALLIDA';
@@ -133,7 +173,7 @@ export const MissionGeneratorPage: React.FC<MissionGeneratorPageProps> = ({ onBa
         entityType: 'mission',
         name: generatedMission.name,
         description: generatedMission.briefing,
-        imageUrl: 'https://images.unsplash.com/photo-1451187580459-43490279c0fa?q=80&w=400&auto=format&fit=crop',
+        imageUrl: missionImage !== MISSION_PLACEHOLDER_IMAGE ? missionImage : undefined,
         attributes: {
           missionType: form.missionType.toUpperCase(),
           difficulty: form.difficulty,
@@ -246,6 +286,15 @@ export const MissionGeneratorPage: React.FC<MissionGeneratorPageProps> = ({ onBa
                 ))}
               </div>
             </div>
+
+            {/* Image Source Selector */}
+            <ImageSourceSelector
+              mode={imageMode}
+              onModeChange={setImageMode}
+              onImageUpload={setUploadedImageData}
+              uploadedImage={uploadedImageData}
+              disabled={isGenerating}
+            />
           </div>
 
           {/* Action Buttons */}
@@ -268,7 +317,7 @@ export const MissionGeneratorPage: React.FC<MissionGeneratorPageProps> = ({ onBa
               isLoading={isSaving}
               icon="save"
             >
-              GUARDAR_NUCLEO
+              GUARDAR_ENTIDAD
             </Button>
           </div>
         </div>

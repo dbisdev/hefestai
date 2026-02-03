@@ -6,9 +6,11 @@
 
 import React, { useState } from 'react';
 import { TerminalLayout } from '@shared/components/layout';
-import { Button } from '@shared/components/ui';
+import { Button, ImageSourceSelector, DynamicStatsPanel } from '@shared/components/ui';
+import type { ImageSourceMode } from '@shared/components/ui';
 import { aiService, entityService } from '@core/services/api';
 import { useCampaign } from '@core/context';
+import { parseJsonResponse } from '@core/utils';
 import type { VehicleData } from '@core/types';
 
 /** Placeholder image for vehicles without generated images */
@@ -44,6 +46,11 @@ export const VehicleGeneratorPage: React.FC<VehicleGeneratorPageProps> = ({ onBa
     engine: 'fusion'
   });
 
+  /** Image source mode state */
+  const [imageMode, setImageMode] = useState<ImageSourceMode>('generate');
+  /** Uploaded image data (base64) */
+  const [uploadedImageData, setUploadedImageData] = useState<string | null>(null);
+
   const addLog = (msg: string) => {
     setLogs(prev => [...prev, `> ${msg}`].slice(-6));
   };
@@ -56,26 +63,41 @@ export const VehicleGeneratorPage: React.FC<VehicleGeneratorPageProps> = ({ onBa
     addLog(`Initializing assembly for ${form.class}...`);
 
     try {
+      // Only request AI image generation if mode is 'generate'
+      const shouldGenerateImage = imageMode === 'generate';
+      
       const result = await aiService.generateVehicle({
+        gameSystemId: activeCampaign?.gameSystemId,
         type: form.type,
         class: form.class,
-        engine: form.engine
+        engine: form.engine,
+        generateImage: shouldGenerateImage
       });
 
-      const data = JSON.parse(result.vehicleJson) as VehicleData;
+      const data = parseJsonResponse<VehicleData>(result.vehicleJson);
       setGeneratedVehi(data);
       addLog(`Assembly complete: ${data.name}`);
 
-      // Handle generated image
-      if (result.imageBase64) {
-        setVehicleImage(`data:image/png;base64,${result.imageBase64}`);
-        addLog('Visual synthesis complete.');
-      } else if (result.imageUrl) {
-        setVehicleImage(result.imageUrl);
-        addLog('Visual synthesis complete.');
+      // Handle image based on selected mode
+      if (imageMode === 'upload' && uploadedImageData) {
+        // Use uploaded image
+        setVehicleImage(`data:image/png;base64,${uploadedImageData}`);
+        addLog('Using uploaded image.');
+      } else if (imageMode === 'generate') {
+        if (result.imageBase64) {
+          setVehicleImage(`data:image/png;base64,${result.imageBase64}`);
+          addLog('Visual synthesis complete.');
+        } else if (result.imageUrl) {
+          setVehicleImage(result.imageUrl);
+          addLog('Visual synthesis complete.');
+        } else {
+          setVehicleImage(VEHICLE_PLACEHOLDER_IMAGE);
+          addLog('WARNING: Visual render failed. Using placeholder.');
+        }
       } else {
+        // Mode is 'none' - use placeholder
         setVehicleImage(VEHICLE_PLACEHOLDER_IMAGE);
-        addLog('WARNING: Visual render failed. Using placeholder.');
+        addLog('Image generation skipped.');
       }
     } catch (e: unknown) {
       const message = e instanceof Error ? e.message : 'Unknown error';
@@ -158,6 +180,15 @@ export const VehicleGeneratorPage: React.FC<VehicleGeneratorPageProps> = ({ onBa
                 ))}
               </select>
             </div>
+
+            {/* Image Source Selector */}
+            <ImageSourceSelector
+              mode={imageMode}
+              onModeChange={setImageMode}
+              onImageUpload={setUploadedImageData}
+              uploadedImage={uploadedImageData}
+              disabled={isGenerating}
+            />
           </div>
 
           {/* Action Buttons */}
@@ -180,7 +211,7 @@ export const VehicleGeneratorPage: React.FC<VehicleGeneratorPageProps> = ({ onBa
               size="lg"
               isLoading={isSaving}
             >
-              GUARDAR_VEHÍCULO
+              GUARDAR_ENTIDAD
             </Button>
           </div>
         </div>
@@ -212,22 +243,14 @@ export const VehicleGeneratorPage: React.FC<VehicleGeneratorPageProps> = ({ onBa
             {logs.map((l, i) => <p key={i}>{l}</p>)}
           </div>
           
-          {/* Stats Panel */}
-          {generatedVehi && (
-            <div className="grid grid-cols-3 gap-2">
-              {[
-                { label: 'SPEED', val: generatedVehi.stats?.SPEED },
-                { label: 'ARMOR', val: generatedVehi.stats?.ARMOR },
-                { label: 'CARGO', val: generatedVehi.stats?.CARGO }
-              ].map(stat => (
-                <div key={stat.label} className="bg-surface-dark border border-primary/20 p-2 text-center relative overflow-hidden">
-                  <p className="text-[9px] text-primary/40 uppercase mb-1">{stat.label}</p>
-                  <p className="text-lg font-bold text-primary font-mono">{stat.val}</p>
-                  <div className="absolute bottom-0 left-0 h-0.5 bg-primary/20" style={{ width: `${stat.val}%` }}></div>
-                </div>
-              ))}
-            </div>
-          )}
+          {/* Stats Panel - Dynamic based on game system */}
+          <DynamicStatsPanel 
+            stats={generatedVehi?.stats} 
+            variant="primary"
+            maxColumns={3}
+            showProgressBar={true}
+            maxProgressValue={100}
+          />
         </div>
       </div>
     </TerminalLayout>

@@ -6,14 +6,19 @@
 
 import React, { useState } from 'react';
 import { TerminalLayout } from '@shared/components/layout';
-import { Button } from '@shared/components/ui';
+import { Button, ImageSourceSelector } from '@shared/components/ui';
+import type { ImageSourceMode } from '@shared/components/ui';
 import { aiService, entityService } from '@core/services/api';
 import { useCampaign } from '@core/context';
+import { parseJsonResponse } from '@core/utils';
 import type { EncounterData } from '@core/types';
 
 interface EncounterGeneratorPageProps {
   onBack: () => void;
 }
+
+/** Placeholder image for encounters without generated images */
+const ENCOUNTER_PLACEHOLDER_IMAGE = "https://images.unsplash.com/photo-1534796636912-3b95b3ab5986?q=80&w=400&auto=format&fit=crop";
 
 /**
  * Encounter type options
@@ -72,6 +77,7 @@ export const EncounterGeneratorPage: React.FC<EncounterGeneratorPageProps> = ({ 
   const [isGenerating, setIsGenerating] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
   const [generatedEncounter, setGeneratedEncounter] = useState<EncounterData | null>(null);
+  const [encounterImage, setEncounterImage] = useState<string>(ENCOUNTER_PLACEHOLDER_IMAGE);
 
   const [form, setForm] = useState({
     encounterType: '',
@@ -79,6 +85,11 @@ export const EncounterGeneratorPage: React.FC<EncounterGeneratorPageProps> = ({ 
     environment: 'open-area',
     enemyCount: 'squad'
   });
+
+  /** Image source mode state */
+  const [imageMode, setImageMode] = useState<ImageSourceMode>('generate');
+  /** Uploaded image data (base64) */
+  const [uploadedImageData, setUploadedImageData] = useState<string | null>(null);
 
   /**
    * Adds a log entry to the terminal display
@@ -102,16 +113,45 @@ export const EncounterGeneratorPage: React.FC<EncounterGeneratorPageProps> = ({ 
     try {
       addLog('CALCULANDO PARAMETROS DE COMBATE...');
       
+      // Only request AI image generation if mode is 'generate'
+      const shouldGenerateImage = imageMode === 'generate';
+      
       const result = await aiService.generateEncounter({
+        gameSystemId: activeCampaign?.gameSystemId,
         encounterType: form.encounterType,
         difficulty: form.difficulty,
         environment: form.environment,
-        enemyCount: form.enemyCount
+        enemyCount: form.enemyCount,
+        generateImage: shouldGenerateImage
       });
 
-      const encounterData = JSON.parse(result.encounterJson) as EncounterData;
+      const encounterData = parseJsonResponse<EncounterData>(result.encounterJson);
       setGeneratedEncounter(encounterData);
       addLog(`ENCUENTRO GENERADO: ${encounterData.name.toUpperCase()}`);
+
+      // Handle image based on selected mode
+      if (imageMode === 'upload' && uploadedImageData) {
+        // Use uploaded image
+        setEncounterImage(`data:image/png;base64,${uploadedImageData}`);
+        addLog('USANDO IMAGEN CARGADA.');
+      } else if (imageMode === 'generate') {
+        addLog('GENERANDO REPRESENTACION VISUAL...');
+        if (result.imageBase64) {
+          setEncounterImage(`data:image/png;base64,${result.imageBase64}`);
+          addLog('SINTESIS VISUAL COMPLETA.');
+        } else if (result.imageUrl) {
+          setEncounterImage(result.imageUrl);
+          addLog('SINTESIS VISUAL COMPLETA.');
+        } else {
+          setEncounterImage(ENCOUNTER_PLACEHOLDER_IMAGE);
+          addLog('ADVERTENCIA: RENDER VISUAL FALLIDO. USANDO PLACEHOLDER.');
+        }
+      } else {
+        // Mode is 'none' - use placeholder
+        setEncounterImage(ENCOUNTER_PLACEHOLDER_IMAGE);
+        addLog('GENERACION DE IMAGEN OMITIDA.');
+      }
+
       addLog('SIMULACION TACTICA COMPLETADA.');
     } catch (error: unknown) {
       const message = error instanceof Error ? error.message : 'SIMULACION FALLIDA';
@@ -135,7 +175,7 @@ export const EncounterGeneratorPage: React.FC<EncounterGeneratorPageProps> = ({ 
         entityType: 'encounter',
         name: generatedEncounter.name,
         description: generatedEncounter.description,
-        imageUrl: 'https://images.unsplash.com/photo-1534796636912-3b95b3ab5986?q=80&w=400&auto=format&fit=crop',
+        imageUrl: encounterImage !== ENCOUNTER_PLACEHOLDER_IMAGE ? encounterImage : undefined,
         attributes: {
           encounterType: form.encounterType,
           difficulty: form.difficulty,
@@ -261,6 +301,15 @@ export const EncounterGeneratorPage: React.FC<EncounterGeneratorPageProps> = ({ 
                 ))}
               </div>
             </div>
+
+            {/* Image Source Selector */}
+            <ImageSourceSelector
+              mode={imageMode}
+              onModeChange={setImageMode}
+              onImageUpload={setUploadedImageData}
+              uploadedImage={uploadedImageData}
+              disabled={isGenerating}
+            />
           </div>
 
           {/* Action Buttons */}
@@ -283,7 +332,7 @@ export const EncounterGeneratorPage: React.FC<EncounterGeneratorPageProps> = ({ 
               isLoading={isSaving}
               icon="save"
             >
-              GUARDAR_NUCLEO
+              GUARDAR_ENTIDAD
             </Button>
           </div>
         </div>

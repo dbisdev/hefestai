@@ -35,7 +35,7 @@ try
 
     // Add services
     builder.Services.AddApplicationServices();
-    builder.Services.AddInfrastructureServices(builder.Configuration);
+    builder.Services.AddInfrastructureServices(builder.Configuration, builder.Environment.EnvironmentName);
 
     // Current user service
     builder.Services.AddHttpContextAccessor();

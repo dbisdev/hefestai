@@ -216,4 +216,56 @@ public class LoreEntity : SoftDeletableEntity
     }
 
     public bool IsPlayerCharacter => EntityType == "character" && OwnershipType == OwnershipType.Player;
+
+    /// <summary>
+    /// Gets the game system ID from the associated campaign.
+    /// Returns null if campaign navigation property is not loaded.
+    /// </summary>
+    public Guid? GameSystemId => Campaign?.GameSystemId;
+
+    /// <summary>
+    /// Gets the entity attributes as a dictionary.
+    /// Returns an empty dictionary if no attributes are set.
+    /// </summary>
+    public IDictionary<string, object?> GetAttributes()
+    {
+        if (Attributes == null)
+            return new Dictionary<string, object?>();
+
+        var result = new Dictionary<string, object?>();
+        
+        foreach (var property in Attributes.RootElement.EnumerateObject())
+        {
+            result[property.Name] = ConvertJsonElement(property.Value);
+        }
+
+        return result;
+    }
+
+    /// <summary>
+    /// Converts a JsonElement to a CLR object.
+    /// </summary>
+    private static object? ConvertJsonElement(JsonElement element)
+    {
+        return element.ValueKind switch
+        {
+            JsonValueKind.String => element.GetString(),
+            JsonValueKind.Number => element.TryGetInt64(out var l) ? l : element.GetDecimal(),
+            JsonValueKind.True => true,
+            JsonValueKind.False => false,
+            JsonValueKind.Null => null,
+            JsonValueKind.Array => element.EnumerateArray().Select(ConvertJsonElement).ToList(),
+            JsonValueKind.Object => element.EnumerateObject()
+                .ToDictionary(p => p.Name, p => ConvertJsonElement(p.Value)),
+            _ => element.GetRawText()
+        };
+    }
+
+    /// <summary>
+    /// Sets the image URL for this entity.
+    /// </summary>
+    public void SetImageUrl(string? imageUrl)
+    {
+        ImageUrl = imageUrl?.Trim();
+    }
 }

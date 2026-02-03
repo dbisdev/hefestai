@@ -2,14 +2,22 @@
  * Gallery Page
  * Displays all entities within the active campaign with category filtering
  * Includes campaign selection and management
+ * 
+ * Accessibility Features:
+ * - Full keyboard navigation (Tab, Enter, Space, Arrow keys)
+ * - ARIA labels and roles for screen readers
+ * - Focus management for modal dialogs
+ * - Live region announcements for state changes
  */
 
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useRef, KeyboardEvent, forwardRef } from 'react';
 import { TerminalLayout } from '@shared/components/layout';
+import { EntityEditModal } from '@shared/components/modals';
 import { useCampaign } from '@core/context';
 import { entityService } from '@core/services/api';
-import type { LoreEntity, User, EntityCategory, Campaign } from '@core/types';
-import { Screen, CampaignRole } from '@core/types';
+import { useCharacterSheetPdf } from '@core/hooks';
+import type { LoreEntity, User, EntityCategory, Campaign, CreateLoreEntityInput } from '@core/types';
+import { Screen, CampaignRole, VisibilityLevel } from '@core/types';
 
 interface GalleryPageProps {
   user: User | null;
@@ -31,7 +39,7 @@ type CategoryInfo = {
  * These map to backend entityType values (lowercase)
  */
 const ENTITY_CATEGORIES: CategoryInfo[] = [
-  { id: 'solar_system', label: 'SISTEMAS', icon: 'public' },
+  { id: 'solar_system', label: 'SISTEMAS SOLARES', icon: 'public' },
   { id: 'character', label: 'PERSONAJES', icon: 'face' },
   { id: 'npc', label: 'ACTORES', icon: 'groups' },
   { id: 'enemy', label: 'ENEMIGOS', icon: 'pest_control' },
@@ -70,10 +78,38 @@ export const GalleryPage: React.FC<GalleryPageProps> = ({ user, onNavigate, onLo
   const [isLoadingEntities, setIsLoadingEntities] = useState(false);
   const [showInvite, setShowInvite] = useState(false);
   const [showCampaignSelector, setShowCampaignSelector] = useState(false);
+  const [showImportDialog, setShowImportDialog] = useState(false);
+  const [showEditModal, setShowEditModal] = useState(false);
   const [transitionStatus, setTransitionStatus] = useState<'idle' | 'out' | 'in'>('idle');
+  const [searchTerm, setSearchTerm] = useState<string>('');
+  
+  // Accessibility: Screen reader announcement state
+  const [announcement, setAnnouncement] = useState<string>('');
+  
+  // Refs for focus management
+  const categoryNavRef = useRef<HTMLElement>(null);
+  const entityGridRef = useRef<HTMLDivElement>(null);
+  const detailPanelRef = useRef<HTMLElement>(null);
+  const campaignSelectorRef = useRef<HTMLDivElement>(null);
+  const inviteDialogRef = useRef<HTMLDivElement>(null);
+  const importDialogRef = useRef<HTMLDivElement>(null);
+  const importFileInputRef = useRef<HTMLInputElement>(null);
+  const searchInputRef = useRef<HTMLInputElement>(null);
 
   // Determine if user is master (either by user role or campaign role)
   const isMaster = user?.role === 'MASTER' || isActiveCampaignMaster;
+  
+  // PDF import hook
+  const { state: pdfImportState, importFromPdf, clearError: clearPdfError } = useCharacterSheetPdf();
+  
+  /**
+   * Accessibility: Announce message to screen readers
+   */
+  const announce = useCallback((message: string) => {
+    setAnnouncement(message);
+    // Clear after announcement to allow repeated messages
+    setTimeout(() => setAnnouncement(''), 1000);
+  }, []);
 
   /**
    * Load entities for the active campaign
@@ -111,6 +147,10 @@ export const GalleryPage: React.FC<GalleryPageProps> = ({ user, onNavigate, onLo
     setTransitionStatus('out');
     setActiveCategory(newCat);
     
+    // Announce category change to screen readers
+    const categoryLabel = ENTITY_CATEGORIES.find(c => c.id === newCat)?.label || newCat;
+    announce(`Cambiando a categoría ${categoryLabel}`);
+    
     setTimeout(() => {
       setDisplayCategory(newCat);
       setSelectedEntity(null);
@@ -118,14 +158,64 @@ export const GalleryPage: React.FC<GalleryPageProps> = ({ user, onNavigate, onLo
       
       setTimeout(() => {
         setTransitionStatus('idle');
+        // Announce completion with entity count
+        const count = entities.filter(e => e.entityType === newCat).length;
+        announce(`Categoría ${categoryLabel} seleccionada. ${count} ${count === 1 ? 'entidad encontrada' : 'entidades encontradas'}.`);
       }, 500);
     }, 400);
   };
 
   /**
-   * Filter entities by the current display category
+   * Accessibility: Handle keyboard navigation in category sidebar
    */
-  const filteredEntities = entities.filter(e => e.entityType === displayCategory);
+  const handleCategoryKeyDown = (event: KeyboardEvent<HTMLButtonElement>, index: number) => {
+    const categories = ENTITY_CATEGORIES;
+    let newIndex = index;
+    
+    switch (event.key) {
+      case 'ArrowDown':
+        event.preventDefault();
+        newIndex = (index + 1) % categories.length;
+        break;
+      case 'ArrowUp':
+        event.preventDefault();
+        newIndex = index === 0 ? categories.length - 1 : index - 1;
+        break;
+      case 'Home':
+        event.preventDefault();
+        newIndex = 0;
+        break;
+      case 'End':
+        event.preventDefault();
+        newIndex = categories.length - 1;
+        break;
+      default:
+        return;
+    }
+    
+    // Focus the new category button
+    const navElement = categoryNavRef.current;
+    if (navElement) {
+      const buttons = navElement.querySelectorAll<HTMLButtonElement>('button[role="tab"]');
+      buttons[newIndex]?.focus();
+    }
+  };
+
+  /**
+   * Filter entities by the current display category and search term
+   */
+  const filteredEntities = entities.filter(e => {
+    // Filter by category
+    if (e.entityType !== displayCategory) return false;
+    // Filter by search term (case-insensitive)
+    if (searchTerm.trim()) {
+      const normalizedSearch = searchTerm.toLowerCase().trim();
+      const matchesName = e.name.toLowerCase().includes(normalizedSearch);
+      const matchesDescription = e.description?.toLowerCase().includes(normalizedSearch) ?? false;
+      return matchesName || matchesDescription;
+    }
+    return true;
+  });
 
   /**
    * Handle entity deletion
@@ -137,13 +227,267 @@ export const GalleryPage: React.FC<GalleryPageProps> = ({ user, onNavigate, onLo
       try {
         await entityService.delete(activeCampaignId, id);
         setSelectedEntity(null);
+        announce('Entidad eliminada correctamente');
         loadEntities();
       } catch (e: unknown) {
         const message = e instanceof Error ? e.message : 'Error al eliminar';
+        announce(`Error: ${message}`);
         alert(message);
       }
     }
   };
+
+  /**
+   * Handle entity visibility change
+   * Allows Masters to change an entity's visibility level
+   */
+  const handleVisibilityChange = async (entityId: string, newVisibility: VisibilityLevel) => {
+    if (!activeCampaignId) return;
+    
+    try {
+      const updatedEntity = await entityService.changeVisibility(
+        activeCampaignId, 
+        entityId, 
+        { visibility: newVisibility }
+      );
+      
+      // Update the selected entity with new visibility
+      setSelectedEntity(updatedEntity);
+      
+      // Refresh entities list to reflect change
+      loadEntities();
+      
+      const visibilityLabels: Record<VisibilityLevel, string> = {
+        [VisibilityLevel.Draft]: 'BORRADOR',
+        [VisibilityLevel.Private]: 'PRIVADO',
+        [VisibilityLevel.Campaign]: 'CAMPAÑA',
+        [VisibilityLevel.Public]: 'PÚBLICO'
+      };
+      announce(`Visibilidad cambiada a ${visibilityLabels[newVisibility]}`);
+    } catch (e: unknown) {
+      const message = e instanceof Error ? e.message : 'Error al cambiar visibilidad';
+      announce(`Error: ${message}`);
+      alert(message);
+    }
+  };
+
+  /**
+   * Handle opening the edit modal
+   */
+  const handleEditEntity = () => {
+    if (selectedEntity && isMaster) {
+      setShowEditModal(true);
+      announce(`Editando entidad: ${selectedEntity.name}`);
+    }
+  };
+
+  /**
+   * Handle saving edited entity
+   */
+  const handleSaveEdit = (updatedEntity: LoreEntity) => {
+    setSelectedEntity(updatedEntity);
+    setShowEditModal(false);
+    loadEntities();
+    announce(`Entidad actualizada: ${updatedEntity.name}`);
+  };
+
+  /**
+   * Handle entity selection with focus management
+   */
+  const handleEntitySelect = (entity: LoreEntity) => {
+    setSelectedEntity(entity);
+    announce(`Entidad seleccionada: ${entity.name}`);
+    // Move focus to detail panel when entity is selected
+    setTimeout(() => {
+      detailPanelRef.current?.focus();
+    }, 100);
+  };
+
+  /**
+   * Handle closing detail panel with focus restoration
+   */
+  const handleDetailClose = () => {
+    setSelectedEntity(null);
+    announce('Panel de detalles cerrado');
+    // Return focus to the entity grid
+    entityGridRef.current?.focus();
+  };
+
+  /**
+   * Accessibility: Handle keyboard navigation for entity grid
+   */
+  const handleEntityGridKeyDown = (event: KeyboardEvent<HTMLDivElement>) => {
+    if (!entityGridRef.current) return;
+    
+    const cards = entityGridRef.current.querySelectorAll<HTMLDivElement>('[role="gridcell"]');
+    const currentIndex = Array.from(cards).findIndex(card => card === document.activeElement || card.contains(document.activeElement));
+    
+    if (currentIndex === -1) return;
+    
+    let newIndex = currentIndex;
+    const columnsPerRow = 3; // Matches grid-cols-3 at xl breakpoint
+    
+    switch (event.key) {
+      case 'ArrowRight':
+        event.preventDefault();
+        newIndex = Math.min(currentIndex + 1, cards.length - 1);
+        break;
+      case 'ArrowLeft':
+        event.preventDefault();
+        newIndex = Math.max(currentIndex - 1, 0);
+        break;
+      case 'ArrowDown':
+        event.preventDefault();
+        newIndex = Math.min(currentIndex + columnsPerRow, cards.length - 1);
+        break;
+      case 'ArrowUp':
+        event.preventDefault();
+        newIndex = Math.max(currentIndex - columnsPerRow, 0);
+        break;
+      case 'Home':
+        event.preventDefault();
+        newIndex = 0;
+        break;
+      case 'End':
+        event.preventDefault();
+        newIndex = cards.length - 1;
+        break;
+      case 'Enter':
+      case ' ':
+        event.preventDefault();
+        (cards[currentIndex] as HTMLElement)?.click();
+        return;
+      default:
+        return;
+    }
+    
+    cards[newIndex]?.focus();
+  };
+  
+  /**
+   * Handle campaign selector toggle with focus management
+   */
+  const handleCampaignSelectorToggle = () => {
+    const newState = !showCampaignSelector;
+    setShowCampaignSelector(newState);
+    
+    if (newState) {
+      announce('Selector de campaña abierto');
+      setTimeout(() => {
+        campaignSelectorRef.current?.focus();
+      }, 100);
+    } else {
+      announce('Selector de campaña cerrado');
+    }
+  };
+  
+  /**
+   * Handle invite dialog toggle with focus management
+   */
+  const handleInviteToggle = () => {
+    const newState = !showInvite;
+    setShowInvite(newState);
+    
+    if (newState) {
+      announce(`Código de invitación: ${activeCampaign?.joinCode}`);
+      setTimeout(() => {
+        inviteDialogRef.current?.focus();
+      }, 100);
+    } else {
+      announce('Diálogo de invitación cerrado');
+    }
+  };
+  
+  /**
+   * Handle import dialog toggle with focus management
+   */
+  const handleImportDialogToggle = () => {
+    const newState = !showImportDialog;
+    setShowImportDialog(newState);
+    clearPdfError();
+    
+    if (newState) {
+      announce('Diálogo de importación abierto');
+      setTimeout(() => {
+        importDialogRef.current?.focus();
+      }, 100);
+    } else {
+      announce('Diálogo de importación cerrado');
+    }
+  };
+  
+  /**
+   * Handle import button click - opens file picker
+   */
+  const handleImportClick = () => {
+    importFileInputRef.current?.click();
+  };
+  
+  /**
+   * Handle PDF file selection and import
+   */
+  const handleImportFileChange = async (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    if (!file || !activeCampaignId) return;
+    
+    try {
+      const result = await importFromPdf(file);
+      
+      if (result) {
+        // Create the entity from imported data
+        const entityInput: CreateLoreEntityInput = {
+          entityType: result.entityType as EntityCategory,
+          name: result.name,
+          description: result.description,
+          attributes: result.attributes,
+          metadata: result.metadata,
+        };
+        
+        const createdEntity = await entityService.create(activeCampaignId, entityInput);
+        
+        // Refresh entity list and close dialog
+        await loadEntities();
+        setShowImportDialog(false);
+        announce(`Entidad "${createdEntity.name}" importada correctamente`);
+        
+        // Navigate to the category of the imported entity
+        if (createdEntity.entityType !== displayCategory) {
+          handleCategoryChange(createdEntity.entityType);
+        }
+      }
+    } catch (error) {
+      console.error('Import failed:', error);
+      announce('Error al importar PDF');
+    }
+    
+    // Reset file input
+    event.target.value = '';
+  };
+  
+  /**
+   * Handle Escape key to close dialogs
+   */
+  useEffect(() => {
+    const handleEscape = (event: globalThis.KeyboardEvent) => {
+      if (event.key === 'Escape') {
+        if (showCampaignSelector) {
+          setShowCampaignSelector(false);
+          announce('Selector de campaña cerrado');
+        } else if (showInvite) {
+          setShowInvite(false);
+          announce('Diálogo de invitación cerrado');
+        } else if (showImportDialog) {
+          setShowImportDialog(false);
+          announce('Diálogo de importación cerrado');
+        } else if (selectedEntity) {
+          handleDetailClose();
+        }
+      }
+    };
+    
+    document.addEventListener('keydown', handleEscape);
+    return () => document.removeEventListener('keydown', handleEscape);
+  }, [showCampaignSelector, showInvite, showImportDialog, selectedEntity]);
 
   /**
    * Navigate to the appropriate generator for the current category
@@ -181,23 +525,44 @@ export const GalleryPage: React.FC<GalleryPageProps> = ({ user, onNavigate, onLo
       title="Galería de Creaciones" 
       subtitle={`Usuario: ${user?.username} // ${activeCampaign ? `Campaña: ${activeCampaign.name}` : 'Sin campaña'}`} 
       onLogout={onLogout}
+      gameSystemId={activeCampaign?.gameSystemId}
+      isMaster={isMaster}
       actions={
         <div className="flex items-center gap-2">
           {/* Campaign Selector Button */}
           <button 
-            onClick={() => setShowCampaignSelector(!showCampaignSelector)}
-            className="border border-primary/60 px-3 py-1 text-[10px] uppercase hover:bg-primary/10 hover:border-primary transition-colors text-primary font-bold flex items-center gap-1"
+            onClick={handleCampaignSelectorToggle}
+            aria-expanded={showCampaignSelector}
+            aria-haspopup="dialog"
+            aria-label="Seleccionar campaña"
+            className="border border-primary/60 px-3 py-1 text-[10px] uppercase hover:bg-primary/10 hover:border-primary transition-colors text-primary font-bold flex items-center gap-1 focus:outline-none focus:ring-2 focus:ring-primary"
           >
             <span className="material-icons text-sm">public</span> 
             {activeCampaign ? activeCampaign.name.slice(0, 10) : 'CAMPAÑA'}
             {activeCampaign && '...'}
           </button>
 
+          {/* Import PDF Button (Master only, requires campaign) */}
+          {isMaster && activeCampaignId && (
+            <button 
+              onClick={handleImportDialogToggle}
+              aria-expanded={showImportDialog}
+              aria-haspopup="dialog"
+              aria-label="Importar ficha desde PDF"
+              className="border border-cyan-500/60 px-3 py-1 text-[10px] uppercase hover:bg-cyan-500/10 hover:border-cyan-500 transition-colors text-cyan-500 font-bold flex items-center gap-1 focus:outline-none focus:ring-2 focus:ring-cyan-500"
+            >
+              <span className="material-icons text-sm">upload_file</span> IMPORTAR
+            </button>
+          )}
+
           {/* Invite Button (Master only) */}
           {isMaster && activeCampaign?.joinCode && (
             <button 
-              onClick={() => setShowInvite(!showInvite)}
-              className="border border-primary px-3 py-1 text-[10px] uppercase hover:bg-primary hover:text-black transition-colors text-primary font-bold flex items-center gap-1"
+              onClick={handleInviteToggle}
+              aria-expanded={showInvite}
+              aria-haspopup="dialog"
+              aria-label="Mostrar código de invitación"
+              className="border border-primary px-3 py-1 text-[10px] uppercase hover:bg-primary hover:text-black transition-colors text-primary font-bold flex items-center gap-1 focus:outline-none focus:ring-2 focus:ring-primary"
             >
               <span className="material-icons text-sm">share</span> INVITAR
             </button>
@@ -206,9 +571,26 @@ export const GalleryPage: React.FC<GalleryPageProps> = ({ user, onNavigate, onLo
       }
     >
       <div className="flex h-full gap-6 overflow-hidden relative font-mono">
+        {/* Live region for screen reader announcements */}
+        <div 
+          role="status" 
+          aria-live="polite" 
+          aria-atomic="true"
+          className="sr-only"
+        >
+          {announcement}
+        </div>
+
         {/* Campaign Selector Popup */}
         {showCampaignSelector && (
-          <div className="absolute top-0 left-16 md:left-64 z-50 bg-surface-dark border border-primary p-4 shadow-2xl animate-glitch-in font-mono min-w-[250px]">
+          <div 
+            ref={campaignSelectorRef}
+            role="dialog"
+            aria-label="Selector de campaña"
+            aria-modal="true"
+            tabIndex={-1}
+            className="absolute top-0 left-16 md:left-64 z-50 bg-surface-dark border border-primary p-4 shadow-2xl animate-glitch-in font-mono min-w-[250px]"
+          >
             <h4 className="text-primary text-[10px] uppercase font-bold mb-3 flex items-center gap-2">
               <span className="material-icons text-sm">public</span>
               Seleccionar Campaña
@@ -250,6 +632,35 @@ export const GalleryPage: React.FC<GalleryPageProps> = ({ user, onNavigate, onLo
                     </button>
                   ))}
                 </div>
+                
+                {/* Campaign Settings Button (Master only) */}
+                {isMaster && activeCampaign && (
+                  <button 
+                    onClick={() => {
+                      setShowCampaignSelector(false);
+                      onNavigate(Screen.CAMPAIGN_SETTINGS);
+                    }}
+                    className="w-full bg-cyan-500/10 border border-cyan-500/50 py-2 text-[10px] text-cyan-500 uppercase font-bold hover:bg-cyan-500/30 transition-colors mb-2 flex items-center justify-center gap-2"
+                  >
+                    <span className="material-icons text-xs">settings</span>
+                    CONFIGURAR CAMPAÑA
+                  </button>
+                )}
+                
+                {/* Game Systems Button (Master only) */}
+                {isMaster && (
+                  <button 
+                    onClick={() => {
+                      setShowCampaignSelector(false);
+                      onNavigate(Screen.GAME_SYSTEMS);
+                    }}
+                    className="w-full bg-purple-500/10 border border-purple-500/50 py-2 text-[10px] text-purple-400 uppercase font-bold hover:bg-purple-500/30 transition-colors mb-2 flex items-center justify-center gap-2"
+                  >
+                    <span className="material-icons text-xs">sports_esports</span>
+                    SISTEMAS DE JUEGO
+                  </button>
+                )}
+                
                 <button 
                   onClick={handleManageCampaigns}
                   className="w-full bg-primary/10 border border-primary/50 py-2 text-[10px] text-primary/80 uppercase font-bold hover:bg-primary hover:text-black transition-colors"
@@ -270,7 +681,14 @@ export const GalleryPage: React.FC<GalleryPageProps> = ({ user, onNavigate, onLo
 
         {/* Invitation Popup for Masters */}
         {showInvite && isMaster && activeCampaign?.joinCode && (
-          <div className="absolute top-0 right-0 z-50 bg-surface-dark border border-primary p-4 shadow-2xl animate-glitch-in font-mono">
+          <div 
+            ref={inviteDialogRef}
+            role="dialog"
+            aria-label="Código de invitación"
+            aria-modal="true"
+            tabIndex={-1}
+            className="absolute top-0 right-0 z-50 bg-surface-dark border border-primary p-4 shadow-2xl animate-glitch-in font-mono"
+          >
             <h4 className="text-primary text-[10px] uppercase font-bold mb-2">Enlace de Reclutamiento</h4>
             <div className="bg-black/60 p-2 border border-primary/20 text-xs text-white mb-4">
               <p className="text-[8px] text-primary/60 mb-1 tracking-widest">CÓDIGO_ACTIVO</p>
@@ -283,16 +701,101 @@ export const GalleryPage: React.FC<GalleryPageProps> = ({ user, onNavigate, onLo
           </div>
         )}
 
+        {/* PDF Import Dialog */}
+        {showImportDialog && isMaster && activeCampaignId && (
+          <div 
+            ref={importDialogRef}
+            role="dialog"
+            aria-label="Importar ficha desde PDF"
+            aria-modal="true"
+            tabIndex={-1}
+            className="absolute top-0 right-0 z-50 bg-surface-dark border border-cyan-500 p-4 shadow-2xl animate-glitch-in font-mono min-w-[280px]"
+          >
+            <h4 className="text-cyan-500 text-[10px] uppercase font-bold mb-2 flex items-center gap-2">
+              <span className="material-icons text-sm">upload_file</span>
+              Importar Ficha PDF
+            </h4>
+            
+            <p className="text-[9px] text-cyan-500/60 leading-tight mb-4">
+              Selecciona un archivo PDF exportado desde Hefestai para importar los datos de la entidad a esta campaña.
+            </p>
+            
+            {/* Error display */}
+            {pdfImportState.error && (
+              <div className="bg-danger/20 border border-danger/50 p-2 mb-4 text-[10px] text-danger flex items-center gap-2">
+                <span className="material-icons text-sm">error</span>
+                {pdfImportState.error}
+              </div>
+            )}
+            
+            {/* Import button */}
+            <button 
+              onClick={handleImportClick}
+              disabled={pdfImportState.isImporting}
+              className="w-full bg-cyan-500/10 border border-cyan-500/50 py-3 text-[10px] text-cyan-500 uppercase font-bold hover:bg-cyan-500/20 transition-colors mb-3 flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
+            >
+              {pdfImportState.isImporting ? (
+                <>
+                  <span className="material-icons text-sm animate-spin">sync</span>
+                  PROCESANDO...
+                </>
+              ) : (
+                <>
+                  <span className="material-icons text-sm">folder_open</span>
+                  SELECCIONAR ARCHIVO
+                </>
+              )}
+            </button>
+            
+            {/* Hidden file input */}
+            <input
+              ref={importFileInputRef}
+              type="file"
+              accept=".pdf"
+              onChange={handleImportFileChange}
+              className="hidden"
+              aria-hidden="true"
+            />
+            
+            <div className="border-t border-cyan-500/20 pt-3">
+              <button 
+                onClick={() => setShowImportDialog(false)} 
+                className="w-full bg-transparent border border-cyan-500/30 py-1 text-[10px] text-cyan-500/60 uppercase font-bold hover:border-cyan-500/50 hover:text-cyan-500 transition-colors"
+              >
+                CANCELAR
+              </button>
+            </div>
+            
+            <button 
+              onClick={() => setShowImportDialog(false)} 
+              className="absolute top-2 right-2 text-cyan-500/60 hover:text-cyan-500"
+              aria-label="Cerrar diálogo de importación"
+            >
+              <span className="material-icons text-sm">close</span>
+            </button>
+          </div>
+        )}
+
         {/* Sidebar Navigation */}
         <aside className="w-16 md:w-64 flex flex-col gap-4 shrink-0">
-          <nav className="flex flex-col gap-2">
+          <nav 
+            ref={categoryNavRef}
+            role="tablist"
+            aria-label="Categorías de entidades"
+            className="flex flex-col gap-2"
+          >
             <div className="p-1 border border-primary/50 text-[10px] text-primary text-center uppercase mb-2 bg-primary/5 font-bold tracking-[0.2em]">
               :: SECTORES_DATOS ::
             </div>
-            {ENTITY_CATEGORIES.map((cat) => (
+            {ENTITY_CATEGORIES.map((cat, index) => (
               <button
                 key={cat.id}
+                role="tab"
+                aria-selected={activeCategory === cat.id}
+                aria-controls="entity-grid"
+                tabIndex={activeCategory === cat.id ? 0 : -1}
                 onClick={() => handleCategoryChange(cat.id)}
+                onKeyDown={(e) => handleCategoryKeyDown(e, index)}
                 disabled={transitionStatus !== 'idle' || !activeCampaignId}
                 className={`group flex items-center gap-3 p-3 border transition-all clip-tech-tl relative overflow-hidden ${
                   activeCategory === cat.id 
@@ -346,7 +849,46 @@ export const GalleryPage: React.FC<GalleryPageProps> = ({ user, onNavigate, onLo
 
           {/* Entity Grid */}
           {!isLoading && activeCampaignId && (
-            <div 
+            <>
+              {/* Search Input */}
+              <div className="mb-4 flex gap-2">
+                <div className="relative flex-1">
+                  <span className="absolute left-3 top-1/2 -translate-y-1/2 material-icons text-primary/40 text-sm">search</span>
+                  <input
+                    ref={searchInputRef}
+                    type="text"
+                    value={searchTerm}
+                    onChange={(e) => setSearchTerm(e.target.value)}
+                    placeholder="Buscar entidades..."
+                    aria-label="Buscar entidades por nombre o descripción"
+                    className="w-full bg-black/50 border border-primary/30 pl-10 pr-10 py-2 text-sm text-primary placeholder-primary/30 focus:border-primary focus:outline-none font-mono"
+                  />
+                  {searchTerm && (
+                    <button
+                      onClick={() => {
+                        setSearchTerm('');
+                        searchInputRef.current?.focus();
+                        announce('Búsqueda limpiada');
+                      }}
+                      className="absolute right-3 top-1/2 -translate-y-1/2 text-primary/40 hover:text-primary transition-colors"
+                      aria-label="Limpiar búsqueda"
+                    >
+                      <span className="material-icons text-sm">close</span>
+                    </button>
+                  )}
+                </div>
+                <div className="text-xs text-primary/40 self-center whitespace-nowrap hidden sm:block">
+                  {filteredEntities.length} {filteredEntities.length === 1 ? 'resultado' : 'resultados'}
+                </div>
+              </div>
+
+              <div 
+                ref={entityGridRef}
+              id="entity-grid"
+              role="grid"
+              aria-label={`Entidades de tipo ${ENTITY_CATEGORIES.find(c => c.id === displayCategory)?.label || displayCategory}`}
+              tabIndex={0}
+              onKeyDown={handleEntityGridKeyDown}
               className={`grid grid-cols-1 md:grid-cols-2 lg:grid-cols-2 xl:grid-cols-3 gap-6 pb-8 transition-all duration-300 ${
                 transitionStatus === 'out' ? 'section-transition-out' : 
                 transitionStatus === 'in' ? 'section-transition-in' : ''
@@ -357,7 +899,7 @@ export const GalleryPage: React.FC<GalleryPageProps> = ({ user, onNavigate, onLo
                   key={entity.id}
                   entity={entity}
                   selected={selectedEntity?.id === entity.id}
-                  onClick={() => setSelectedEntity(entity)}
+                  onClick={() => handleEntitySelect(entity)}
                   animationDelay={idx * 50}
                 />
               ))}
@@ -366,6 +908,7 @@ export const GalleryPage: React.FC<GalleryPageProps> = ({ user, onNavigate, onLo
                 <AddNewCard onClick={handleAddNew} />
               )}
             </div>
+            </>
           )}
           
           {/* Scanline effect during transition */}
@@ -379,13 +922,25 @@ export const GalleryPage: React.FC<GalleryPageProps> = ({ user, onNavigate, onLo
         {/* Detail Panel */}
         {selectedEntity && (
           <EntityDetailPanel
+            ref={detailPanelRef}
             entity={selectedEntity}
             isMaster={isMaster}
-            onClose={() => setSelectedEntity(null)}
+            onClose={handleDetailClose}
             onDelete={handleDelete}
+            onVisibilityChange={handleVisibilityChange}
+            onEdit={handleEditEntity}
           />
         )}
       </div>
+      
+      {/* Entity Edit Modal */}
+      {showEditModal && selectedEntity && (
+        <EntityEditModal
+          entity={selectedEntity}
+          onClose={() => setShowEditModal(false)}
+          onSave={handleSaveEdit}
+        />
+      )}
     </TerminalLayout>
   );
 };
@@ -404,6 +959,7 @@ interface EntityCardProps {
 /**
  * Entity Card Component
  * Displays a single entity in the gallery grid
+ * Supports keyboard navigation as part of the grid
  */
 const EntityCard: React.FC<EntityCardProps> = ({ entity, selected, onClick, animationDelay }) => {
   // Fallback image if none provided
@@ -411,8 +967,18 @@ const EntityCard: React.FC<EntityCardProps> = ({ entity, selected, onClick, anim
   
   return (
     <div
+      role="gridcell"
+      tabIndex={0}
+      aria-label={`${entity.name}, ${entity.entityType.replace('_', ' ')}`}
+      aria-selected={selected}
       onClick={onClick}
-      className={`group relative bg-surface-dark border transition-all hover:shadow-[0_0_20px_rgba(37,244,106,0.2)] hover:scale-[1.02] cursor-pointer clip-tech-br overflow-hidden ${
+      onKeyDown={(e) => {
+        if (e.key === 'Enter' || e.key === ' ') {
+          e.preventDefault();
+          onClick();
+        }
+      }}
+      className={`group relative bg-surface-dark border transition-all hover:shadow-[0_0_20px_rgba(37,244,106,0.2)] hover:scale-[1.02] cursor-pointer clip-tech-br overflow-hidden focus:outline-none focus:ring-2 focus:ring-primary focus:ring-offset-2 focus:ring-offset-surface-dark ${
         selected ? 'border-primary' : 'border-primary/40'
       }`}
       style={{ animationDelay: `${animationDelay}ms` }}
@@ -465,11 +1031,21 @@ interface AddNewCardProps {
 /**
  * Add New Card Component
  * Button card for creating new entities
+ * Keyboard accessible with focus indication
  */
 const AddNewCard: React.FC<AddNewCardProps> = ({ onClick }) => (
   <div 
+    role="button"
+    tabIndex={0}
+    aria-label="Crear nueva entidad"
     onClick={onClick}
-    className="group relative bg-surface-dark border border-primary/40 border-dashed hover:border-solid hover:border-primary transition-all cursor-pointer clip-tech-br flex flex-col items-center justify-center min-h-[220px] hover:bg-primary/5 shadow-inner"
+    onKeyDown={(e) => {
+      if (e.key === 'Enter' || e.key === ' ') {
+        e.preventDefault();
+        onClick();
+      }
+    }}
+    className="group relative bg-surface-dark border border-primary/40 border-dashed hover:border-solid hover:border-primary transition-all cursor-pointer clip-tech-br flex flex-col items-center justify-center min-h-[220px] hover:bg-primary/5 shadow-inner focus:outline-none focus:ring-2 focus:ring-primary focus:ring-offset-2 focus:ring-offset-surface-dark"
   >
     <div className="relative">
       <span className="material-icons text-6xl text-primary opacity-30 group-hover:opacity-100 transition-all group-hover:scale-110 group-hover:rotate-90">add</span>
@@ -487,93 +1063,226 @@ interface EntityDetailPanelProps {
   isMaster: boolean;
   onClose: () => void;
   onDelete: (id: string) => void;
+  onVisibilityChange: (entityId: string, visibility: VisibilityLevel) => void;
+  onEdit: () => void;
 }
 
 /**
  * Entity Detail Panel Component
  * Shows detailed information about a selected entity
+ * Supports focus management for accessibility
+ * Includes PDF export functionality for character sheets
  */
-const EntityDetailPanel: React.FC<EntityDetailPanelProps> = ({ entity, isMaster, onClose, onDelete }) => {
-  // Fallback image if none provided
-  const imageUrl = entity.imageUrl || 'https://images.unsplash.com/photo-1518020382113-a7e8fc38eac9?q=80&w=400&auto=format&fit=crop';
+const EntityDetailPanel = forwardRef<HTMLElement, EntityDetailPanelProps>(
+  ({ entity, isMaster, onClose, onDelete, onVisibilityChange, onEdit }, ref) => {
+    // Fallback image if none provided
+    const imageUrl = entity.imageUrl || 'https://images.unsplash.com/photo-1518020382113-a7e8fc38eac9?q=80&w=400&auto=format&fit=crop';
+    
+    // PDF export hook
+    const { state: pdfState, exportToPdf } = useCharacterSheetPdf();
+    
+    // Visibility dropdown state
+    const [isVisibilityOpen, setIsVisibilityOpen] = useState(false);
+    
+    /**
+     * Visibility options for the dropdown
+     */
+    const visibilityOptions = [
+      { value: VisibilityLevel.Draft, label: 'BORRADOR', description: 'Solo tú puedes verlo' },
+      { value: VisibilityLevel.Private, label: 'PRIVADO', description: 'Solo el creador' },
+      { value: VisibilityLevel.Campaign, label: 'CAMPAÑA', description: 'Miembros de la campaña' },
+      { value: VisibilityLevel.Public, label: 'PÚBLICO', description: 'Todos pueden verlo' }
+    ];
+    
+    /**
+     * Handle visibility selection
+     */
+    const handleVisibilitySelect = (visibility: VisibilityLevel) => {
+      onVisibilityChange(entity.id, visibility);
+      setIsVisibilityOpen(false);
+    };
+    
+    /**
+     * Handle PDF export
+     */
+    const handleExportPdf = async () => {
+      try {
+        await exportToPdf(entity);
+      } catch (error) {
+        console.error('PDF export failed:', error);
+      }
+    };
 
-  return (
-    <aside className="hidden lg:flex w-80 flex-col border border-primary bg-surface-dark/95 backdrop-blur-md relative animate-glitch-in">
-      <div className="bg-primary text-black font-bold p-2 text-xs flex justify-between items-center shadow-[0_4px_10px_rgba(0,0,0,0.5)]">
-        <span className="tracking-widest flex items-center gap-2">
-          <span className="material-icons text-sm">analytics</span> &gt; INSPECTOR_ENTIDAD
-        </span>
-        <span className="material-icons text-sm cursor-pointer hover:rotate-90 transition-transform" onClick={onClose}>close</span>
-      </div>
-      
-      <div className="p-6 flex flex-col gap-6 flex-1 overflow-y-auto custom-scrollbar font-mono">
-        <div className="relative w-full aspect-square border-2 border-primary/30 p-1 bg-black shadow-[0_0_15px_rgba(37,244,106,0.1)]">
-          <img src={imageUrl} alt="Detail" className="w-full h-full object-cover filter grayscale hover:grayscale-0 transition-all duration-700" />
-          <div className="absolute top-2 left-2 px-1 bg-primary/80 text-black text-[8px] font-bold">ANALYSIS_LIVE</div>
-          <div className="absolute bottom-2 right-2 flex gap-1">
-            {[...Array(3)].map((_, i) => <div key={i} className="w-1.5 h-1.5 bg-primary/40 animate-pulse" style={{ animationDelay: `${i*0.1}s` }} />)}
-          </div>
+    return (
+      <aside 
+        ref={ref}
+        role="complementary"
+        aria-label={`Detalles de ${entity.name}`}
+        tabIndex={-1}
+        className="hidden lg:flex w-80 flex-col border border-primary bg-surface-dark/95 backdrop-blur-md relative animate-glitch-in focus:outline-none"
+      >
+        <div className="bg-primary text-black font-bold p-2 text-xs flex justify-between items-center shadow-[0_4px_10px_rgba(0,0,0,0.5)]">
+          <span className="tracking-widest flex items-center gap-2">
+            <span className="material-icons text-sm">analytics</span> &gt; INSPECTOR_ENTIDAD
+          </span>
+          <button
+            aria-label="Cerrar panel de detalles"
+            onClick={onClose}
+            className="material-icons text-sm cursor-pointer hover:rotate-90 transition-transform focus:outline-none focus:ring-2 focus:ring-black"
+          >
+            close
+          </button>
         </div>
-
-        <div className="space-y-4">
-          <div>
-            <h2 className="text-3xl font-display text-primary text-glow leading-none uppercase">{entity.name}</h2>
-            <div className="h-0.5 w-full bg-gradient-to-r from-primary via-primary/20 to-transparent mt-1"></div>
-          </div>
-          
-          <div className="grid grid-cols-2 gap-2">
-            <div className="bg-black/40 border border-primary/10 p-2 text-[9px]">
-              <span className="text-primary/40 block">TIPO</span>
-              <span className="text-primary font-bold uppercase">{entity.entityType.replace('_', ' ')}</span>
-            </div>
-            <div className="bg-black/40 border border-primary/10 p-2 text-[9px]">
-              <span className="text-primary/40 block">VISIBILIDAD</span>
-              <span className="text-primary font-bold uppercase">
-                {entity.visibility === 0 ? 'BORRADOR' : 
-                 entity.visibility === 1 ? 'PRIVADO' : 
-                 entity.visibility === 2 ? 'CAMPAÑA' : 'PUBLICO'}
-              </span>
+        
+        <div className="p-6 flex flex-col gap-6 flex-1 overflow-y-auto custom-scrollbar font-mono">
+          <div className="relative w-full aspect-square border-2 border-primary/30 p-1 bg-black shadow-[0_0_15px_rgba(37,244,106,0.1)]">
+            <img src={imageUrl} alt={`Imagen de ${entity.name}`} className="w-full h-full object-cover filter grayscale hover:grayscale-0 transition-all duration-700" />
+            <div className="absolute top-2 left-2 px-1 bg-primary/80 text-black text-[8px] font-bold">ANALYSIS_LIVE</div>
+            <div className="absolute bottom-2 right-2 flex gap-1">
+              {[...Array(3)].map((_, i) => <div key={i} className="w-1.5 h-1.5 bg-primary/40 animate-pulse" style={{ animationDelay: `${i*0.1}s` }} />)}
             </div>
           </div>
 
-          <div className="bg-black/60 p-4 border border-primary/20 text-[11px] text-primary/80 leading-relaxed shadow-inner">
-            <p className="text-[9px] text-primary/40 mb-2 uppercase tracking-[0.2em] font-bold">// BITÁCORA_NÚCLEO</p>
-            <p>{entity.description || "Sin descripción adicional en el núcleo de datos. Acceso a metadatos restringido."}</p>
-          </div>
-
-          {/* Display attributes if available */}
-          {entity.attributes && Object.keys(entity.attributes).length > 0 && (
-            <div className="space-y-2">
-              <p className="text-[9px] text-primary/40 uppercase tracking-[0.2em] font-bold">// ATRIBUTOS</p>
-              <div className="grid grid-cols-3 gap-2">
-                {Object.entries(entity.attributes).slice(0, 6).map(([key, value]) => (
-                  <div key={key} className="bg-surface-dark border border-primary/20 p-2 text-center">
-                    <p className="text-[8px] text-primary/40 uppercase mb-1">{key}</p>
-                    <p className="text-sm font-bold text-primary">{String(value)}</p>
-                  </div>
-                ))}
+          <div className="space-y-4">
+            <div>
+              <h2 className="text-3xl font-display text-primary text-glow leading-none uppercase">{entity.name}</h2>
+              <div className="h-0.5 w-full bg-gradient-to-r from-primary via-primary/20 to-transparent mt-1"></div>
+            </div>
+            
+            <div className="grid grid-cols-2 gap-2">
+              <div className="bg-black/40 border border-primary/10 p-2 text-[9px]">
+                <span className="text-primary/40 block">TIPO</span>
+                <span className="text-primary font-bold uppercase">{entity.entityType.replace('_', ' ')}</span>
               </div>
+              
+              {/* Visibility - Interactive dropdown for Masters, static display for others */}
+              {isMaster ? (
+                <div className="bg-black/40 border border-primary/10 p-2 text-[9px] relative">
+                  <span className="text-primary/40 block">VISIBILIDAD</span>
+                  <button
+                    onClick={() => setIsVisibilityOpen(!isVisibilityOpen)}
+                    className="w-full flex items-center justify-between text-primary font-bold uppercase hover:text-cyan-400 transition-colors focus:outline-none focus:ring-1 focus:ring-primary"
+                    aria-expanded={isVisibilityOpen}
+                    aria-haspopup="listbox"
+                    aria-label="Cambiar visibilidad"
+                  >
+                    <span>
+                      {entity.visibility === 0 ? 'BORRADOR' : 
+                       entity.visibility === 1 ? 'PRIVADO' : 
+                       entity.visibility === 2 ? 'CAMPAÑA' : 'PUBLICO'}
+                    </span>
+                    <span className="material-icons text-xs">{isVisibilityOpen ? 'expand_less' : 'expand_more'}</span>
+                  </button>
+                  
+                  {/* Visibility dropdown menu */}
+                  {isVisibilityOpen && (
+                    <div 
+                      className="absolute top-full left-0 right-0 mt-1 bg-surface-dark border border-primary/40 shadow-lg z-50"
+                      role="listbox"
+                      aria-label="Opciones de visibilidad"
+                    >
+                      {visibilityOptions.map((option) => (
+                        <button
+                          key={option.value}
+                          onClick={() => handleVisibilitySelect(option.value)}
+                          className={`w-full p-2 text-left hover:bg-primary/20 transition-colors flex flex-col ${
+                            entity.visibility === option.value ? 'bg-primary/10 border-l-2 border-primary' : ''
+                          }`}
+                          role="option"
+                          aria-selected={entity.visibility === option.value}
+                        >
+                          <span className="text-primary font-bold text-[9px]">{option.label}</span>
+                          <span className="text-primary/40 text-[8px]">{option.description}</span>
+                        </button>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              ) : (
+                <div className="bg-black/40 border border-primary/10 p-2 text-[9px]">
+                  <span className="text-primary/40 block">VISIBILIDAD</span>
+                  <span className="text-primary font-bold uppercase">
+                    {entity.visibility === 0 ? 'BORRADOR' : 
+                     entity.visibility === 1 ? 'PRIVADO' : 
+                     entity.visibility === 2 ? 'CAMPAÑA' : 'PUBLICO'}
+                  </span>
+                </div>
+              )}
             </div>
-          )}
-        </div>
 
-        {isMaster && (
-          <div className="mt-auto flex flex-col gap-2 pt-4 border-t border-primary/10">
-            <button 
-              onClick={() => onDelete(entity.id)}
-              className="w-full py-3 border border-danger/60 text-danger text-[10px] hover:bg-danger hover:text-white transition-all font-bold uppercase tracking-[0.2em] flex items-center justify-center gap-2"
-            >
-              <span className="material-icons text-sm">delete_forever</span> PURGAR_REGISTRO
-            </button>
+            <div className="bg-black/60 p-4 border border-primary/20 text-[11px] text-primary/80 leading-relaxed shadow-inner">
+              <p className="text-[9px] text-primary/40 mb-2 uppercase tracking-[0.2em] font-bold">// BITÁCORA_NÚCLEO</p>
+              <p>{entity.description || "Sin descripción adicional en el núcleo de datos. Acceso a metadatos restringido."}</p>
+            </div>
+
+            {/* Display attributes if available */}
+            {entity.attributes && Object.keys(entity.attributes).length > 0 && (
+              <div className="space-y-2">
+                <p className="text-[9px] text-primary/40 uppercase tracking-[0.2em] font-bold">// ATRIBUTOS</p>
+                <div className="grid grid-cols-3 gap-2">
+                  {Object.entries(entity.attributes).slice(0, 6).map(([key, value]) => (
+                    <div key={key} className="bg-surface-dark border border-primary/20 p-2 text-center">
+                      <p className="text-[8px] text-primary/40 uppercase mb-1">{key}</p>
+                      <p className="text-sm font-bold text-primary">{String(value)}</p>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
           </div>
-        )}
-      </div>
-      
-      {/* Aesthetic Side Details */}
-      <div className="absolute -left-1 top-1/4 w-1 h-20 bg-primary/20"></div>
-      <div className="absolute -right-1 bottom-1/4 w-1 h-20 bg-primary/20"></div>
-    </aside>
-  );
-};
+
+          {/* Action buttons */}
+          <div className="mt-auto flex flex-col gap-2 pt-4 border-t border-primary/10">
+            {/* Edit Button (Master only) */}
+            {isMaster && (
+              <button 
+                onClick={onEdit}
+                aria-label={`Editar ${entity.name}`}
+                className="w-full py-3 border border-primary/60 text-primary text-[10px] hover:bg-primary/20 transition-all font-bold uppercase tracking-[0.2em] flex items-center justify-center gap-2 focus:outline-none focus:ring-2 focus:ring-primary"
+              >
+                <span className="material-icons text-sm">edit</span> EDITAR_ENTIDAD
+              </button>
+            )}
+            
+            {/* PDF Export Button */}
+            <button 
+              onClick={handleExportPdf}
+              disabled={pdfState.isExporting}
+              aria-label={`Exportar ${entity.name} a PDF`}
+              className="w-full py-3 border border-cyan-500/60 text-cyan-500 text-[10px] hover:bg-cyan-500/20 transition-all font-bold uppercase tracking-[0.2em] flex items-center justify-center gap-2 focus:outline-none focus:ring-2 focus:ring-cyan-500 disabled:opacity-50"
+            >
+              {pdfState.isExporting ? (
+                <>
+                  <span className="material-icons text-sm animate-spin">sync</span> EXPORTANDO...
+                </>
+              ) : (
+                <>
+                  <span className="material-icons text-sm">picture_as_pdf</span> EXPORTAR_FICHA
+                </>
+              )}
+            </button>
+            
+            {/* Delete Button (Master only) */}
+            {isMaster && (
+              <button 
+                onClick={() => onDelete(entity.id)}
+                aria-label={`Eliminar ${entity.name}`}
+                className="w-full py-3 border border-danger/60 text-danger text-[10px] hover:bg-danger hover:text-white transition-all font-bold uppercase tracking-[0.2em] flex items-center justify-center gap-2 focus:outline-none focus:ring-2 focus:ring-danger"
+              >
+                <span className="material-icons text-sm">delete_forever</span> PURGAR_REGISTRO
+              </button>
+            )}
+          </div>
+        </div>
+        
+        {/* Aesthetic Side Details */}
+        <div className="absolute -left-1 top-1/4 w-1 h-20 bg-primary/20"></div>
+        <div className="absolute -right-1 bottom-1/4 w-1 h-20 bg-primary/20"></div>
+      </aside>
+    );
+  }
+);
+
+EntityDetailPanel.displayName = 'EntityDetailPanel';
 
 export default GalleryPage;
