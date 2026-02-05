@@ -1,3 +1,4 @@
+using Loremaster.Domain.ValueObjects;
 using MediatR;
 
 namespace Loremaster.Application.Features.EntityTemplates.Commands.ExtractTemplatesFromManual;
@@ -28,11 +29,22 @@ public record ExtractTemplatesResult(
 
 /// <summary>
 /// Information about a single extracted template.
+/// When a confirmed template already exists, ExtractedFields contains the newly extracted fields
+/// so the user can compare them with the existing template.
 /// </summary>
+/// <param name="TemplateId">ID of the template (existing if skipped, new if created).</param>
+/// <param name="EntityTypeName">The entity type name (e.g., "player_character").</param>
+/// <param name="DisplayName">Human-readable display name.</param>
+/// <param name="FieldCount">Number of fields in the template.</param>
+/// <param name="IsNew">Whether this is a newly created template.</param>
+/// <param name="ExtractionNotes">Notes about the extraction (e.g., why it was skipped).</param>
+/// <param name="ExtractedFields">For skipped templates: the newly extracted fields for comparison.</param>
 public record ExtractedTemplateInfo(
     Guid TemplateId,
     string EntityTypeName,
     string DisplayName,
     int FieldCount,
     bool IsNew,
-    string? ExtractionNotes);
+    string? ExtractionNotes,
+    IReadOnlyList<FieldDefinition>? ExtractedFields = null);
+

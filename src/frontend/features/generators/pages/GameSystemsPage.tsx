@@ -5,13 +5,17 @@
  */
 
 import React, { useState, useEffect, useCallback } from 'react';
-import { TerminalLayout } from '@shared/components/layout';
+import { TerminalLayout, AdminLayout } from '@shared/components/layout';
 import { Button } from '@shared/components/ui';
 import { useAuth } from '@core/context';
 import { gameSystemService } from '@core/services/api';
 import type { GameSystem, CreateGameSystemRequest } from '@core/types';
+import { Screen } from '@core/types';
 
 interface GameSystemsPageProps {
+  /** Handler for navigating to other screens (used by Admin layout) */
+  onNavigate?: (screen: Screen) => void;
+  /** Handler for returning to gallery */
   onBack: () => void;
 }
 
@@ -20,7 +24,7 @@ interface GameSystemsPageProps {
  * Provides UI for creating and managing game systems (tabletop RPG rule sets)
  * Only accessible to Master or Admin users
  */
-export const GameSystemsPage: React.FC<GameSystemsPageProps> = ({ onBack }) => {
+export const GameSystemsPage: React.FC<GameSystemsPageProps> = ({ onNavigate, onBack }) => {
   const { user } = useAuth();
   
   const [gameSystems, setGameSystems] = useState<GameSystem[]>([]);
@@ -175,22 +179,43 @@ export const GameSystemsPage: React.FC<GameSystemsPageProps> = ({ onBack }) => {
 
   // Check if user has access (Master or Admin)
   const isMasterOrAdmin = user?.role === 'MASTER' || user?.role === 'ADMIN';
+  const isAdmin = user?.role === 'ADMIN';
+  
+  // Wrapper component based on user role
+  const LayoutWrapper: React.FC<{ children: React.ReactNode }> = ({ children }) => {
+    if (isAdmin && onNavigate) {
+      return (
+        <AdminLayout 
+          activeScreen={Screen.GAME_SYSTEMS} 
+          onNavigate={onNavigate} 
+          onBack={onBack}
+        >
+          {children}
+        </AdminLayout>
+      );
+    }
+    return (
+      <TerminalLayout title="GAME_SYSTEMS" subtitle="Gestión de sistemas de juego" onLogout={() => {}}>
+        {children}
+      </TerminalLayout>
+    );
+  };
   
   if (!isMasterOrAdmin) {
     return (
-      <TerminalLayout title="GAME_SYSTEMS" subtitle="Gestión de sistemas de juego" onLogout={() => {}}>
+      <LayoutWrapper>
         <div className="flex flex-col items-center justify-center h-full text-danger/60">
           <span className="material-icons text-6xl mb-4">lock</span>
           <p className="text-sm uppercase tracking-widest">Acceso restringido a Masters</p>
           <Button onClick={onBack} className="mt-4">VOLVER</Button>
         </div>
-      </TerminalLayout>
+      </LayoutWrapper>
     );
   }
 
   return (
-    <TerminalLayout title="GAME_SYSTEMS" subtitle="Gestión de sistemas de juego" onLogout={() => {}}>
-      <div className="flex flex-col lg:flex-row h-full p-4 lg:p-8 gap-6">
+    <LayoutWrapper>
+      <div className="flex flex-col lg:flex-row h-full gap-6">
         {/* Main Content Section */}
         <div className="flex-1 flex flex-col gap-6 overflow-hidden">
           {/* Header */}
@@ -483,6 +508,6 @@ export const GameSystemsPage: React.FC<GameSystemsPageProps> = ({ onBack }) => {
           )}
         </div>
       </div>
-    </TerminalLayout>
+    </LayoutWrapper>
   );
 };

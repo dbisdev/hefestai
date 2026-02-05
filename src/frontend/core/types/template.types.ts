@@ -118,7 +118,9 @@ export interface GetTemplatesResult {
 }
 
 /**
- * Information about an extracted template
+ * Information about an extracted template.
+ * When a confirmed template already exists, extractedFields contains the newly extracted fields
+ * so the user can compare them with the existing template.
  */
 export interface ExtractedTemplateInfo {
   templateId: string;
@@ -127,6 +129,8 @@ export interface ExtractedTemplateInfo {
   fieldCount: number;
   isNew: boolean;
   extractionNotes?: string;
+  /** For skipped templates: the newly extracted fields for comparison */
+  extractedFields?: FieldDefinition[];
 }
 
 /**

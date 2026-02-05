@@ -30,8 +30,8 @@ public class UpdateTemplateCommandHandler : IRequestHandler<UpdateTemplateComman
         CancellationToken cancellationToken)
     {
         _logger.LogInformation(
-            "Updating template {TemplateId} by user {UserId}",
-            request.TemplateId, request.OwnerId);
+            "Updating template {TemplateId} by user {UserId} (IsAdmin: {IsAdmin})",
+            request.TemplateId, request.OwnerId, request.IsAdmin);
 
         var template = await _templateRepository.GetByIdAsync(
             request.TemplateId, request.OwnerId, cancellationToken);
@@ -41,19 +41,21 @@ public class UpdateTemplateCommandHandler : IRequestHandler<UpdateTemplateComman
             throw new ArgumentException($"Template with ID {request.TemplateId} not found");
         }
 
-        if (!template.IsOwnedBy(request.OwnerId))
+        // Admin can update any template, others can only update their own
+        if (!request.IsAdmin && !template.IsOwnedBy(request.OwnerId))
         {
             throw new UnauthorizedAccessException("You do not have permission to update this template");
         }
 
-        // Update metadata
+        // Update metadata (pass adminOverride flag)
         template.Update(
             request.DisplayName,
             request.Description,
             request.IconHint,
-            request.Version);
+            request.Version,
+            adminOverride: request.IsAdmin);
 
-        // Update fields if provided
+        // Update fields if provided (pass adminOverride flag)
         if (request.Fields != null)
         {
             var fields = request.Fields.Select(f => FieldDefinition.Create(
@@ -70,7 +72,7 @@ public class UpdateTemplateCommandHandler : IRequestHandler<UpdateTemplateComman
                 f.ValidationPattern
             )).ToList();
 
-            template.SetFieldDefinitions(fields);
+            template.SetFieldDefinitions(fields, adminOverride: request.IsAdmin);
         }
 
         _templateRepository.Update(template);

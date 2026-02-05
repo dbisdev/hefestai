@@ -6,13 +6,17 @@
  */
 
 import React, { useState, useEffect, useCallback } from 'react';
-import { TerminalLayout } from '@shared/components/layout';
+import { AdminLayout } from '@shared/components/layout';
 import { Button } from '@shared/components/ui';
 import { useAuth } from '@core/context';
 import { adminCampaignService, adminUserService } from '@core/services/api';
 import type { AdminCampaign, AdminUpdateCampaignRequest, AdminUser } from '@core/types';
+import { Screen } from '@core/types';
 
 interface AdminCampaignsPageProps {
+  /** Handler for navigating to other screens */
+  onNavigate: (screen: Screen) => void;
+  /** Handler for returning to gallery */
   onBack: () => void;
 }
 
@@ -24,7 +28,7 @@ interface AdminCampaignsPageProps {
  * - Transfer campaign ownership
  * - Delete (soft delete) campaigns
  */
-export const AdminCampaignsPage: React.FC<AdminCampaignsPageProps> = ({ onBack }) => {
+export const AdminCampaignsPage: React.FC<AdminCampaignsPageProps> = ({ onNavigate, onBack }) => {
   const { user: currentUser } = useAuth();
   
   // Data state
@@ -273,19 +277,27 @@ export const AdminCampaignsPage: React.FC<AdminCampaignsPageProps> = ({ onBack }
   
   if (!isAdmin) {
     return (
-      <TerminalLayout title="ADMIN_CAMPAIGNS" subtitle="Gestión de campañas" onLogout={() => {}}>
+      <AdminLayout 
+        activeScreen={Screen.ADMIN_CAMPAIGNS} 
+        onNavigate={onNavigate} 
+        onBack={onBack}
+      >
         <div className="flex flex-col items-center justify-center h-full text-danger/60">
           <span className="material-icons text-6xl mb-4">lock</span>
           <p className="text-sm uppercase tracking-widest">Acceso restringido a Administradores</p>
           <Button onClick={onBack} className="mt-4">VOLVER</Button>
         </div>
-      </TerminalLayout>
+      </AdminLayout>
     );
   }
 
   return (
-    <TerminalLayout title="ADMIN_CAMPAIGNS" subtitle="Gestión de campañas del sistema" onLogout={() => {}}>
-      <div className="flex flex-col lg:flex-row h-full p-4 lg:p-8 gap-6">
+    <AdminLayout 
+      activeScreen={Screen.ADMIN_CAMPAIGNS} 
+      onNavigate={onNavigate} 
+      onBack={onBack}
+    >
+      <div className="flex flex-col lg:flex-row h-full gap-6">
         {/* Left Column - Campaigns List */}
         <div className="w-full lg:w-1/2 flex flex-col gap-4 overflow-hidden">
           {/* Header & Actions */}
@@ -707,6 +719,6 @@ export const AdminCampaignsPage: React.FC<AdminCampaignsPageProps> = ({ onBack }
           </div>
         </div>
       </div>
-    </TerminalLayout>
+    </AdminLayout>
   );
 };

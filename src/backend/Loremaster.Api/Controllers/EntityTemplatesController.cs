@@ -130,7 +130,7 @@ public class EntityTemplatesController : ControllerBase
 
     /// <summary>
     /// Update a template's metadata and field definitions.
-    /// Only allowed for templates in Draft or PendingReview status.
+    /// Only allowed for templates in Draft or PendingReview status, unless user is Admin.
     /// </summary>
     /// <param name="gameSystemId">The game system ID.</param>
     /// <param name="templateId">The template ID to update.</param>
@@ -148,6 +148,7 @@ public class EntityTemplatesController : ControllerBase
         CancellationToken cancellationToken = default)
     {
         var userId = GetCurrentUserId();
+        var isAdmin = IsCurrentUserAdmin();
         
         var command = new UpdateTemplateCommand(
             templateId,
@@ -156,7 +157,8 @@ public class EntityTemplatesController : ControllerBase
             request.Description,
             request.IconHint,
             request.Version,
-            request.Fields);
+            request.Fields,
+            isAdmin);
         
         try
         {

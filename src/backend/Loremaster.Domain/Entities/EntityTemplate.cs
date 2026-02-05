@@ -150,11 +150,13 @@ public class EntityTemplate : AuditableEntity
 
     /// <summary>
     /// Sets the field definitions for this template.
-    /// Only allowed in Draft or PendingReview status.
+    /// Only allowed in Draft or PendingReview status, unless adminOverride is true.
     /// </summary>
-    public void SetFieldDefinitions(IEnumerable<FieldDefinition> fields)
+    /// <param name="fields">The new field definitions.</param>
+    /// <param name="adminOverride">If true, allows updating even if template is Confirmed.</param>
+    public void SetFieldDefinitions(IEnumerable<FieldDefinition> fields, bool adminOverride = false)
     {
-        if (Status == TemplateStatus.Confirmed)
+        if (!adminOverride && Status == TemplateStatus.Confirmed)
             throw new InvalidOperationException("Cannot modify field definitions of a confirmed template");
         
         if (Status == TemplateStatus.Rejected)
@@ -221,15 +223,21 @@ public class EntityTemplate : AuditableEntity
 
     /// <summary>
     /// Updates the template metadata.
-    /// Only allowed in Draft or PendingReview status.
+    /// Only allowed in Draft or PendingReview status, unless adminOverride is true.
     /// </summary>
+    /// <param name="displayName">New display name.</param>
+    /// <param name="description">New description.</param>
+    /// <param name="iconHint">New icon hint.</param>
+    /// <param name="version">New version.</param>
+    /// <param name="adminOverride">If true, allows updating even if template is Confirmed.</param>
     public void Update(
         string displayName,
         string? description = null,
         string? iconHint = null,
-        string? version = null)
+        string? version = null,
+        bool adminOverride = false)
     {
-        if (Status == TemplateStatus.Confirmed)
+        if (!adminOverride && Status == TemplateStatus.Confirmed)
             throw new InvalidOperationException("Cannot modify a confirmed template");
         
         if (Status == TemplateStatus.Rejected)

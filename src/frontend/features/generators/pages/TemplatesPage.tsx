@@ -6,7 +6,7 @@
  */
 
 import React, { useState, useEffect, useCallback } from 'react';
-import { TerminalLayout } from '@shared/components/layout';
+import { AdminLayout } from '@shared/components/layout';
 import { Button } from '@shared/components/ui';
 import { useAuth } from '@core/context';
 import { entityTemplateService, gameSystemService } from '@core/services/api';
@@ -14,11 +14,15 @@ import type {
   GameSystem,
   EntityTemplateSummary, 
   EntityTemplate,
-  ExtractedTemplateInfo 
+  ExtractedTemplateInfo,
+  FieldDefinition
 } from '@core/types';
-import { TemplateStatus, TemplateStatusLabels, FieldTypeLabels } from '@core/types';
+import { TemplateStatus, TemplateStatusLabels, FieldTypeLabels, FieldType, Screen } from '@core/types';
 
 interface TemplatesPageProps {
+  /** Handler for navigating to other screens */
+  onNavigate: (screen: Screen) => void;
+  /** Handler for returning to gallery */
   onBack: () => void;
 }
 
@@ -29,7 +33,7 @@ interface TemplatesPageProps {
  * - View and edit template field definitions
  * - Confirm templates to make them available for entity creation
  */
-export const TemplatesPage: React.FC<TemplatesPageProps> = ({ onBack }) => {
+export const TemplatesPage: React.FC<TemplatesPageProps> = ({ onNavigate, onBack }) => {
   const { user } = useAuth();
   
   // Data state
@@ -47,6 +51,17 @@ export const TemplatesPage: React.FC<TemplatesPageProps> = ({ onBack }) => {
   const [isConfirmingAll, setIsConfirmingAll] = useState(false);
   const [extractionResult, setExtractionResult] = useState<ExtractedTemplateInfo[] | null>(null);
   const [newlyExtractedIds, setNewlyExtractedIds] = useState<Set<string>>(new Set());
+  
+  // Field editing state
+  const [isEditingFields, setIsEditingFields] = useState(false);
+  const [editedFields, setEditedFields] = useState<FieldDefinition[]>([]);
+  const [editingField, setEditingField] = useState<FieldDefinition | null>(null);
+  const [isAddingField, setIsAddingField] = useState(false);
+  const [isSavingFields, setIsSavingFields] = useState(false);
+  
+  // Comparison state for skipped templates (confirmed ones with newly extracted fields)
+  const [comparisonExtractedFields, setComparisonExtractedFields] = useState<FieldDefinition[] | null>(null);
+  const [comparisonTemplateName, setComparisonTemplateName] = useState<string>('');
   
   const [logs, setLogs] = useState([
     '> Template management system online...',
@@ -71,9 +86,9 @@ export const TemplatesPage: React.FC<TemplatesPageProps> = ({ onBack }) => {
       setGameSystems(systems);
       addLog(`[SUCCESS] ${systems.length} sistemas cargados`);
       
-      // Auto-select first system if available
-      if (systems.length > 0 && !selectedGameSystem) {
-        setSelectedGameSystem(systems[0]);
+      // Auto-select first system if available and none selected
+      if (systems.length > 0) {
+        setSelectedGameSystem(prev => prev ?? systems[0]);
       }
     } catch (error: unknown) {
       const message = error instanceof Error ? error.message : 'Error al cargar sistemas';
@@ -81,17 +96,15 @@ export const TemplatesPage: React.FC<TemplatesPageProps> = ({ onBack }) => {
     } finally {
       setIsLoadingGameSystems(false);
     }
-  }, [addLog, selectedGameSystem]);
+  }, [addLog]);
 
   /**
    * Fetches templates for the selected game system
    */
-  const fetchTemplates = useCallback(async () => {
-    if (!selectedGameSystem) return;
-    
+  const fetchTemplates = useCallback(async (gameSystemId: string) => {
     setIsLoadingTemplates(true);
     try {
-      const result = await entityTemplateService.getByGameSystem(selectedGameSystem.id);
+      const result = await entityTemplateService.getByGameSystem(gameSystemId);
       setTemplates(result.templates);
       setTemplateCounts({
         total: result.totalCount,
@@ -106,7 +119,7 @@ export const TemplatesPage: React.FC<TemplatesPageProps> = ({ onBack }) => {
     } finally {
       setIsLoadingTemplates(false);
     }
-  }, [selectedGameSystem, addLog]);
+  }, [addLog]);
 
   /**
    * Fetches full template details
@@ -117,6 +130,9 @@ export const TemplatesPage: React.FC<TemplatesPageProps> = ({ onBack }) => {
     try {
       const template = await entityTemplateService.getById(selectedGameSystem.id, templateId);
       setSelectedTemplate(template);
+      // Clear comparison when loading a new template
+      setComparisonExtractedFields(null);
+      setComparisonTemplateName('');
       addLog(`Plantilla cargada: ${template.displayName}`);
     } catch (error: unknown) {
       const message = error instanceof Error ? error.message : 'Error al cargar detalles';
@@ -124,20 +140,176 @@ export const TemplatesPage: React.FC<TemplatesPageProps> = ({ onBack }) => {
     }
   }, [selectedGameSystem, addLog]);
 
+  /**
+   * Handles viewing extracted fields from a skipped template (one that already has a confirmed version).
+   * Loads the confirmed template and shows the newly extracted fields for comparison.
+   */
+  const handleViewSkippedExtraction = useCallback(async (info: ExtractedTemplateInfo) => {
+    if (!selectedGameSystem || !info.extractedFields || !info.templateId) return;
+    
+    // First, load the existing confirmed template
+    try {
+      const template = await entityTemplateService.getById(selectedGameSystem.id, info.templateId);
+      setSelectedTemplate(template);
+      // Set the extracted fields for comparison
+      setComparisonExtractedFields(info.extractedFields);
+      setComparisonTemplateName(info.displayName);
+      addLog(`Comparando extracción: ${info.displayName}`);
+      addLog(`  - Existente: ${template.fields.length} campos`);
+      addLog(`  - Extraído: ${info.extractedFields.length} campos`);
+    } catch (error: unknown) {
+      const message = error instanceof Error ? error.message : 'Error al cargar plantilla';
+      addLog(`ERROR: ${message}`);
+    }
+  }, [selectedGameSystem, addLog]);
+
+  /**
+   * Closes the comparison view
+   */
+  const handleCloseComparison = useCallback(() => {
+    setComparisonExtractedFields(null);
+    setComparisonTemplateName('');
+  }, []);
+
+  /**
+   * Adds a single field from the comparison to the confirmed template.
+   * Creates a copy of the field and appends it to the template's field list.
+   */
+  const handleAddFieldFromComparison = useCallback(async (field: FieldDefinition) => {
+    if (!selectedGameSystem || !selectedTemplate) return;
+    
+    // Check if field already exists
+    if (selectedTemplate.fields.some(f => f.name === field.name)) {
+      addLog(`ERROR: El campo "${field.name}" ya existe en la plantilla`);
+      return;
+    }
+    
+    setIsSavingFields(true);
+    addLog(`Añadiendo campo: ${field.name}...`);
+    
+    try {
+      // Calculate new order (append at end)
+      const maxOrder = selectedTemplate.fields.length > 0
+        ? Math.max(...selectedTemplate.fields.map(f => f.order))
+        : 0;
+      
+      const newField = { ...field, order: maxOrder + 1 };
+      const updatedFields = [...selectedTemplate.fields, newField];
+      
+      await entityTemplateService.update(
+        selectedGameSystem.id,
+        selectedTemplate.id,
+        {
+          displayName: selectedTemplate.displayName,
+          description: selectedTemplate.description,
+          iconHint: selectedTemplate.iconHint,
+          version: selectedTemplate.version,
+          fields: updatedFields,
+        }
+      );
+      
+      addLog(`[SUCCESS] Campo añadido: ${field.displayName}`);
+      
+      // Refresh template details
+      const updated = await entityTemplateService.getById(selectedGameSystem.id, selectedTemplate.id);
+      setSelectedTemplate(updated);
+      
+      // Remove the field from comparison list
+      setComparisonExtractedFields(prev => 
+        prev ? prev.filter(f => f.name !== field.name) : null
+      );
+      
+      // Refresh templates list
+      await fetchTemplates(selectedGameSystem.id);
+    } catch (error: unknown) {
+      const message = error instanceof Error ? error.message : 'Error al añadir campo';
+      addLog(`ERROR: ${message}`);
+    } finally {
+      setIsSavingFields(false);
+    }
+  }, [selectedGameSystem, selectedTemplate, addLog, fetchTemplates]);
+
+  /**
+   * Adds all new fields from the comparison to the confirmed template.
+   * Only adds fields that don't already exist in the template.
+   */
+  const handleAddAllNewFieldsFromComparison = useCallback(async () => {
+    if (!selectedGameSystem || !selectedTemplate || !comparisonExtractedFields) return;
+    
+    // Find fields that don't exist in the template
+    const newFields = comparisonExtractedFields.filter(
+      cf => !selectedTemplate.fields.some(tf => tf.name === cf.name)
+    );
+    
+    if (newFields.length === 0) {
+      addLog('No hay campos nuevos para añadir');
+      return;
+    }
+    
+    setIsSavingFields(true);
+    addLog(`Añadiendo ${newFields.length} campos nuevos...`);
+    
+    try {
+      // Calculate starting order
+      const maxOrder = selectedTemplate.fields.length > 0
+        ? Math.max(...selectedTemplate.fields.map(f => f.order))
+        : 0;
+      
+      // Add order to new fields
+      const fieldsWithOrder = newFields.map((field, index) => ({
+        ...field,
+        order: maxOrder + 1 + index
+      }));
+      
+      const updatedFields = [...selectedTemplate.fields, ...fieldsWithOrder];
+      
+      await entityTemplateService.update(
+        selectedGameSystem.id,
+        selectedTemplate.id,
+        {
+          displayName: selectedTemplate.displayName,
+          description: selectedTemplate.description,
+          iconHint: selectedTemplate.iconHint,
+          version: selectedTemplate.version,
+          fields: updatedFields,
+        }
+      );
+      
+      addLog(`[SUCCESS] ${newFields.length} campos añadidos`);
+      
+      // Refresh template details
+      const updated = await entityTemplateService.getById(selectedGameSystem.id, selectedTemplate.id);
+      setSelectedTemplate(updated);
+      
+      // Remove added fields from comparison list
+      setComparisonExtractedFields(prev => 
+        prev ? prev.filter(cf => selectedTemplate.fields.some(tf => tf.name === cf.name)) : null
+      );
+      
+      // Refresh templates list
+      await fetchTemplates(selectedGameSystem.id);
+    } catch (error: unknown) {
+      const message = error instanceof Error ? error.message : 'Error al añadir campos';
+      addLog(`ERROR: ${message}`);
+    } finally {
+      setIsSavingFields(false);
+    }
+  }, [selectedGameSystem, selectedTemplate, comparisonExtractedFields, addLog, fetchTemplates]);
+
   // Load game systems on mount
   useEffect(() => {
     fetchGameSystems();
-  }, []);
+  }, [fetchGameSystems]);
 
   // Load templates when game system changes
   useEffect(() => {
     if (selectedGameSystem) {
-      fetchTemplates();
+      fetchTemplates(selectedGameSystem.id);
       setSelectedTemplate(null);
       setExtractionResult(null);
       setNewlyExtractedIds(new Set());
     }
-  }, [selectedGameSystem?.id]);
+  }, [selectedGameSystem?.id, fetchTemplates]);
 
   /**
    * Handles extracting templates from manuals
@@ -172,7 +344,7 @@ export const TemplatesPage: React.FC<TemplatesPageProps> = ({ onBack }) => {
         addLog(`  - Omitidas: ${result.templatesSkipped}`);
         
         // Refresh templates list
-        await fetchTemplates();
+        await fetchTemplates(selectedGameSystem.id);
       }
     } catch (error: unknown) {
       const message = error instanceof Error ? error.message : 'Error en extracción';
@@ -200,7 +372,7 @@ export const TemplatesPage: React.FC<TemplatesPageProps> = ({ onBack }) => {
       addLog(`[SUCCESS] ${result.entityTypeName} confirmado`);
       
       // Refresh templates
-      await fetchTemplates();
+      await fetchTemplates(selectedGameSystem.id);
       
       // Update extraction results if present
       if (extractionResult) {
@@ -252,12 +424,165 @@ export const TemplatesPage: React.FC<TemplatesPageProps> = ({ onBack }) => {
       setNewlyExtractedIds(new Set());
       
       // Refresh templates
-      await fetchTemplates();
+      await fetchTemplates(selectedGameSystem.id);
     } catch (error: unknown) {
       const message = error instanceof Error ? error.message : 'Error al confirmar';
       addLog(`ERROR: ${message}`);
     } finally {
       setIsConfirmingAll(false);
+    }
+  };
+
+  /**
+   * Starts editing mode for the selected template's fields
+   */
+  const handleStartEditFields = () => {
+    if (!selectedTemplate) return;
+    setEditedFields([...selectedTemplate.fields]);
+    setIsEditingFields(true);
+    addLog(`Editando campos de ${selectedTemplate.displayName}`);
+  };
+
+  /**
+   * Cancels field editing and reverts changes
+   */
+  const handleCancelEditFields = () => {
+    setIsEditingFields(false);
+    setEditedFields([]);
+    setEditingField(null);
+    setIsAddingField(false);
+    addLog('Edición cancelada');
+  };
+
+  /**
+   * Removes a field from the edited list (omit)
+   */
+  const handleOmitField = (fieldName: string) => {
+    setEditedFields(prev => prev.filter(f => f.name !== fieldName));
+    addLog(`Campo omitido: ${fieldName}`);
+  };
+
+  /**
+   * Opens the field edit form
+   */
+  const handleEditField = (field: FieldDefinition) => {
+    setIsAddingField(false);
+    setEditingField({ ...field });
+  };
+
+  /**
+   * Opens the form to add a new field
+   */
+  const handleAddField = () => {
+    const maxOrder = editedFields.length > 0 
+      ? Math.max(...editedFields.map(f => f.order)) 
+      : 0;
+    
+    setIsAddingField(true);
+    setEditingField({
+      name: '',
+      displayName: '',
+      fieldType: FieldType.Text,
+      isRequired: false,
+      order: maxOrder + 1,
+      description: '',
+      defaultValue: undefined,
+      options: undefined,
+      minValue: undefined,
+      maxValue: undefined,
+    });
+  };
+
+  /**
+   * Saves changes to the field being edited or adds new field
+   */
+  const handleSaveFieldEdit = () => {
+    if (!editingField) return;
+    
+    // Validate field name for new fields
+    if (isAddingField) {
+      if (!editingField.name.trim()) {
+        addLog('ERROR: El nombre del campo es requerido');
+        return;
+      }
+      
+      // Sanitize field name: lowercase, underscores, no special chars
+      const sanitizedName = editingField.name
+        .toLowerCase()
+        .replace(/\s+/g, '_')
+        .replace(/[^a-z0-9_]/g, '');
+      
+      if (!sanitizedName) {
+        addLog('ERROR: Nombre de campo inválido');
+        return;
+      }
+      
+      // Check for duplicates
+      if (editedFields.some(f => f.name === sanitizedName)) {
+        addLog(`ERROR: Ya existe un campo con el nombre "${sanitizedName}"`);
+        return;
+      }
+      
+      const newField = { ...editingField, name: sanitizedName };
+      setEditedFields(prev => [...prev, newField]);
+      addLog(`Campo añadido: ${sanitizedName}`);
+    } else {
+      setEditedFields(prev => prev.map(f => 
+        f.name === editingField.name ? editingField : f
+      ));
+      addLog(`Campo actualizado: ${editingField.name}`);
+    }
+    
+    setEditingField(null);
+    setIsAddingField(false);
+  };
+
+  /**
+   * Cancels field edit form
+   */
+  const handleCancelFieldEdit = () => {
+    setEditingField(null);
+    setIsAddingField(false);
+  };
+
+  /**
+   * Saves all field changes to the template via API
+   */
+  const handleSaveFields = async () => {
+    if (!selectedGameSystem || !selectedTemplate) return;
+    
+    setIsSavingFields(true);
+    addLog('GUARDANDO CAMBIOS...');
+
+    try {
+      await entityTemplateService.update(
+        selectedGameSystem.id,
+        selectedTemplate.id,
+        {
+          displayName: selectedTemplate.displayName,
+          description: selectedTemplate.description,
+          iconHint: selectedTemplate.iconHint,
+          version: selectedTemplate.version,
+          fields: editedFields,
+        }
+      );
+      
+      addLog(`[SUCCESS] Campos actualizados`);
+      
+      // Refresh template details
+      await fetchTemplateDetails(selectedTemplate.id);
+      
+      // Exit edit mode
+      setIsEditingFields(false);
+      setEditedFields([]);
+      
+      // Refresh templates list
+      await fetchTemplates(selectedGameSystem.id);
+    } catch (error: unknown) {
+      const message = error instanceof Error ? error.message : 'Error al guardar';
+      addLog(`ERROR: ${message}`);
+    } finally {
+      setIsSavingFields(false);
     }
   };
 
@@ -289,19 +614,27 @@ export const TemplatesPage: React.FC<TemplatesPageProps> = ({ onBack }) => {
   
   if (!isAdmin) {
     return (
-      <TerminalLayout title="TEMPLATES" subtitle="Gestión de plantillas" onLogout={() => {}}>
+      <AdminLayout 
+        activeScreen={Screen.TEMPLATES} 
+        onNavigate={onNavigate} 
+        onBack={onBack}
+      >
         <div className="flex flex-col items-center justify-center h-full text-danger/60">
           <span className="material-icons text-6xl mb-4">lock</span>
           <p className="text-sm uppercase tracking-widest">Acceso restringido a Administradores</p>
           <Button onClick={onBack} className="mt-4">VOLVER</Button>
         </div>
-      </TerminalLayout>
+      </AdminLayout>
     );
   }
 
   return (
-    <TerminalLayout title="TEMPLATES" subtitle="Gestión de plantillas de entidad" onLogout={() => {}}>
-      <div className="flex flex-col lg:flex-row h-full p-4 lg:p-8 gap-6">
+    <AdminLayout 
+      activeScreen={Screen.TEMPLATES} 
+      onNavigate={onNavigate} 
+      onBack={onBack}
+    >
+      <div className="flex flex-col lg:flex-row h-full gap-6">
         {/* Left Column - Game Systems & Templates List */}
         <div className="w-full lg:w-1/3 flex flex-col gap-4 overflow-hidden">
           {/* Game System Selector */}
@@ -399,7 +732,7 @@ export const TemplatesPage: React.FC<TemplatesPageProps> = ({ onBack }) => {
                 Plantillas
               </span>
               <button 
-                onClick={fetchTemplates}
+                onClick={() => selectedGameSystem && fetchTemplates(selectedGameSystem.id)}
                 disabled={isLoadingTemplates || !selectedGameSystem}
                 className="material-icons text-sm text-primary/60 hover:text-primary transition-colors disabled:opacity-50"
                 title="Recargar"
@@ -443,14 +776,31 @@ export const TemplatesPage: React.FC<TemplatesPageProps> = ({ onBack }) => {
                         const canConfirm = templateInDb && (templateInDb.status === TemplateStatus.Draft || templateInDb.status === TemplateStatus.PendingReview);
                         const isConfirmedStatus = templateInDb?.status === TemplateStatus.Confirmed;
                         
+                        // Check if this is a skipped template with extracted fields (can compare)
+                        const hasExtractedFields = info.extractedFields && info.extractedFields.length > 0;
+                        const isSkippedWithFields = hasExtractedFields && isConfirmedStatus;
+                        
+                        // Determine click handler
+                        const handleClick = () => {
+                          if (isSkippedWithFields) {
+                            // Show comparison view
+                            handleViewSkippedExtraction(info);
+                          } else if (hasValidId) {
+                            // Normal view
+                            fetchTemplateDetails(info.templateId);
+                          }
+                        };
+                        
                         return (
                           <div
                             key={info.templateId || info.entityTypeName}
-                            onClick={() => hasValidId && fetchTemplateDetails(info.templateId)}
+                            onClick={handleClick}
                             className={`border p-2 cursor-pointer transition-all ${
                               selectedTemplate?.id === info.templateId
                                 ? 'border-cyan-500 bg-cyan-500/10'
-                                : info.extractionNotes
+                                : isSkippedWithFields
+                                ? 'border-purple-500/40 bg-purple-500/5 hover:border-purple-500/60'
+                                : info.extractionNotes && !hasExtractedFields
                                 ? 'border-red-500/40 bg-red-500/5 hover:border-red-500/60'
                                 : info.isNew
                                 ? 'border-green-500/40 bg-green-500/5 hover:border-green-500/60'
@@ -463,7 +813,11 @@ export const TemplatesPage: React.FC<TemplatesPageProps> = ({ onBack }) => {
                                   <span className="font-mono text-cyan-400 text-[10px] truncate">
                                     {info.entityTypeName}
                                   </span>
-                                  {info.extractionNotes ? (
+                                  {isSkippedWithFields ? (
+                                    <span className="text-[8px] px-1 py-0.5 border border-purple-500/60 text-purple-400 bg-purple-500/20">
+                                      COMPARAR
+                                    </span>
+                                  ) : info.extractionNotes ? (
                                     <span className="text-[8px] px-1 py-0.5 border border-red-500/60 text-red-400 bg-red-500/20">
                                       ERROR
                                     </span>
@@ -476,7 +830,7 @@ export const TemplatesPage: React.FC<TemplatesPageProps> = ({ onBack }) => {
                                       ACTUALIZADA
                                     </span>
                                   )}
-                                  {isConfirmedStatus && (
+                                  {isConfirmedStatus && !isSkippedWithFields && (
                                     <span className="text-[8px] px-1 py-0.5 border border-green-500/60 text-green-400 bg-green-500/20">
                                       CONFIRMADA
                                     </span>
@@ -484,14 +838,25 @@ export const TemplatesPage: React.FC<TemplatesPageProps> = ({ onBack }) => {
                                 </div>
                                 <p className="text-xs text-primary mt-1 truncate">{info.displayName}</p>
                                 <p className="text-[9px] text-primary/40">
-                                  {info.fieldCount} campos
+                                  {isSkippedWithFields 
+                                    ? `${info.extractedFields?.length} campos extraídos` 
+                                    : `${info.fieldCount} campos`}
                                 </p>
                                 {info.extractionNotes && (
-                                  <p className="text-[9px] text-red-400/80 mt-1 truncate" title={info.extractionNotes}>
+                                  <p className={`text-[9px] mt-1 truncate ${isSkippedWithFields ? 'text-purple-400/80' : 'text-red-400/80'}`} title={info.extractionNotes}>
                                     {info.extractionNotes}
                                   </p>
                                 )}
                               </div>
+                              
+                              {isSkippedWithFields && (
+                                <span 
+                                  className="material-icons text-sm text-purple-400/60 ml-1"
+                                  title="Ver campos extraídos"
+                                >
+                                  compare_arrows
+                                </span>
+                              )}
                               
                               {canConfirm && (
                                 <button
@@ -664,28 +1029,80 @@ export const TemplatesPage: React.FC<TemplatesPageProps> = ({ onBack }) => {
 
               {/* Fields List */}
               <div className="border border-primary/30 bg-black/60 flex-1 flex flex-col overflow-hidden">
-                <div className="bg-primary/10 p-3 text-xs text-primary uppercase tracking-widest">
+                <div className="bg-primary/10 p-3 text-xs text-primary uppercase tracking-widest flex items-center justify-between">
                   <span className="flex items-center gap-2">
                     <span className="material-icons text-sm">list</span>
-                    Definición de Campos ({selectedTemplate.fields.length})
+                    Definición de Campos ({isEditingFields ? editedFields.length : selectedTemplate.fields.length})
                   </span>
+                  
+                  {/* Edit mode controls */}
+                  {selectedTemplate.status !== TemplateStatus.Confirmed && (
+                    <div className="flex items-center gap-2">
+                      {isEditingFields ? (
+                        <>
+                          <button
+                            onClick={handleAddField}
+                            disabled={isSavingFields}
+                            className="text-[10px] px-2 py-1 border border-green-500/40 text-green-400 hover:bg-green-500/20 transition-colors disabled:opacity-50 flex items-center gap-1"
+                          >
+                            <span className="material-icons text-xs">add</span>
+                            AÑADIR
+                          </button>
+                          <button
+                            onClick={handleCancelEditFields}
+                            disabled={isSavingFields}
+                            className="text-[10px] px-2 py-1 border border-red-500/40 text-red-400 hover:bg-red-500/20 transition-colors disabled:opacity-50"
+                          >
+                            CANCELAR
+                          </button>
+                          <button
+                            onClick={handleSaveFields}
+                            disabled={isSavingFields}
+                            className="text-[10px] px-2 py-1 border border-cyan-500/40 text-cyan-400 hover:bg-cyan-500/20 transition-colors disabled:opacity-50"
+                          >
+                            {isSavingFields ? 'GUARDANDO...' : 'GUARDAR'}
+                          </button>
+                        </>
+                      ) : (
+                        <button
+                          onClick={handleStartEditFields}
+                          className="text-[10px] px-2 py-1 border border-cyan-500/40 text-cyan-400 hover:bg-cyan-500/20 transition-colors"
+                        >
+                          EDITAR CAMPOS
+                        </button>
+                      )}
+                    </div>
+                  )}
                 </div>
                 
                 <div className="flex-1 overflow-y-auto p-4">
-                  {selectedTemplate.fields.length === 0 ? (
+                  {(isEditingFields ? editedFields : selectedTemplate.fields).length === 0 ? (
                     <div className="text-center text-primary/40 py-8">
                       <span className="material-icons text-4xl mb-2">warning</span>
                       <p className="text-xs uppercase">Sin campos definidos</p>
                       <p className="text-[10px] mt-1">La plantilla necesita campos para funcionar</p>
+                      {isEditingFields && (
+                        <button
+                          onClick={handleAddField}
+                          className="mt-4 text-xs px-3 py-2 border border-green-500/40 text-green-400 hover:bg-green-500/20 transition-colors flex items-center gap-2 mx-auto"
+                        >
+                          <span className="material-icons text-sm">add</span>
+                          AÑADIR PRIMER CAMPO
+                        </button>
+                      )}
                     </div>
                   ) : (
                     <div className="space-y-3">
-                      {selectedTemplate.fields
+                      {(isEditingFields ? editedFields : selectedTemplate.fields)
                         .sort((a, b) => a.order - b.order)
                         .map((field, index) => (
                           <div 
                             key={field.name}
-                            className="border border-primary/20 bg-black/40 p-3"
+                            className={`border p-3 ${
+                              isEditingFields 
+                                ? 'border-cyan-500/30 bg-cyan-500/5' 
+                                : 'border-primary/20 bg-black/40'
+                            }`}
                           >
                             <div className="flex items-start justify-between">
                               <div className="flex-1">
@@ -701,9 +1118,32 @@ export const TemplatesPage: React.FC<TemplatesPageProps> = ({ onBack }) => {
                                   <p className="text-xs text-primary/50 mt-1">{field.description}</p>
                                 )}
                               </div>
-                              <span className="text-[10px] px-2 py-1 bg-primary/10 border border-primary/20 text-primary/60">
-                                {FieldTypeLabels[field.fieldType]}
-                              </span>
+                              
+                              <div className="flex items-center gap-2">
+                                <span className="text-[10px] px-2 py-1 bg-primary/10 border border-primary/20 text-primary/60">
+                                  {FieldTypeLabels[field.fieldType]}
+                                </span>
+                                
+                                {/* Edit/Omit buttons in edit mode */}
+                                {isEditingFields && (
+                                  <div className="flex items-center gap-1 ml-2">
+                                    <button
+                                      onClick={() => handleEditField(field)}
+                                      className="material-icons text-sm text-cyan-400/60 hover:text-cyan-400 transition-colors p-1"
+                                      title="Editar campo"
+                                    >
+                                      edit
+                                    </button>
+                                    <button
+                                      onClick={() => handleOmitField(field.name)}
+                                      className="material-icons text-sm text-red-400/60 hover:text-red-400 transition-colors p-1"
+                                      title="Omitir campo"
+                                    >
+                                      delete
+                                    </button>
+                                  </div>
+                                )}
+                              </div>
                             </div>
                             
                             {/* Field constraints */}
@@ -735,6 +1175,260 @@ export const TemplatesPage: React.FC<TemplatesPageProps> = ({ onBack }) => {
                   )}
                 </div>
               </div>
+              
+              {/* Comparison Panel for Extracted Fields */}
+              {comparisonExtractedFields && comparisonExtractedFields.length > 0 && (
+                <div className="border border-purple-500/50 bg-black/60 flex flex-col max-h-[40vh]">
+                  <div className="bg-purple-500/20 p-3 text-xs text-purple-400 uppercase tracking-widest flex items-center justify-between">
+                    <span className="flex items-center gap-2">
+                      <span className="material-icons text-sm">compare_arrows</span>
+                      Campos Extraídos - Nueva Extracción ({comparisonExtractedFields.length})
+                    </span>
+                    <div className="flex items-center gap-2">
+                      {/* Add All New Fields Button */}
+                      {comparisonExtractedFields.some(cf => !selectedTemplate.fields.some(tf => tf.name === cf.name)) && (
+                        <button
+                          onClick={handleAddAllNewFieldsFromComparison}
+                          disabled={isSavingFields}
+                          className="text-[10px] px-2 py-1 border border-green-500/40 text-green-400 hover:bg-green-500/20 transition-colors disabled:opacity-50 flex items-center gap-1"
+                          title="Añadir todos los campos nuevos"
+                        >
+                          <span className="material-icons text-xs">playlist_add</span>
+                          {isSavingFields ? 'AÑADIENDO...' : 'AÑADIR TODOS'}
+                        </button>
+                      )}
+                      <button
+                        onClick={handleCloseComparison}
+                        className="material-icons text-sm text-purple-400 hover:text-purple-300 transition-colors"
+                        title="Cerrar comparación"
+                      >
+                        close
+                      </button>
+                    </div>
+                  </div>
+                  
+                  <div className="p-3 text-xs text-purple-300/80 border-b border-purple-500/20 bg-purple-500/5">
+                    <p>
+                      La plantilla "<span className="text-purple-400">{comparisonTemplateName}</span>" ya está confirmada con {selectedTemplate.fields.length} campos.
+                    </p>
+                    <p className="mt-1">
+                      Nueva extracción detectó <span className="text-purple-400">{comparisonExtractedFields.length}</span> campos. 
+                      {comparisonExtractedFields.filter(cf => !selectedTemplate.fields.some(tf => tf.name === cf.name)).length > 0 && (
+                        <span className="text-green-400 ml-1">
+                          ({comparisonExtractedFields.filter(cf => !selectedTemplate.fields.some(tf => tf.name === cf.name)).length} nuevos)
+                        </span>
+                      )}
+                    </p>
+                  </div>
+                  
+                  <div className="flex-1 overflow-y-auto p-4">
+                    <div className="space-y-2">
+                      {comparisonExtractedFields
+                        .sort((a, b) => a.order - b.order)
+                        .map((field, index) => {
+                          // Check if this field exists in the confirmed template
+                          const existingField = selectedTemplate.fields.find(f => f.name === field.name);
+                          const isNew = !existingField;
+                          const isDifferent = existingField && (
+                            existingField.displayName !== field.displayName ||
+                            existingField.fieldType !== field.fieldType ||
+                            existingField.description !== field.description
+                          );
+                          
+                          return (
+                            <div 
+                              key={field.name}
+                              className={`border p-2 ${
+                                isNew 
+                                  ? 'border-green-500/40 bg-green-500/10' 
+                                  : isDifferent 
+                                  ? 'border-yellow-500/40 bg-yellow-500/10'
+                                  : 'border-purple-500/20 bg-purple-500/5'
+                              }`}
+                            >
+                              <div className="flex items-start justify-between">
+                                <div className="flex-1">
+                                  <div className="flex items-center gap-2">
+                                    <span className="text-[10px] text-purple-400/40">#{index + 1}</span>
+                                    <span className="font-mono text-purple-400 text-xs">{field.name}</span>
+                                    {isNew && (
+                                      <span className="text-[8px] px-1 py-0.5 border border-green-500/60 text-green-400 bg-green-500/20">
+                                        NUEVO
+                                      </span>
+                                    )}
+                                    {isDifferent && (
+                                      <span className="text-[8px] px-1 py-0.5 border border-yellow-500/60 text-yellow-400 bg-yellow-500/20">
+                                        DIFERENTE
+                                      </span>
+                                    )}
+                                    {field.isRequired && (
+                                      <span className="text-danger text-[10px]">*</span>
+                                    )}
+                                  </div>
+                                  <p className="text-xs text-primary/80 mt-0.5">{field.displayName}</p>
+                                  {field.description && (
+                                    <p className="text-[10px] text-primary/40 mt-0.5 truncate" title={field.description}>
+                                      {field.description}
+                                    </p>
+                                  )}
+                                </div>
+                                
+                                <div className="flex items-center gap-2">
+                                  <span className="text-[9px] px-1.5 py-0.5 bg-purple-500/10 border border-purple-500/20 text-purple-400/60">
+                                    {FieldTypeLabels[field.fieldType]}
+                                  </span>
+                                  
+                                  {/* Add button for new fields */}
+                                  {isNew && (
+                                    <button
+                                      onClick={() => handleAddFieldFromComparison(field)}
+                                      disabled={isSavingFields}
+                                      className="material-icons text-sm text-green-400/60 hover:text-green-400 transition-colors disabled:opacity-50"
+                                      title="Añadir este campo a la plantilla"
+                                    >
+                                      add_circle
+                                    </button>
+                                  )}
+                                </div>
+                              </div>
+                            </div>
+                          );
+                        })}
+                    </div>
+                  </div>
+                </div>
+              )}
+              
+              {/* Field Edit Modal */}
+              {editingField && (
+                <div className="fixed inset-0 bg-black/80 flex items-center justify-center z-50 p-4">
+                  <div className="border border-cyan-500/50 bg-surface-dark p-6 max-w-lg w-full max-h-[90vh] overflow-y-auto">
+                    <h3 className="text-lg text-cyan-400 font-bold mb-4 flex items-center gap-2">
+                      <span className="material-icons">edit</span>
+                      Editar Campo: {editingField.name}
+                    </h3>
+                    
+                    <div className="space-y-4">
+                      {/* Display Name */}
+                      <div>
+                        <label className="block text-xs text-primary/60 uppercase mb-1">Nombre Visible</label>
+                        <input
+                          type="text"
+                          value={editingField.displayName}
+                          onChange={(e) => setEditingField({ ...editingField, displayName: e.target.value })}
+                          className="w-full bg-black/40 border border-primary/30 text-primary p-2 text-sm focus:border-cyan-500 focus:outline-none"
+                        />
+                      </div>
+                      
+                      {/* Description */}
+                      <div>
+                        <label className="block text-xs text-primary/60 uppercase mb-1">Descripción</label>
+                        <textarea
+                          value={editingField.description || ''}
+                          onChange={(e) => setEditingField({ ...editingField, description: e.target.value })}
+                          rows={2}
+                          className="w-full bg-black/40 border border-primary/30 text-primary p-2 text-sm focus:border-cyan-500 focus:outline-none resize-none"
+                        />
+                      </div>
+                      
+                      {/* Field Type */}
+                      <div>
+                        <label className="block text-xs text-primary/60 uppercase mb-1">Tipo</label>
+                        <select
+                          value={editingField.fieldType}
+                          onChange={(e) => setEditingField({ ...editingField, fieldType: Number(e.target.value) as FieldType })}
+                          className="w-full bg-black/40 border border-primary/30 text-primary p-2 text-sm focus:border-cyan-500 focus:outline-none"
+                        >
+                          {Object.entries(FieldTypeLabels).map(([value, label]) => (
+                            <option key={value} value={value}>{label}</option>
+                          ))}
+                        </select>
+                      </div>
+                      
+                      {/* Is Required */}
+                      <label className="flex items-center gap-2 text-sm text-primary/60 cursor-pointer">
+                        <input
+                          type="checkbox"
+                          checked={editingField.isRequired}
+                          onChange={(e) => setEditingField({ ...editingField, isRequired: e.target.checked })}
+                          className="accent-cyan-500"
+                        />
+                        Campo requerido
+                      </label>
+                      
+                      {/* Default Value */}
+                      <div>
+                        <label className="block text-xs text-primary/60 uppercase mb-1">Valor por defecto</label>
+                        <input
+                          type="text"
+                          value={editingField.defaultValue || ''}
+                          onChange={(e) => setEditingField({ ...editingField, defaultValue: e.target.value || undefined })}
+                          className="w-full bg-black/40 border border-primary/30 text-primary p-2 text-sm focus:border-cyan-500 focus:outline-none"
+                        />
+                      </div>
+                      
+                      {/* Min/Max for Number type */}
+                      {editingField.fieldType === FieldType.Number && (
+                        <div className="grid grid-cols-2 gap-4">
+                          <div>
+                            <label className="block text-xs text-primary/60 uppercase mb-1">Mínimo</label>
+                            <input
+                              type="number"
+                              value={editingField.minValue ?? ''}
+                              onChange={(e) => setEditingField({ 
+                                ...editingField, 
+                                minValue: e.target.value ? Number(e.target.value) : undefined 
+                              })}
+                              className="w-full bg-black/40 border border-primary/30 text-primary p-2 text-sm focus:border-cyan-500 focus:outline-none"
+                            />
+                          </div>
+                          <div>
+                            <label className="block text-xs text-primary/60 uppercase mb-1">Máximo</label>
+                            <input
+                              type="number"
+                              value={editingField.maxValue ?? ''}
+                              onChange={(e) => setEditingField({ 
+                                ...editingField, 
+                                maxValue: e.target.value ? Number(e.target.value) : undefined 
+                              })}
+                              className="w-full bg-black/40 border border-primary/30 text-primary p-2 text-sm focus:border-cyan-500 focus:outline-none"
+                            />
+                          </div>
+                        </div>
+                      )}
+                      
+                      {/* Options for Select/MultiSelect */}
+                      {(editingField.fieldType === FieldType.Select || editingField.fieldType === FieldType.MultiSelect) && (
+                        <div>
+                          <label className="block text-xs text-primary/60 uppercase mb-1">
+                            Opciones (una por línea)
+                          </label>
+                          <textarea
+                            value={(editingField.options || []).join('\n')}
+                            onChange={(e) => setEditingField({ 
+                              ...editingField, 
+                              options: e.target.value.split('\n').filter(o => o.trim()) 
+                            })}
+                            rows={4}
+                            className="w-full bg-black/40 border border-primary/30 text-primary p-2 text-sm focus:border-cyan-500 focus:outline-none resize-none font-mono"
+                            placeholder="Opción 1&#10;Opción 2&#10;Opción 3"
+                          />
+                        </div>
+                      )}
+                    </div>
+                    
+                    {/* Modal Actions */}
+                    <div className="flex justify-end gap-2 mt-6">
+                      <Button variant="secondary" onClick={handleCancelFieldEdit}>
+                        CANCELAR
+                      </Button>
+                      <Button onClick={handleSaveFieldEdit}>
+                        APLICAR
+                      </Button>
+                    </div>
+                  </div>
+                </div>
+              )}
             </>
           ) : (
             <div className="border border-primary/30 bg-black/60 flex-1 flex flex-col items-center justify-center text-primary/40">
@@ -794,6 +1488,6 @@ export const TemplatesPage: React.FC<TemplatesPageProps> = ({ onBack }) => {
           </div>
         </div>
       </div>
-    </TerminalLayout>
+    </AdminLayout>
   );
 };

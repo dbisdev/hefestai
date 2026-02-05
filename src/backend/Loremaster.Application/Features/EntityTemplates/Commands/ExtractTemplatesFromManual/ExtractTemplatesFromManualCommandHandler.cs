@@ -26,42 +26,43 @@ public class ExtractTemplatesFromManualCommandHandler
     /// Prompt for RAG to extract entity types from manuals.
     /// NOTE: Genkit limit is 2000 chars for query - keep this concise!
     /// </summary>
-    private const string EntityTypeExtractionPrompt = @"Extract ALL entity types from this RPG rulebook. Look for:
-- Characters (player/NPC)
-- Vehicles, Starships
-- Monsters, Creatures
-- Locations, Places
-- Items, Equipment
-
-Return JSON array:
+    private const string EntityTypeExtractionPrompt = @"Extract ALL entity types from this RPG rulebook (characters, NPCs, vehicles, starships, monsters, locations, items).
+Important search ATTRIBUTES and based or dependant SKILLS.
+Return JSON array with nested field structure:
 ```json
 [{
   ""entityTypeName"": ""player_character"",
   ""displayName"": ""Player Character"",
-  ""description"": ""A player-controlled character"",
-  ""iconHint"": ""person"",
-  ""fields"": [{
-    ""name"": ""strength"",
-    ""displayName"": ""Strength"",
-    ""fieldType"": ""Number"",
-    ""isRequired"": true,
-    ""minValue"": 1,
-    ""maxValue"": 20
-  }]
+  ""description"": ""Playable character"",
+  ""schema"": {
+    ""attributes"": {
+      ""strength"": {""name"":""Strength"",""description"":""Physical power"",""range"":{""min"":1,""max"":5}},
+      ""agility"": {""name"":""Agility"",""description"":""Speed and reflexes"",""range"":{""min"":1,""max"":5}}
+    },
+    ""skills"": {
+      ""combat"": {""attribute"":""strength"",""description"":""Fighting ability""},
+      ""piloting"": {""attribute"":""agility"",""description"":""Vehicle control""}
+    },
+    ""derived_stats"": {
+      ""health"": {""formula"":""strength*2"",""description"":""Hit points""}
+    },
+    ""identity"": {
+      ""name"":""string"",""career"":""string"",""appearance"":""string""
+    },
+    ""gear"": {""items"":""array"",""cash"":""number""}
+  }
 }]
 ```
-Field types: Text, TextArea, Number, Boolean, Select, MultiSelect, Date, Url, Json
-Include ALL stats/attributes for each entity type found.";
+Include ALL attributes, skills, derived stats, identity fields, gear from the rulebook.";
 
     /// <summary>
     /// Search queries to find different types of entities in manuals.
     /// </summary>
     private static readonly string[] EntitySearchQueries = new[]
     {
-        "player character creation stats attributes abilities skills life path",
+        "player character creation stats attributes abilities skills life path armor stress",
         "NPC non-player character enemies allies contacts",
-        "vehicle car bike aircraft stats speed armor",
-        "starship spacecraft ship hull weapons shields",
+        "vehicle car bike aircraft stats speed armor starship spacecraft ship hull weapons shields",
         "monster creature beast alien stats combat",
         "location place planet system city base settlement star",
         "equipment weapons armor gear items cybernetics"
@@ -112,7 +113,7 @@ Include ALL stats/attributes for each entity type found.";
             var searchResults = await _documentRepository.SemanticSearchAsync(
                 queryEmbedding,
                 request.OwnerId,
-                limit: 7,  // 5 results per query category
+                limit: 8,  // 7 results per query category
                 threshold: 0.4f,  // Lower threshold to capture more content
                 gameSystemId: request.GameSystemId,
                 skipOwnerFilter: request.IsAdmin,
@@ -189,23 +190,41 @@ Include ALL stats/attributes for each entity type found.";
         {
             try
             {
-                var (template, isNew) = await CreateOrUpdateTemplateAsync(
+                var (template, isNew, wasSkipped, extractedFields) = await CreateOrUpdateTemplateAsync(
                     extractedType,
                     request.GameSystemId,
                     request.OwnerId,
                     sourceDocumentId,
                     cancellationToken);
 
-                results.Add(new ExtractedTemplateInfo(
-                    template.Id,
-                    template.EntityTypeName,
-                    template.DisplayName,
-                    template.GetFieldDefinitions().Count,
-                    isNew,
-                    null));
+                if (wasSkipped)
+                {
+                    // Template was skipped because confirmed version exists
+                    // But we still return the extracted fields so user can compare
+                    skipped++;
+                    results.Add(new ExtractedTemplateInfo(
+                        template.Id,
+                        template.EntityTypeName,
+                        template.DisplayName,
+                        extractedFields?.Count ?? template.GetFieldDefinitions().Count,
+                        false,
+                        $"Already confirmed. New extraction has {extractedFields?.Count ?? 0} fields.",
+                        extractedFields));
+                }
+                else
+                {
+                    results.Add(new ExtractedTemplateInfo(
+                        template.Id,
+                        template.EntityTypeName,
+                        template.DisplayName,
+                        template.GetFieldDefinitions().Count,
+                        isNew,
+                        null,
+                        null));
 
-                if (isNew) created++;
-                else updated++;
+                    if (isNew) created++;
+                    else updated++;
+                }
             }
             catch (Exception ex)
             {
@@ -220,7 +239,8 @@ Include ALL stats/attributes for each entity type found.";
                     extractedType.DisplayName,
                     0,
                     false,
-                    ex.Message));
+                    ex.Message,
+                    null));
             }
         }
 
@@ -233,7 +253,11 @@ Include ALL stats/attributes for each entity type found.";
         return new ExtractTemplatesResult(created, updated, skipped, results);
     }
 
-    private async Task<(EntityTemplate Template, bool IsNew)> CreateOrUpdateTemplateAsync(
+    /// <summary>
+    /// Creates or updates a template based on extracted data.
+    /// Returns: (Template, IsNew, WasSkipped, ExtractedFields if skipped)
+    /// </summary>
+    private async Task<(EntityTemplate Template, bool IsNew, bool WasSkipped, List<FieldDefinition>? ExtractedFields)> CreateOrUpdateTemplateAsync(
         ExtractedEntityType extractedType,
         Guid gameSystemId,
         Guid ownerId,
@@ -242,15 +266,22 @@ Include ALL stats/attributes for each entity type found.";
     {
         var normalizedName = EntityTemplate.NormalizeEntityTypeName(extractedType.EntityTypeName);
         
-        // Check if template already exists
+        // Convert fields first (we might need them even if template exists)
+        var extractedFields = ConvertToFieldDefinitions(extractedType.Fields);
+        
+        // Check if confirmed template already exists
         var existingTemplate = await _templateRepository.GetConfirmedTemplateForEntityTypeAsync(
             gameSystemId, ownerId, normalizedName, cancellationToken);
 
-        // If confirmed template exists, skip it
+        // If confirmed template exists, return it with extracted fields for comparison
         if (existingTemplate != null)
         {
-            throw new InvalidOperationException(
-                $"A confirmed template for '{normalizedName}' already exists");
+            _logger.LogInformation(
+                "Skipping extraction for '{EntityType}' - confirmed template already exists. Extracted {FieldCount} fields for comparison.",
+                normalizedName, extractedFields.Count);
+            
+            // Return the existing template but also the extracted fields
+            return (existingTemplate, false, true, extractedFields);
         }
 
         // Check for draft/pending template
@@ -267,11 +298,10 @@ Include ALL stats/attributes for each entity type found.";
                 extractedType.Description,
                 extractedType.IconHint);
             
-            var fields = ConvertToFieldDefinitions(extractedType.Fields);
-            draftTemplate.SetFieldDefinitions(fields);
+            draftTemplate.SetFieldDefinitions(extractedFields);
             
             _templateRepository.Update(draftTemplate);
-            return (draftTemplate, false);
+            return (draftTemplate, false, false, null);
         }
 
         // Create new template
@@ -284,11 +314,10 @@ Include ALL stats/attributes for each entity type found.";
             sourceDocumentId,
             iconHint: extractedType.IconHint);
 
-        var newFields = ConvertToFieldDefinitions(extractedType.Fields);
-        template.SetFieldDefinitions(newFields);
+        template.SetFieldDefinitions(extractedFields);
 
         await _templateRepository.AddAsync(template, cancellationToken);
-        return (template, true);
+        return (template, true, false, null);
     }
 
     /// <summary>
@@ -425,17 +454,207 @@ Include ALL stats/attributes for each entity type found.";
             };
             
             var extracted = JsonSerializer.Deserialize<List<ExtractedEntityType>>(jsonContent, options);
+            
+            // Convert schema to fields if present
+            if (extracted != null)
+            {
+                foreach (var entityType in extracted)
+                {
+                    if (entityType.Schema.HasValue && !entityType.Fields.Any())
+                    {
+                        entityType.Fields = FlattenSchemaToFields(entityType.Schema.Value);
+                    }
+                }
+            }
+            
             return extracted ?? new List<ExtractedEntityType>();
         }
         catch (JsonException ex)
         {
-            _logger.LogWarning(ex, "Failed to parse RAG response as JSON");
+            _logger.LogWarning(ex, "Failed to parse RAG response as JSON: {Response}", 
+                ragResponse.Length > 500 ? ragResponse.Substring(0, 500) : ragResponse);
             return new List<ExtractedEntityType>();
         }
     }
 
     /// <summary>
+    /// Flattens a nested schema object into a list of field definitions.
+    /// Handles structures like: attributes, skills, derived_stats, identity, gear, etc.
+    /// </summary>
+    private List<ExtractedField> FlattenSchemaToFields(JsonElement schema)
+    {
+        var fields = new List<ExtractedField>();
+        var order = 0;
+
+        foreach (var section in schema.EnumerateObject())
+        {
+            var sectionName = section.Name; // e.g., "attributes", "skills", "identity"
+            
+            if (section.Value.ValueKind == JsonValueKind.Object)
+            {
+                fields.AddRange(ProcessSchemaSection(sectionName, section.Value, ref order));
+            }
+        }
+
+        return fields;
+    }
+
+    /// <summary>
+    /// Processes a section of the schema (e.g., attributes, skills).
+    /// </summary>
+    private List<ExtractedField> ProcessSchemaSection(string sectionName, JsonElement section, ref int order)
+    {
+        var fields = new List<ExtractedField>();
+
+        foreach (var item in section.EnumerateObject())
+        {
+            var fieldName = item.Name;
+            var fieldValue = item.Value;
+            
+            // Create field name with section prefix for grouping
+            var fullFieldName = $"{sectionName}_{fieldName}";
+            
+            var field = new ExtractedField
+            {
+                Name = fullFieldName,
+                Order = order++
+            };
+
+            if (fieldValue.ValueKind == JsonValueKind.String)
+            {
+                // Simple type declaration like "name": "string"
+                var typeStr = fieldValue.GetString() ?? "string";
+                field.DisplayName = FormatDisplayName(fieldName);
+                field.FieldType = InferFieldTypeFromString(typeStr);
+                field.Description = $"{sectionName}: {fieldName}";
+            }
+            else if (fieldValue.ValueKind == JsonValueKind.Object)
+            {
+                // Complex field with properties
+                field.DisplayName = GetJsonString(fieldValue, "name") ?? FormatDisplayName(fieldName);
+                field.Description = GetJsonString(fieldValue, "description");
+                
+                // Check for range (min/max)
+                if (fieldValue.TryGetProperty("range", out var range))
+                {
+                    field.FieldType = "Number";
+                    field.MinValue = GetJsonDecimal(range, "min");
+                    field.MaxValue = GetJsonDecimal(range, "max");
+                }
+                // Check for formula (derived stats)
+                else if (fieldValue.TryGetProperty("formula", out _))
+                {
+                    field.FieldType = "Text";
+                    field.Description = $"{field.Description} (Formula: {GetJsonString(fieldValue, "formula")})";
+                }
+                // Check for attribute reference (skills)
+                else if (fieldValue.TryGetProperty("attribute", out var attr))
+                {
+                    field.FieldType = "Number";
+                    field.Description = $"{field.Description} (Based on: {attr.GetString()})";
+                    field.MinValue = 0;
+                    field.MaxValue = 5;
+                }
+                // Check for type hint
+                else if (fieldValue.TryGetProperty("type", out var typeHint))
+                {
+                    field.FieldType = InferFieldTypeFromString(typeHint.GetString() ?? "text");
+                }
+                else
+                {
+                    // Default to Text for complex objects
+                    field.FieldType = "Text";
+                }
+            }
+            else if (fieldValue.ValueKind == JsonValueKind.Array)
+            {
+                // Array type - use Json field
+                field.DisplayName = FormatDisplayName(fieldName);
+                field.FieldType = "Json";
+                field.Description = $"{sectionName}: {fieldName} (list)";
+            }
+            else
+            {
+                // Primitive value
+                field.DisplayName = FormatDisplayName(fieldName);
+                field.FieldType = InferFieldTypeFromJsonKind(fieldValue.ValueKind);
+            }
+
+            fields.Add(field);
+        }
+
+        return fields;
+    }
+
+    /// <summary>
+    /// Infers field type from a string type declaration.
+    /// </summary>
+    private static string InferFieldTypeFromString(string typeStr)
+    {
+        return typeStr.ToLowerInvariant() switch
+        {
+            "string" or "text" => "Text",
+            "number" or "int" or "integer" or "float" or "decimal" => "Number",
+            "boolean" or "bool" => "Boolean",
+            "array" or "list" => "Json",
+            "object" or "json" => "Json",
+            "date" or "datetime" => "Date",
+            _ when typeStr.Contains("|") => "Select", // enum-like: "a | b | c"
+            _ => "Text"
+        };
+    }
+
+    /// <summary>
+    /// Infers field type from JSON value kind.
+    /// </summary>
+    private static string InferFieldTypeFromJsonKind(JsonValueKind kind)
+    {
+        return kind switch
+        {
+            JsonValueKind.Number => "Number",
+            JsonValueKind.True or JsonValueKind.False => "Boolean",
+            JsonValueKind.Array => "Json",
+            JsonValueKind.Object => "Json",
+            _ => "Text"
+        };
+    }
+
+    /// <summary>
+    /// Formats a snake_case name to Title Case display name.
+    /// </summary>
+    private static string FormatDisplayName(string name)
+    {
+        if (string.IsNullOrEmpty(name)) return name;
+        
+        // Replace underscores with spaces and title case
+        var words = name.Replace('_', ' ').Split(' ');
+        return string.Join(" ", words.Select(w => 
+            string.IsNullOrEmpty(w) ? w : char.ToUpper(w[0]) + w.Substring(1).ToLower()));
+    }
+
+    /// <summary>
+    /// Safely gets a string property from a JsonElement.
+    /// </summary>
+    private static string? GetJsonString(JsonElement element, string propertyName)
+    {
+        if (element.TryGetProperty(propertyName, out var prop) && prop.ValueKind == JsonValueKind.String)
+            return prop.GetString();
+        return null;
+    }
+
+    /// <summary>
+    /// Safely gets a decimal property from a JsonElement.
+    /// </summary>
+    private static decimal? GetJsonDecimal(JsonElement element, string propertyName)
+    {
+        if (element.TryGetProperty(propertyName, out var prop) && prop.ValueKind == JsonValueKind.Number)
+            return prop.GetDecimal();
+        return null;
+    }
+
+    /// <summary>
     /// Internal DTO for parsing RAG response.
+    /// Supports both flat 'fields' array and nested 'schema' object.
     /// </summary>
     private class ExtractedEntityType
     {
@@ -444,6 +663,7 @@ Include ALL stats/attributes for each entity type found.";
         public string? Description { get; set; }
         public string? IconHint { get; set; }
         public List<ExtractedField> Fields { get; set; } = new();
+        public JsonElement? Schema { get; set; }
     }
 
     private class ExtractedField

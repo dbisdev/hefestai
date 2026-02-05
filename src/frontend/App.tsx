@@ -198,19 +198,39 @@ const AppContent: React.FC = () => {
       
       // Game systems management (Master or Admin only - access control in component)
       case Screen.GAME_SYSTEMS:
-        return <GameSystemsPage onBack={() => navigate(Screen.GALLERY)} />;
+        return (
+          <GameSystemsPage 
+            onNavigate={handleNavigate} 
+            onBack={() => navigate(Screen.GALLERY)} 
+          />
+        );
       
       // Templates management (Admin only - access control in component)
       case Screen.TEMPLATES:
-        return <TemplatesPage onBack={() => navigate(Screen.GALLERY)} />;
+        return (
+          <TemplatesPage 
+            onNavigate={handleNavigate} 
+            onBack={() => navigate(Screen.GALLERY)} 
+          />
+        );
       
       // Admin users management (Admin only - access control in component)
       case Screen.ADMIN_USERS:
-        return <AdminUsersPage onBack={() => navigate(Screen.GALLERY)} />;
+        return (
+          <AdminUsersPage 
+            onNavigate={handleNavigate} 
+            onBack={() => navigate(Screen.GALLERY)} 
+          />
+        );
       
       // Admin campaigns management (Admin only - access control in component)
       case Screen.ADMIN_CAMPAIGNS:
-        return <AdminCampaignsPage onBack={() => navigate(Screen.GALLERY)} />;
+        return (
+          <AdminCampaignsPage 
+            onNavigate={handleNavigate} 
+            onBack={() => navigate(Screen.GALLERY)} 
+          />
+        );
       
       case Screen.ERROR:
         return <ErrorScreen onReboot={() => navigate(Screen.LOGIN)} />;

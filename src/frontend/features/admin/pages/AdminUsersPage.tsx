@@ -5,14 +5,17 @@
  */
 
 import React, { useState, useEffect, useCallback } from 'react';
-import { TerminalLayout } from '@shared/components/layout';
+import { AdminLayout } from '@shared/components/layout';
 import { Button } from '@shared/components/ui';
 import { useAuth } from '@core/context';
 import { adminUserService } from '@core/services/api';
 import type { AdminUser, CreateUserRequest, UpdateUserRequest } from '@core/types';
-import { AdminUserRole, AdminUserRoleLabels, AdminUserRoleColors } from '@core/types';
+import { AdminUserRole, AdminUserRoleLabels, AdminUserRoleColors, Screen } from '@core/types';
 
 interface AdminUsersPageProps {
+  /** Handler for navigating to other screens */
+  onNavigate: (screen: Screen) => void;
+  /** Handler for returning to gallery */
   onBack: () => void;
 }
 
@@ -24,7 +27,7 @@ interface AdminUsersPageProps {
  * - Edit existing users (role, status, password)
  * - Delete (soft delete) users
  */
-export const AdminUsersPage: React.FC<AdminUsersPageProps> = ({ onBack }) => {
+export const AdminUsersPage: React.FC<AdminUsersPageProps> = ({ onNavigate, onBack }) => {
   const { user: currentUser } = useAuth();
   
   // Data state
@@ -284,19 +287,27 @@ role: AdminUserRole.Player,
   
   if (!isAdmin) {
     return (
-      <TerminalLayout title="ADMIN_USERS" subtitle="Gestión de usuarios" onLogout={() => {}}>
+      <AdminLayout 
+        activeScreen={Screen.ADMIN_USERS} 
+        onNavigate={onNavigate} 
+        onBack={onBack}
+      >
         <div className="flex flex-col items-center justify-center h-full text-danger/60">
           <span className="material-icons text-6xl mb-4">lock</span>
           <p className="text-sm uppercase tracking-widest">Acceso restringido a Administradores</p>
           <Button onClick={onBack} className="mt-4">VOLVER</Button>
         </div>
-      </TerminalLayout>
+      </AdminLayout>
     );
   }
 
   return (
-    <TerminalLayout title="ADMIN_USERS" subtitle="Gestión de usuarios del sistema" onLogout={() => {}}>
-      <div className="flex flex-col lg:flex-row h-full p-4 lg:p-8 gap-6">
+    <AdminLayout 
+      activeScreen={Screen.ADMIN_USERS} 
+      onNavigate={onNavigate} 
+      onBack={onBack}
+    >
+      <div className="flex flex-col lg:flex-row h-full gap-6">
         {/* Left Column - Users List */}
         <div className="w-full lg:w-1/2 flex flex-col gap-4 overflow-hidden">
           {/* Header & Actions */}
@@ -746,6 +757,6 @@ role: AdminUserRole.Player,
           </div>
         </div>
       </div>
-    </TerminalLayout>
+    </AdminLayout>
   );
 };

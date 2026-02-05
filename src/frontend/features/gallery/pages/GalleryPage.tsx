@@ -778,48 +778,51 @@ export const GalleryPage: React.FC<GalleryPageProps> = ({ user, onNavigate, onLo
 
         {/* Sidebar Navigation */}
         <aside className="w-16 md:w-64 flex flex-col gap-4 shrink-0">
-          <nav 
-            ref={categoryNavRef}
-            role="tablist"
-            aria-label="Categorías de entidades"
-            className="flex flex-col gap-2"
-          >
-            <div className="p-1 border border-primary/50 text-[10px] text-primary text-center uppercase mb-2 bg-primary/5 font-bold tracking-[0.2em]">
-              :: SECTORES_DATOS ::
-            </div>
-            {ENTITY_CATEGORIES.map((cat, index) => (
-              <button
-                key={cat.id}
-                role="tab"
-                aria-selected={activeCategory === cat.id}
-                aria-controls="entity-grid"
-                tabIndex={activeCategory === cat.id ? 0 : -1}
-                onClick={() => handleCategoryChange(cat.id)}
-                onKeyDown={(e) => handleCategoryKeyDown(e, index)}
-                disabled={transitionStatus !== 'idle' || !activeCampaignId}
-                className={`group flex items-center gap-3 p-3 border transition-all clip-tech-tl relative overflow-hidden ${
-                  activeCategory === cat.id 
-                    ? 'border-l-4 border-l-primary border-y-primary/30 border-r-primary/30 bg-primary/20 shadow-[inset_0_0_15px_rgba(37,244,106,0.1)]' 
-                    : 'border-primary/30 hover:border-primary hover:bg-primary/5 bg-surface-dark disabled:opacity-50'
-                }`}
-              >
-                {activeCategory === cat.id && (
-                  <div className="absolute inset-0 bg-primary/5 animate-pulse pointer-events-none"></div>
-                )}
-                <span className={`material-icons text-xl ${activeCategory === cat.id ? 'text-primary' : 'text-primary/60'}`}>{cat.icon}</span>
-                <span className={`hidden md:inline text-xs font-bold tracking-widest ${activeCategory === cat.id ? 'text-primary text-glow' : 'text-primary/70'}`}>
-                  {cat.label}
-                </span>
-                {activeCategory === cat.id && (
-                  <div className="absolute right-2 top-1/2 -translate-y-1/2 w-1 h-1 bg-primary rounded-full animate-ping"></div>
-                )}
-              </button>
-            ))}
-          </nav>
+          {/* Entity Categories - Hidden for Admin users */}
+          {user?.role !== 'ADMIN' && (
+            <nav 
+              ref={categoryNavRef}
+              role="tablist"
+              aria-label="Categorías de entidades"
+              className="flex flex-col gap-2"
+            >
+              <div className="p-1 border border-primary/50 text-[10px] text-primary text-center uppercase mb-2 bg-primary/5 font-bold tracking-[0.2em]">
+                :: SECTORES_DATOS ::
+              </div>
+              {ENTITY_CATEGORIES.map((cat, index) => (
+                <button
+                  key={cat.id}
+                  role="tab"
+                  aria-selected={activeCategory === cat.id}
+                  aria-controls="entity-grid"
+                  tabIndex={activeCategory === cat.id ? 0 : -1}
+                  onClick={() => handleCategoryChange(cat.id)}
+                  onKeyDown={(e) => handleCategoryKeyDown(e, index)}
+                  disabled={transitionStatus !== 'idle' || !activeCampaignId}
+                  className={`group flex items-center gap-3 p-3 border transition-all clip-tech-tl relative overflow-hidden ${
+                    activeCategory === cat.id 
+                      ? 'border-l-4 border-l-primary border-y-primary/30 border-r-primary/30 bg-primary/20 shadow-[inset_0_0_15px_rgba(37,244,106,0.1)]' 
+                      : 'border-primary/30 hover:border-primary hover:bg-primary/5 bg-surface-dark disabled:opacity-50'
+                  }`}
+                >
+                  {activeCategory === cat.id && (
+                    <div className="absolute inset-0 bg-primary/5 animate-pulse pointer-events-none"></div>
+                  )}
+                  <span className={`material-icons text-xl ${activeCategory === cat.id ? 'text-primary' : 'text-primary/60'}`}>{cat.icon}</span>
+                  <span className={`hidden md:inline text-xs font-bold tracking-widest ${activeCategory === cat.id ? 'text-primary text-glow' : 'text-primary/70'}`}>
+                    {cat.label}
+                  </span>
+                  {activeCategory === cat.id && (
+                    <div className="absolute right-2 top-1/2 -translate-y-1/2 w-1 h-1 bg-primary rounded-full animate-ping"></div>
+                  )}
+                </button>
+              ))}
+            </nav>
+          )}
 
           {/* Admin Section (Admin only) */}
           {user?.role === 'ADMIN' && (
-            <div className="mt-4">
+            <div>
               <div className="p-1 border border-red-500/50 text-[10px] text-red-400 text-center uppercase mb-2 bg-red-500/5 font-bold tracking-[0.2em]">
                 :: ADMIN_PANEL ::
               </div>
@@ -849,6 +852,15 @@ export const GalleryPage: React.FC<GalleryPageProps> = ({ user, onNavigate, onLo
                   <span className="material-icons text-xl text-red-500/60 group-hover:text-red-400">description</span>
                   <span className="hidden md:inline text-xs font-bold tracking-widest text-red-500/70 group-hover:text-red-400">
                     PLANTILLAS
+                  </span>
+                </button>
+                <button
+                  onClick={() => onNavigate(Screen.GAME_SYSTEMS)}
+                  className="group flex items-center gap-3 p-3 border border-red-500/30 hover:border-red-500 hover:bg-red-500/10 bg-surface-dark transition-all"
+                >
+                  <span className="material-icons text-xl text-red-500/60 group-hover:text-red-400">sports_esports</span>
+                  <span className="hidden md:inline text-xs font-bold tracking-widest text-red-500/70 group-hover:text-red-400">
+                    SISTEMAS
                   </span>
                 </button>
               </div>
