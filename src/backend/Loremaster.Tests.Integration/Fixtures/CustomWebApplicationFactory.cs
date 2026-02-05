@@ -93,27 +93,34 @@ public class AuthenticatedHttpClientFactory
 
     /// <summary>
     /// Creates an authenticated HTTP client by registering a new user or logging in an existing one.
+    /// For Player role, automatically creates a Master first to get the required invitation code.
     /// </summary>
     /// <param name="email">The email address for the test user.</param>
     /// <param name="password">The password for the test user.</param>
+    /// <param name="role">The role for the test user (default: Master).</param>
     /// <returns>A tuple containing the authenticated client, access token, and user ID.</returns>
     public async Task<(HttpClient Client, string AccessToken, string UserId)> CreateAuthenticatedClientAsync(
         string email = "test@example.com",
-        string password = "TestPassword123!")
+        string password = "TestPassword123!",
+        string role = "Master")
     {
         var client = _factory.CreateClient();
 
         // Generate display name from email prefix for easier test identification
         var displayName = email.Split('@')[0];
 
-        // Register user as Master (Masters don't require an invitation code)
-        var registerRequest = new
+        string? inviteCode = null;
+        
+        // Players require an invitation code from a Master
+        if (role == "Player")
         {
-            Email = email,
-            Password = password,
-            DisplayName = displayName,
-            Role = "Master"
-        };
+            inviteCode = await GetOrCreateMasterInvitationCodeAsync(client, email);
+        }
+
+        // Build the register request
+        object registerRequest = role == "Player" 
+            ? new { Email = email, Password = password, DisplayName = displayName, Role = role, InviteCode = inviteCode }
+            : new { Email = email, Password = password, DisplayName = displayName, Role = role };
         
         var registerResponse = await client.PostAsJsonAsync("/api/auth/register", registerRequest);
 
@@ -147,5 +154,60 @@ public class AuthenticatedHttpClientFactory
         return (client, result.AccessToken, result.UserId.ToString());
     }
 
+    /// <summary>
+    /// Creates a Master user (if needed) and returns their invitation code for Player registration.
+    /// </summary>
+    private async Task<string> GetOrCreateMasterInvitationCodeAsync(HttpClient client, string playerEmail)
+    {
+        // Create a unique Master email based on the player email to avoid collisions
+        var masterEmail = $"master-for-{playerEmail}";
+        var masterPassword = "MasterPassword123!";
+        var masterDisplayName = "TestMaster";
+        
+        var registerRequest = new
+        {
+            Email = masterEmail,
+            Password = masterPassword,
+            DisplayName = masterDisplayName,
+            Role = "Master"
+        };
+        
+        var registerResponse = await client.PostAsJsonAsync("/api/auth/register", registerRequest);
+        
+        if (registerResponse.IsSuccessStatusCode)
+        {
+            var result = await registerResponse.Content.ReadFromJsonAsync<RegisterResponse>();
+            return result!.InvitationCode!;
+        }
+        
+        // Master might already exist, try login
+        var loginResponse = await client.PostAsJsonAsync("/api/auth/login", new
+        {
+            Email = masterEmail,
+            Password = masterPassword
+        });
+        
+        if (loginResponse.IsSuccessStatusCode)
+        {
+            var loginResult = await loginResponse.Content.ReadFromJsonAsync<AuthResponse>();
+            // Set authorization to get current user info with invitation code
+            client.DefaultRequestHeaders.Authorization = 
+                new System.Net.Http.Headers.AuthenticationHeaderValue("Bearer", loginResult!.AccessToken);
+            
+            var meResponse = await client.GetAsync("/api/auth/me");
+            if (meResponse.IsSuccessStatusCode)
+            {
+                var meResult = await meResponse.Content.ReadFromJsonAsync<CurrentUserResponse>();
+                // Clear authorization header so player can register
+                client.DefaultRequestHeaders.Authorization = null;
+                return meResult!.InvitationCode!;
+            }
+        }
+        
+        throw new Exception($"Failed to create or login Master user for Player registration");
+    }
+
     private record AuthResponse(Guid UserId, string Email, string AccessToken, string RefreshToken);
+    private record RegisterResponse(Guid UserId, string Email, string DisplayName, string Role, string AccessToken, string RefreshToken, string? InvitationCode, string? MasterId);
+    private record CurrentUserResponse(Guid Id, string Email, string DisplayName, string Role, string? InvitationCode, Guid? MasterId);
 }

@@ -10,13 +10,11 @@ namespace Loremaster.Application.Features.Documents.Commands.GenerateMissingEmbe
 /// <param name="BatchSize">Number of documents to process per batch (default 10).</param>
 /// <param name="MaxDocuments">Maximum total documents to process (default 100, 0 = unlimited).</param>
 /// <param name="GameSystemId">Optional filter by game system.</param>
-/// <param name="ProjectId">Optional filter by project.</param>
 public record GenerateMissingEmbeddingsCommand(
     Guid OwnerId,
     int BatchSize = 10,
     int MaxDocuments = 100,
-    Guid? GameSystemId = null,
-    Guid? ProjectId = null) : IRequest<GenerateMissingEmbeddingsResult>;
+    Guid? GameSystemId = null) : IRequest<GenerateMissingEmbeddingsResult>;
 
 /// <summary>
 /// Result of the embedding generation process.

@@ -34,8 +34,7 @@ public class IngestDocumentCommandHandler : IRequestHandler<IngestDocumentComman
             request.Content,
             request.OwnerId,
             request.Source,
-            request.Metadata,
-            request.ProjectId);
+            request.Metadata);
 
         await _documentRepository.AddAsync(document, cancellationToken);
 

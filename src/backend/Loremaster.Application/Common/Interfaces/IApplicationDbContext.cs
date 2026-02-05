@@ -23,7 +23,6 @@ public interface IApplicationDbContext
     DbSet<RagSource> RagSources { get; }
     
     // Legacy entities (to be migrated/removed)
-    DbSet<Project> Projects { get; }
     DbSet<Document> Documents { get; }
     
     Task<int> SaveChangesAsync(CancellationToken cancellationToken);

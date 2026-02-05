@@ -272,7 +272,6 @@ public class GetManualQueryHandlerTests
             ownerId: ownerId,
             source: null,
             metadata: null,
-            projectId: null,
             gameSystemId: gameSystemId,
             sourceType: sourceType);
 
@@ -296,7 +295,6 @@ public class GetManualQueryHandlerTests
             ownerId: ownerId,
             source: source,
             metadata: null,
-            projectId: null,
             gameSystemId: gameSystemId,
             sourceType: RagSourceType.Rulebook);
 
@@ -318,7 +316,6 @@ public class GetManualQueryHandlerTests
             ownerId: ownerId,
             source: null,
             metadata: null,
-            projectId: null,
             gameSystemId: gameSystemId,
             sourceType: null); // Explicitly null
 

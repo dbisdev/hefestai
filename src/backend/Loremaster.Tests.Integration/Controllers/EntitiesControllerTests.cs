@@ -308,9 +308,9 @@ public class EntitiesControllerTests : IClassFixture<CustomWebApplicationFactory
         // Assert
         response.StatusCode.Should().Be(HttpStatusCode.OK);
         
-        var content = await response.Content.ReadFromJsonAsync<List<LoreEntityResponse>>();
+        var content = await response.Content.ReadFromJsonAsync<GetEntitiesResponse>();
         content.Should().NotBeNull();
-        content.Should().HaveCount(2);
+        content!.Items.Should().HaveCount(2);
     }
 
     [Fact]
@@ -330,9 +330,9 @@ public class EntitiesControllerTests : IClassFixture<CustomWebApplicationFactory
         // Assert
         response.StatusCode.Should().Be(HttpStatusCode.OK);
         
-        var content = await response.Content.ReadFromJsonAsync<List<LoreEntityResponse>>();
-        content.Should().HaveCount(2);
-        content!.All(e => e.EntityType == "character").Should().BeTrue();
+        var content = await response.Content.ReadFromJsonAsync<GetEntitiesResponse>();
+        content!.Items.Should().HaveCount(2);
+        content.Items.All(e => e.EntityType == "character").Should().BeTrue();
     }
 
     [Fact]
@@ -1209,6 +1209,18 @@ public class EntitiesControllerTests : IClassFixture<CustomWebApplicationFactory
         Dictionary<string, object>? Metadata,
         DateTime CreatedAt,
         DateTime? UpdatedAt
+    );
+
+    /// <summary>
+    /// Response wrapper for paginated entity lists matching GetCampaignEntitiesResult.
+    /// </summary>
+    private record GetEntitiesResponse(
+        IReadOnlyCollection<LoreEntityResponse> Items,
+        int TotalCount,
+        int? PageNumber,
+        int? TotalPages,
+        bool HasNextPage,
+        bool HasPreviousPage
     );
 
     #endregion

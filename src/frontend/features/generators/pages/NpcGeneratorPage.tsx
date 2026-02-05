@@ -295,7 +295,7 @@ export const NpcGeneratorPage: React.FC<NpcGeneratorPageProps> = ({ onBack }) =>
         </div>
 
         {/* Preview Panel */}
-        <div className="flex-1 flex flex-col gap-4">
+        <div className="flex-1 flex flex-col gap-4 overflow-y-auto">
           <div className="relative w-full aspect-square border border-primary/30 bg-black p-1 flex flex-col overflow-hidden clip-tech-br group">
             <div className="relative flex-1 bg-black overflow-hidden flex items-center justify-center">
               <img 

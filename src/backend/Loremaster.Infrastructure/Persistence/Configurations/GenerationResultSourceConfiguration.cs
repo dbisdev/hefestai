@@ -40,9 +40,9 @@ public class GenerationResultSourceConfiguration : IEntityTypeConfiguration<Gene
             .HasColumnName("relevance_score")
             .HasColumnType("decimal(5,4)");
 
-        builder.HasCheckConstraint(
+        builder.ToTable(t => t.HasCheckConstraint(
             "chk_relevance_score",
-            "relevance_score IS NULL OR (relevance_score >= 0 AND relevance_score <= 1)");
+            "relevance_score IS NULL OR (relevance_score >= 0 AND relevance_score <= 1)"));
 
         builder.Property(grs => grs.Excerpt)
             .HasColumnName("excerpt")

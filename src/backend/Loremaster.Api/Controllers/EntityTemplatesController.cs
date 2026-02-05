@@ -110,11 +110,13 @@ public class EntityTemplatesController : ControllerBase
         CancellationToken cancellationToken = default)
     {
         var userId = GetCurrentUserId();
+        var isAdmin = IsCurrentUserAdmin();
         
         var command = new ExtractTemplatesFromManualCommand(
             gameSystemId, 
             userId,
-            request?.SourceDocumentId);
+            request?.SourceDocumentId,
+            isAdmin);
         
         var result = await _mediator.Send(command, cancellationToken);
         
@@ -312,6 +314,17 @@ public class EntityTemplatesController : ControllerBase
         }
 
         return userId;
+    }
+
+    /// <summary>
+    /// Checks if the current user has the Admin role.
+    /// </summary>
+    private bool IsCurrentUserAdmin()
+    {
+        var roleClaim = User.FindFirst("role")?.Value
+            ?? User.FindFirst(ClaimTypes.Role)?.Value;
+        
+        return roleClaim == "Admin";
     }
 }
 

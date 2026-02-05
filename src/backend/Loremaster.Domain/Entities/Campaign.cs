@@ -85,4 +85,16 @@ public class Campaign : SoftDeletableEntity
 
     public void Activate() => IsActive = true;
     public void Deactivate() => IsActive = false;
+
+    /// <summary>
+    /// Transfers campaign ownership to a new user.
+    /// </summary>
+    /// <param name="newOwnerId">The new owner's user ID.</param>
+    public void TransferOwnership(Guid newOwnerId)
+    {
+        if (newOwnerId == Guid.Empty)
+            throw new ArgumentException("New owner ID cannot be empty", nameof(newOwnerId));
+
+        OwnerId = newOwnerId;
+    }
 }

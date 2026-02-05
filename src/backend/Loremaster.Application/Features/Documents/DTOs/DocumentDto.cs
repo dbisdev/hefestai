@@ -9,7 +9,6 @@ public record DocumentDto(
     bool HasEmbedding,
     int? EmbeddingDimensions,
     Guid OwnerId,
-    Guid? ProjectId,
     DateTime CreatedAt,
     DateTime? UpdatedAt);
 

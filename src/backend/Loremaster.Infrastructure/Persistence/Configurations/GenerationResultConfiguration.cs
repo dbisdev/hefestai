@@ -63,9 +63,9 @@ public class GenerationResultConfiguration : IEntityTypeConfiguration<Generation
             .HasColumnName("confidence_score")
             .HasColumnType("decimal(5,4)");
 
-        builder.HasCheckConstraint(
+        builder.ToTable(t => t.HasCheckConstraint(
             "chk_confidence_score",
-            "confidence_score IS NULL OR (confidence_score >= 0 AND confidence_score <= 1)");
+            "confidence_score IS NULL OR (confidence_score >= 0 AND confidence_score <= 1)"));
 
         builder.Property(gr => gr.CreatedAt)
             .HasColumnName("created_at")

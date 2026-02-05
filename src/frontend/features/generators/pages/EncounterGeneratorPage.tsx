@@ -338,7 +338,7 @@ export const EncounterGeneratorPage: React.FC<EncounterGeneratorPageProps> = ({ 
         </div>
 
         {/* Preview Panel - Tactical Display Style */}
-        <div className="flex-1 flex flex-col gap-4">
+        <div className="flex-1 flex flex-col gap-4 overflow-y-auto">
           {/* Encounter Header */}
           <div className={`border border-primary/30 bg-black p-4 transition-all ${generatedEncounter ? 'border-primary' : ''}`}>
             <div className="flex items-center justify-between mb-3">

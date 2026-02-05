@@ -208,7 +208,7 @@ export const SolarSystemGeneratorPage: React.FC<SolarSystemGeneratorPageProps> =
         </aside>
 
         {/* Visualization Panel */}
-        <section className="flex-1 flex flex-col relative bg-surface-dark/30 border border-primary/20 overflow-hidden">
+        <section className="flex-1 flex flex-col relative bg-surface-dark/30 border border-primary/20 overflow-hidden overflow-y-auto">
           <div className="absolute inset-0 opacity-10" style={{ backgroundImage: 'linear-gradient(rgba(37, 244, 106, 0.1) 1px, transparent 1px), linear-gradient(90deg, rgba(37, 244, 106, 0.1) 1px, transparent 1px)', backgroundSize: '40px 40px' }} />
           
           {/* System Data Overlay */}

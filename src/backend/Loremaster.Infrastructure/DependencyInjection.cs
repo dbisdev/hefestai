@@ -87,11 +87,11 @@ public static class DependencyInjection
         services.AddScoped<IGameSystemRepository, GameSystemRepository>();
         services.AddScoped<IEntityTemplateRepository, EntityTemplateRepository>();
         services.AddScoped<IGenerationRequestRepository, GenerationRequestRepository>();
-        services.AddScoped<IRagSourceRepository, RagSourceRepository>();
-        
-        // Legacy repositories (to be migrated/removed)
-        services.AddScoped<IProjectRepository, ProjectRepository>();
+        services.AddScoped<IRagSourceRepository, RagSourceRepository>();             
         services.AddScoped<IDocumentRepository, DocumentRepository>();
+
+        // Database seeder
+        services.AddScoped<DatabaseSeeder>();
 
         // Services
         services.AddSingleton<IDateTimeProvider, DateTimeProvider>();

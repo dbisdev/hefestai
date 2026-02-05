@@ -11,8 +11,6 @@ public interface IDocumentRepository
     
     Task<IReadOnlyList<Document>> GetByOwnerIdAsync(Guid ownerId, CancellationToken cancellationToken = default);
     
-    Task<IReadOnlyList<Document>> GetByProjectIdAsync(Guid projectId, CancellationToken cancellationToken = default);
-    
     /// <summary>
     /// Semantic search using pgvector cosine distance
     /// </summary>
@@ -20,8 +18,8 @@ public interface IDocumentRepository
     /// <param name="ownerId">The owner ID to filter documents.</param>
     /// <param name="limit">Maximum number of results to return.</param>
     /// <param name="threshold">Minimum similarity threshold (0.0 to 1.0).</param>
-    /// <param name="projectId">Optional project ID to filter documents.</param>
     /// <param name="gameSystemId">Optional game system ID to filter documents (for RAG on manuals).</param>
+    /// <param name="skipOwnerFilter">When true, skips owner filtering (for admin operations).</param>
     /// <param name="cancellationToken">Cancellation token.</param>
     /// <returns>List of documents with similarity scores.</returns>
     Task<IReadOnlyList<DocumentSearchResult>> SemanticSearchAsync(
@@ -29,8 +27,8 @@ public interface IDocumentRepository
         Guid ownerId,
         int limit = 5,
         float threshold = 0.7f,
-        Guid? projectId = null,
         Guid? gameSystemId = null,
+        bool skipOwnerFilter = false,
         CancellationToken cancellationToken = default);
     
     Task<Document> AddAsync(Document document, CancellationToken cancellationToken = default);

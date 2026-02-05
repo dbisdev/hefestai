@@ -53,6 +53,21 @@ public class UserRepository : IUserRepository
     {
         return await _context.Users
             .Where(u => u.DeletedAt == null && u.IsActive)
+            .Include(u => u.OwnedCampaigns)
+            .Include(u => u.CampaignMemberships)
+            .OrderBy(u => u.DisplayName)
+            .ToListAsync(cancellationToken);
+    }
+
+    /// <summary>
+    /// Gets all users including inactive ones (for admin purposes).
+    /// </summary>
+    public async Task<IEnumerable<User>> GetAllAsync(CancellationToken cancellationToken = default)
+    {
+        return await _context.Users
+            .Where(u => u.DeletedAt == null)
+            .Include(u => u.OwnedCampaigns)
+            .Include(u => u.CampaignMemberships)
             .OrderBy(u => u.DisplayName)
             .ToListAsync(cancellationToken);
     }

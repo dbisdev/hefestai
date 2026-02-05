@@ -14,3 +14,4 @@ export { EncounterGeneratorPage } from './pages/EncounterGeneratorPage';
 export { CampaignGeneratorPage } from './pages/CampaignGeneratorPage';
 export { CampaignSettingsPage } from './pages/CampaignSettingsPage';
 export { GameSystemsPage } from './pages/GameSystemsPage';
+export { TemplatesPage } from './pages/TemplatesPage';

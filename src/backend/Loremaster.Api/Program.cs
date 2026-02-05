@@ -3,6 +3,7 @@ using Loremaster.Infrastructure;
 using Loremaster.Api.Middleware;
 using Loremaster.Api.Services;
 using Loremaster.Application.Common.Interfaces;
+using Loremaster.Infrastructure.Persistence;
 using HealthChecks.UI.Client;
 using Microsoft.AspNetCore.Diagnostics.HealthChecks;
 using Microsoft.AspNetCore.RateLimiting;
@@ -192,6 +193,13 @@ try
     });
 
     var app = builder.Build();
+
+    // Seed database with initial data (admin user)
+    using (var scope = app.Services.CreateScope())
+    {
+        var seeder = scope.ServiceProvider.GetRequiredService<DatabaseSeeder>();
+        await seeder.SeedAsync();
+    }
 
     // Middleware pipeline (order matters!)
     

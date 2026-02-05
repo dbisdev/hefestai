@@ -189,76 +189,95 @@ namespace Loremaster.Infrastructure.Persistence.Migrations
                 {
                     b.Property<Guid>("Id")
                         .ValueGeneratedOnAdd()
-                        .HasColumnType("uuid");
+                        .HasColumnType("uuid")
+                        .HasColumnName("id")
+                        .HasDefaultValueSql("gen_random_uuid()");
 
                     b.Property<int?>("ChunkIndex")
-                        .HasColumnType("integer");
+                        .HasColumnType("integer")
+                        .HasColumnName("chunk_index");
 
                     b.Property<string>("Content")
                         .IsRequired()
-                        .HasColumnType("text");
+                        .HasColumnType("text")
+                        .HasColumnName("content");
 
                     b.Property<DateTime>("CreatedAt")
-                        .HasColumnType("timestamp with time zone");
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("created_at")
+                        .HasDefaultValueSql("CURRENT_TIMESTAMP");
 
                     b.Property<string>("CreatedBy")
-                        .HasColumnType("text");
+                        .HasColumnType("text")
+                        .HasColumnName("created_by");
 
                     b.Property<Vector>("Embedding")
-                        .HasColumnType("vector(768)");
+                        .HasColumnType("vector(768)")
+                        .HasColumnName("embedding");
 
                     b.Property<int?>("EmbeddingDimensions")
-                        .HasColumnType("integer");
+                        .HasColumnType("integer")
+                        .HasColumnName("embedding_dimensions");
 
                     b.Property<Guid?>("GameSystemId")
-                        .HasColumnType("uuid");
+                        .HasColumnType("uuid")
+                        .HasColumnName("game_system_id");
 
                     b.Property<string>("Metadata")
-                        .HasColumnType("jsonb");
+                        .HasColumnType("jsonb")
+                        .HasColumnName("metadata");
 
                     b.Property<Guid>("OwnerId")
-                        .HasColumnType("uuid");
+                        .HasColumnType("uuid")
+                        .HasColumnName("owner_id");
 
                     b.Property<Guid?>("ParentDocumentId")
-                        .HasColumnType("uuid");
-
-                    b.Property<Guid?>("ProjectId")
-                        .HasColumnType("uuid");
+                        .HasColumnType("uuid")
+                        .HasColumnName("parent_document_id");
 
                     b.Property<string>("Source")
                         .HasMaxLength(1000)
-                        .HasColumnType("character varying(1000)");
+                        .HasColumnType("character varying(1000)")
+                        .HasColumnName("source");
 
                     b.Property<string>("SourceType")
                         .HasMaxLength(50)
-                        .HasColumnType("character varying(50)");
+                        .HasColumnType("character varying(50)")
+                        .HasColumnName("source_type");
 
                     b.Property<string>("Title")
                         .IsRequired()
                         .HasMaxLength(500)
-                        .HasColumnType("character varying(500)");
+                        .HasColumnType("character varying(500)")
+                        .HasColumnName("title");
 
                     b.Property<DateTime?>("UpdatedAt")
-                        .HasColumnType("timestamp with time zone");
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("updated_at");
 
                     b.Property<string>("UpdatedBy")
-                        .HasColumnType("text");
+                        .HasColumnType("text")
+                        .HasColumnName("updated_by");
 
                     b.HasKey("Id");
 
-                    b.HasIndex("CreatedAt");
+                    b.HasIndex("CreatedAt")
+                        .HasDatabaseName("ix_documents_created_at");
 
-                    b.HasIndex("GameSystemId");
+                    b.HasIndex("GameSystemId")
+                        .HasDatabaseName("ix_documents_game_system_id");
 
-                    b.HasIndex("OwnerId");
+                    b.HasIndex("OwnerId")
+                        .HasDatabaseName("ix_documents_owner_id");
 
-                    b.HasIndex("ParentDocumentId");
+                    b.HasIndex("ParentDocumentId")
+                        .HasDatabaseName("ix_documents_parent_document_id");
 
-                    b.HasIndex("ProjectId");
+                    b.HasIndex("SourceType")
+                        .HasDatabaseName("ix_documents_source_type");
 
-                    b.HasIndex("SourceType");
-
-                    b.ToTable("Documents", (string)null);
+                    b.ToTable("documents", (string)null);
                 });
 
             modelBuilder.Entity("Loremaster.Domain.Entities.EntityTemplate", b =>
@@ -1219,16 +1238,9 @@ namespace Loremaster.Infrastructure.Persistence.Migrations
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
 
-                    b.HasOne("Loremaster.Domain.Entities.Project", "Project")
-                        .WithMany()
-                        .HasForeignKey("ProjectId")
-                        .OnDelete(DeleteBehavior.SetNull);
-
                     b.Navigation("GameSystem");
 
                     b.Navigation("Owner");
-
-                    b.Navigation("Project");
                 });
 
             modelBuilder.Entity("Loremaster.Domain.Entities.EntityTemplate", b =>

@@ -179,10 +179,10 @@ public class GameSystemsControllerTests : IClassFixture<CustomWebApplicationFact
     [Fact]
     public async Task Create_WhenNotAdmin_ShouldReturnForbidden()
     {
-        // Arrange - Regular user (not admin)
+        // Arrange - Regular user (Player, not Master or Admin)
         var authFactory = new AuthenticatedHttpClientFactory(_factory);
         var (client, _, _) = await authFactory.CreateAuthenticatedClientAsync(
-            $"regular-user-{Guid.NewGuid()}@example.com");
+            $"regular-user-{Guid.NewGuid()}@example.com", role: "Player");
 
         var request = new
         {
@@ -226,7 +226,7 @@ public class GameSystemsControllerTests : IClassFixture<CustomWebApplicationFact
         
         var authFactory = new AuthenticatedHttpClientFactory(_factory);
         var (client, _, _) = await authFactory.CreateAuthenticatedClientAsync(
-            $"regular-update-{Guid.NewGuid()}@example.com");
+            $"regular-update-{Guid.NewGuid()}@example.com", role: "Player");
 
         var request = new { Name = "Updated Name" };
 
@@ -263,7 +263,7 @@ public class GameSystemsControllerTests : IClassFixture<CustomWebApplicationFact
         
         var authFactory = new AuthenticatedHttpClientFactory(_factory);
         var (client, _, _) = await authFactory.CreateAuthenticatedClientAsync(
-            $"regular-status-{Guid.NewGuid()}@example.com");
+            $"regular-status-{Guid.NewGuid()}@example.com", role: "Player");
 
         var request = new { IsActive = false };
 

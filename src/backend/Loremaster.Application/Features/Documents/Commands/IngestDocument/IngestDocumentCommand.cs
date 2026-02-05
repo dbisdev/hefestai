@@ -8,7 +8,6 @@ public record IngestDocumentCommand(
     Guid OwnerId,
     string? Source = null,
     string? Metadata = null,
-    Guid? ProjectId = null,
     bool GenerateEmbedding = true) : IRequest<IngestDocumentResult>;
 
 public record IngestDocumentResult(

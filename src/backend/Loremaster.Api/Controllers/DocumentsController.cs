@@ -45,7 +45,6 @@ public class DocumentsController : ControllerBase
             userId,
             request.Source,
             request.Metadata,
-            request.ProjectId,
             request.GenerateEmbedding ?? true);
 
         var result = await _mediator.Send(command, cancellationToken);
@@ -71,7 +70,6 @@ public class DocumentsController : ControllerBase
             userId,
             request.Limit ?? 5,
             request.Threshold ?? 0.7f,
-            request.ProjectId,
             request.GameSystemId,
             request.GenerateAnswer ?? false,
             request.SystemPrompt);
@@ -191,7 +189,6 @@ public class DocumentsController : ControllerBase
                     userId,
                     doc.Source,
                     doc.Metadata,
-                    request.ProjectId,
                     request.GenerateEmbeddings ?? true);
 
                 var result = await _mediator.Send(command, cancellationToken);
@@ -230,8 +227,7 @@ public class DocumentsController : ControllerBase
             userId,
             request.BatchSize ?? 10,
             request.MaxDocuments ?? 100,
-            request.GameSystemId,
-            request.ProjectId);
+            request.GameSystemId);
 
         var result = await _mediator.Send(command, cancellationToken);
 
@@ -260,21 +256,18 @@ public record IngestDocumentRequest(
     string Content,
     string? Source = null,
     string? Metadata = null,
-    Guid? ProjectId = null,
     bool? GenerateEmbedding = true);
 
 public record SemanticSearchRequest(
     string Query,
     int? Limit = 5,
     float? Threshold = 0.7f,
-    Guid? ProjectId = null,
     Guid? GameSystemId = null,
     bool? GenerateAnswer = false,
     string? SystemPrompt = null);
 
 public record BulkIngestRequest(
     List<BulkDocumentItem> Documents,
-    Guid? ProjectId = null,
     bool? GenerateEmbeddings = true);
 
 public record BulkDocumentItem(
@@ -320,9 +313,7 @@ public record ManualDto(
 /// <param name="BatchSize">Number of documents to process per batch (default 10).</param>
 /// <param name="MaxDocuments">Maximum total documents to process (default 100, 0 = unlimited).</param>
 /// <param name="GameSystemId">Optional filter by game system.</param>
-/// <param name="ProjectId">Optional filter by project.</param>
 public record GenerateMissingEmbeddingsRequest(
     int? BatchSize = 10,
     int? MaxDocuments = 100,
-    Guid? GameSystemId = null,
-    Guid? ProjectId = null);
+    Guid? GameSystemId = null);

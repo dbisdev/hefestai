@@ -375,11 +375,11 @@ public class CreateLoreEntityCommandValidatorTests
     }
 
     [Theory]
-    [InlineData("not-a-url")]
-    [InlineData("ftp://example.com/image.png")]
-    [InlineData("example.com/image.png")]
-    [InlineData("//example.com/image.png")]
-    public void Validate_WithInvalidImageUrl_ShouldHaveError(string imageUrl)
+    [InlineData("not-a-url", "Invalid URL format: not-a-url")]
+    [InlineData("ftp://example.com/image.png", "URL must use http or https scheme. Got: ftp")]
+    [InlineData("example.com/image.png", "Invalid URL format: example.com/image.png")]
+    [InlineData("//example.com/image.png", "URL must use http or https scheme. Got: file")]
+    public void Validate_WithInvalidImageUrl_ShouldHaveError(string imageUrl, string expectedErrorMessage)
     {
         // Arrange
         var command = new CreateLoreEntityCommand(
@@ -393,11 +393,11 @@ public class CreateLoreEntityCommandValidatorTests
 
         // Assert
         result.ShouldHaveValidationErrorFor(x => x.ImageUrl)
-            .WithErrorMessage("Image URL must be a valid URL");
+            .WithErrorMessage(expectedErrorMessage);
     }
 
     [Fact]
-    public void Validate_WithImageUrlExceeding2000Characters_ShouldHaveError()
+    public void Validate_WithHttpImageUrlExceeding2000Characters_ShouldHaveError()
     {
         // Arrange
         var longUrl = "https://example.com/" + new string('a', 2000);
@@ -412,7 +412,86 @@ public class CreateLoreEntityCommandValidatorTests
 
         // Assert
         result.ShouldHaveValidationErrorFor(x => x.ImageUrl)
-            .WithErrorMessage("Image URL cannot exceed 2000 characters");
+            .WithErrorMessage("URL exceeds maximum length of 2000 characters");
+    }
+
+    [Fact]
+    public void Validate_WithValidBase64DataUri_ShouldNotHaveError()
+    {
+        // Arrange - Valid base64 data URI for a small PNG image
+        var dataUri = "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNk+M9QDwADhgGAWjR9awAAAABJRU5ErkJggg==";
+        var command = new CreateLoreEntityCommand(
+            CampaignId: _validCampaignId,
+            EntityType: "character",
+            Name: "Test",
+            ImageUrl: dataUri);
+
+        // Act
+        var result = _validator.TestValidate(command);
+
+        // Assert
+        result.ShouldNotHaveValidationErrorFor(x => x.ImageUrl);
+    }
+
+    [Theory]
+    [InlineData("data:image/jpeg;base64,/9j/4AAQSkZJRg==")]
+    [InlineData("data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7")]
+    [InlineData("data:image/webp;base64,UklGRh4AAABXRUJQVlA4TBEAAAAvAAAAAAfQ//73v/+BiOh/AAA=")]
+    public void Validate_WithValidImageDataUriFormats_ShouldNotHaveError(string dataUri)
+    {
+        // Arrange
+        var command = new CreateLoreEntityCommand(
+            CampaignId: _validCampaignId,
+            EntityType: "character",
+            Name: "Test",
+            ImageUrl: dataUri);
+
+        // Act
+        var result = _validator.TestValidate(command);
+
+        // Assert
+        result.ShouldNotHaveValidationErrorFor(x => x.ImageUrl);
+    }
+
+    [Theory]
+    [InlineData("data:text/plain;base64,SGVsbG8gV29ybGQ=")] // Not an image type
+    [InlineData("data:application/json;base64,eyJ0ZXN0IjogdHJ1ZX0=")] // Not an image type
+    public void Validate_WithNonImageDataUri_ShouldHaveError(string dataUri)
+    {
+        // Arrange
+        var command = new CreateLoreEntityCommand(
+            CampaignId: _validCampaignId,
+            EntityType: "character",
+            Name: "Test",
+            ImageUrl: dataUri);
+
+        // Act
+        var result = _validator.TestValidate(command);
+
+        // Assert
+        // The error message includes the truncated data URI for debugging
+        result.ShouldHaveValidationErrorFor(x => x.ImageUrl);
+        var error = result.Errors.First(e => e.PropertyName == "ImageUrl");
+        Assert.StartsWith("Data URI must be an image type (starts with 'data:image/')", error.ErrorMessage);
+    }
+
+    [Fact]
+    public void Validate_WithDataUriMissingBase64Marker_ShouldHaveError()
+    {
+        // Arrange - Missing ;base64, marker
+        var dataUri = "data:image/png,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAA";
+        var command = new CreateLoreEntityCommand(
+            CampaignId: _validCampaignId,
+            EntityType: "character",
+            Name: "Test",
+            ImageUrl: dataUri);
+
+        // Act
+        var result = _validator.TestValidate(command);
+
+        // Assert
+        result.ShouldHaveValidationErrorFor(x => x.ImageUrl)
+            .WithErrorMessage("Data URI must contain ';base64,' marker");
     }
 
     #endregion

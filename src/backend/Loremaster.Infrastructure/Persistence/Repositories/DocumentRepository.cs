@@ -14,18 +14,19 @@ public class DocumentRepository : IDocumentRepository
 {
     private readonly ApplicationDbContext _context;
     private readonly ILogger<DocumentRepository> _logger;
-    private readonly NpgsqlDataSource _dataSource;
+    private readonly NpgsqlDataSource? _dataSource;
 
     /// <summary>
     /// Initializes the DocumentRepository with required dependencies.
     /// </summary>
     /// <param name="context">The database context.</param>
     /// <param name="logger">Logger for diagnostics.</param>
-    /// <param name="dataSource">NpgsqlDataSource configured with UseVector() for pgvector support.</param>
+    /// <param name="dataSource">Optional NpgsqlDataSource configured with UseVector() for pgvector support.
+    /// When null, semantic search will return empty results (useful for testing with InMemory DB).</param>
     public DocumentRepository(
         ApplicationDbContext context, 
         ILogger<DocumentRepository> logger,
-        NpgsqlDataSource dataSource)
+        NpgsqlDataSource? dataSource = null)
     {
         _context = context;
         _logger = logger;
@@ -36,7 +37,6 @@ public class DocumentRepository : IDocumentRepository
     {
         return await _context.Documents
             .Include(d => d.Owner)
-            .Include(d => d.Project)
             .FirstOrDefaultAsync(d => d.Id == id, cancellationToken);
     }
 
@@ -48,14 +48,6 @@ public class DocumentRepository : IDocumentRepository
             .ToListAsync(cancellationToken);
     }
 
-    public async Task<IReadOnlyList<Document>> GetByProjectIdAsync(Guid projectId, CancellationToken cancellationToken = default)
-    {
-        return await _context.Documents
-            .Where(d => d.ProjectId == projectId)
-            .OrderByDescending(d => d.CreatedAt)
-            .ToListAsync(cancellationToken);
-    }
-
     /// <summary>
     /// Semantic search using pgvector cosine distance operator (<=>)
     /// </summary>
@@ -63,8 +55,8 @@ public class DocumentRepository : IDocumentRepository
     /// <param name="ownerId">The owner ID to filter documents.</param>
     /// <param name="limit">Maximum number of results to return.</param>
     /// <param name="threshold">Minimum similarity threshold (0.0 to 1.0).</param>
-    /// <param name="projectId">Optional project ID to filter documents.</param>
     /// <param name="gameSystemId">Optional game system ID to filter documents (for RAG on manuals).</param>
+    /// <param name="skipOwnerFilter">When true, skips owner filtering (for admin operations).</param>
     /// <param name="cancellationToken">Cancellation token.</param>
     /// <returns>List of documents with similarity scores.</returns>
     public async Task<IReadOnlyList<DocumentSearchResult>> SemanticSearchAsync(
@@ -72,10 +64,20 @@ public class DocumentRepository : IDocumentRepository
         Guid ownerId,
         int limit = 5,
         float threshold = 0.7f,
-        Guid? projectId = null,
         Guid? gameSystemId = null,
+        bool skipOwnerFilter = false,
         CancellationToken cancellationToken = default)
     {
+        // When NpgsqlDataSource is not available (e.g., in tests with InMemory DB),
+        // semantic search is not supported - return empty results
+        if (_dataSource == null)
+        {
+            _logger.LogWarning(
+                "SemanticSearchAsync: NpgsqlDataSource not available. " +
+                "Semantic search requires PostgreSQL with pgvector extension. Returning empty results.");
+            return Array.Empty<DocumentSearchResult>();
+        }
+        
         // Convert embedding to pgvector format using invariant culture
         // IMPORTANT: Use InvariantCulture to ensure decimal point (.) is used, not comma
         // Spanish/European locales use comma as decimal separator which would break pgvector parsing
@@ -89,40 +91,41 @@ public class DocumentRepository : IDocumentRepository
         // Build SQL with pgvector cosine distance
         // Note: cosine distance = 1 - cosine similarity, so we subtract from 1
         // IMPORTANT: We cast to vector(768) explicitly to match the column definition
+        // Note: Table/column names use snake_case to match migration
         var sql = @"
-            SELECT d.*, (1 - (d.""Embedding"" <=> @embedding::vector(768))) as similarity
-            FROM ""Documents"" d
-            WHERE d.""OwnerId"" = @ownerId
-            AND d.""Embedding"" IS NOT NULL
-            AND (1 - (d.""Embedding"" <=> @embedding::vector(768))) >= @threshold";
+            SELECT d.*, (1 - (d.embedding <=> @embedding::vector(768))) as similarity
+            FROM public.documents d
+            WHERE d.embedding IS NOT NULL
+            AND (1 - (d.embedding <=> @embedding::vector(768))) >= @threshold";
         
-        if (projectId.HasValue)
+        // Add owner filter unless skipped (for admin operations)
+        if (!skipOwnerFilter)
         {
-            sql += @" AND d.""ProjectId"" = @projectId";
+            sql += @" AND d.owner_id = @ownerId";
         }
         
         if (gameSystemId.HasValue)
         {
-            sql += @" AND d.""GameSystemId"" = @gameSystemId";
+            sql += @" AND d.game_system_id = @gameSystemId";
         }
         
         sql += @"
-            ORDER BY d.""Embedding"" <=> @embedding::vector(768)
+            ORDER BY d.embedding <=> @embedding::vector(768)
             LIMIT @limit";
 
         var parameters = new List<NpgsqlParameter>
         {
             new("embedding", embeddingStr),
-            new("ownerId", ownerId),
             new("threshold", threshold),
             new("limit", limit)
         };
 
-        if (projectId.HasValue)
+        // Only add ownerId parameter if we're filtering by owner
+        if (!skipOwnerFilter)
         {
-            parameters.Add(new NpgsqlParameter("projectId", projectId.Value));
+            parameters.Add(new NpgsqlParameter("ownerId", ownerId));
         }
-        
+
         if (gameSystemId.HasValue)
         {
             parameters.Add(new NpgsqlParameter("gameSystemId", gameSystemId.Value));
@@ -146,7 +149,7 @@ public class DocumentRepository : IDocumentRepository
             
             while (await reader.ReadAsync(cancellationToken))
             {
-                var document = await GetByIdAsync(reader.GetGuid(reader.GetOrdinal("Id")), cancellationToken);
+                var document = await GetByIdAsync(reader.GetGuid(reader.GetOrdinal("id")), cancellationToken);
                 if (document != null)
                 {
                     var similarity = reader.GetFloat(reader.GetOrdinal("similarity"));
@@ -155,14 +158,17 @@ public class DocumentRepository : IDocumentRepository
             }
 
             _logger.LogInformation(
-                "Semantic search found {Count} documents for owner {OwnerId}", 
-                results.Count, ownerId);
+                "Semantic search found {Count} documents{OwnerInfo}{GameSystemInfo}", 
+                results.Count,
+                skipOwnerFilter ? " (admin mode - all owners)" : $" for owner {ownerId}",
+                gameSystemId.HasValue ? $" for game system {gameSystemId}" : "");
 
             return results;
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, "Semantic search failed for owner {OwnerId}", ownerId);
+            _logger.LogError(ex, "Semantic search failed{OwnerInfo}", 
+                skipOwnerFilter ? " (admin mode)" : $" for owner {ownerId}");
             throw;
         }
     }

@@ -35,8 +35,8 @@ public class SemanticSearchQueryHandler : IRequestHandler<SemanticSearchQuery, S
             request.OwnerId,
             request.Limit,
             request.Threshold,
-            request.ProjectId,
             request.GameSystemId,
+            skipOwnerFilter: false,
             cancellationToken);
 
         // Map to DTOs
@@ -50,7 +50,6 @@ public class SemanticSearchQueryHandler : IRequestHandler<SemanticSearchQuery, S
                 r.Document.HasEmbedding,
                 r.Document.EmbeddingDimensions,
                 r.Document.OwnerId,
-                r.Document.ProjectId,
                 r.Document.CreatedAt,
                 r.Document.UpdatedAt),
             r.SimilarityScore

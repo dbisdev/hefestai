@@ -67,10 +67,6 @@ public class GenerateMissingEmbeddingsCommandHandler
             {
                 filteredDocs = filteredDocs.Where(d => d.GameSystemId == request.GameSystemId.Value);
             }
-            if (request.ProjectId.HasValue)
-            {
-                filteredDocs = filteredDocs.Where(d => d.ProjectId == request.ProjectId.Value);
-            }
 
             var docsToProcess = filteredDocs.ToList();
             if (docsToProcess.Count == 0)

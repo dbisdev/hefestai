@@ -217,7 +217,7 @@ export const VehicleGeneratorPage: React.FC<VehicleGeneratorPageProps> = ({ onBa
         </div>
 
         {/* Preview Panel */}
-        <div className="flex-1 flex flex-col gap-4">
+        <div className="flex-1 flex flex-col gap-4 overflow-y-auto">
           <div className="relative flex-1 border border-primary/30 bg-black clip-tech-br overflow-hidden">
             <img 
               src={vehicleImage} 

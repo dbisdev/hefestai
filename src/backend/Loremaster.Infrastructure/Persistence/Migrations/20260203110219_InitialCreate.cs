@@ -199,45 +199,38 @@ namespace Loremaster.Infrastructure.Persistence.Migrations
                 });
 
             migrationBuilder.CreateTable(
-                name: "Documents",
+                name: "documents",
                 columns: table => new
                 {
-                    Id = table.Column<Guid>(type: "uuid", nullable: false),
-                    Title = table.Column<string>(type: "character varying(500)", maxLength: 500, nullable: false),
-                    Content = table.Column<string>(type: "text", nullable: false),
-                    Source = table.Column<string>(type: "character varying(1000)", maxLength: 1000, nullable: true),
-                    Metadata = table.Column<string>(type: "jsonb", nullable: true),
-                    Embedding = table.Column<Vector>(type: "vector(768)", nullable: true),
-                    EmbeddingDimensions = table.Column<int>(type: "integer", nullable: true),
-                    OwnerId = table.Column<Guid>(type: "uuid", nullable: false),
-                    ProjectId = table.Column<Guid>(type: "uuid", nullable: true),
-                    GameSystemId = table.Column<Guid>(type: "uuid", nullable: true),
-                    SourceType = table.Column<string>(type: "character varying(50)", maxLength: 50, nullable: true),
-                    ChunkIndex = table.Column<int>(type: "integer", nullable: true),
-                    ParentDocumentId = table.Column<Guid>(type: "uuid", nullable: true),
-                    CreatedAt = table.Column<DateTime>(type: "timestamp with time zone", nullable: false),
-                    UpdatedAt = table.Column<DateTime>(type: "timestamp with time zone", nullable: true),
-                    CreatedBy = table.Column<string>(type: "text", nullable: true),
-                    UpdatedBy = table.Column<string>(type: "text", nullable: true)
+                    id = table.Column<Guid>(type: "uuid", nullable: false, defaultValueSql: "gen_random_uuid()"),
+                    title = table.Column<string>(type: "character varying(500)", maxLength: 500, nullable: false),
+                    content = table.Column<string>(type: "text", nullable: false),
+                    source = table.Column<string>(type: "character varying(1000)", maxLength: 1000, nullable: true),
+                    metadata = table.Column<string>(type: "jsonb", nullable: true),
+                    embedding = table.Column<Vector>(type: "vector(768)", nullable: true),
+                    embedding_dimensions = table.Column<int>(type: "integer", nullable: true),
+                    owner_id = table.Column<Guid>(type: "uuid", nullable: false),
+                    game_system_id = table.Column<Guid>(type: "uuid", nullable: true),
+                    source_type = table.Column<string>(type: "character varying(50)", maxLength: 50, nullable: true),
+                    chunk_index = table.Column<int>(type: "integer", nullable: true),
+                    parent_document_id = table.Column<Guid>(type: "uuid", nullable: true),
+                    created_at = table.Column<DateTime>(type: "timestamp with time zone", nullable: false, defaultValueSql: "CURRENT_TIMESTAMP"),
+                    updated_at = table.Column<DateTime>(type: "timestamp with time zone", nullable: true),
+                    created_by = table.Column<string>(type: "text", nullable: true),
+                    updated_by = table.Column<string>(type: "text", nullable: true)
                 },
                 constraints: table =>
                 {
-                    table.PrimaryKey("PK_Documents", x => x.Id);
+                    table.PrimaryKey("pk_documents", x => x.id);
                     table.ForeignKey(
-                        name: "FK_Documents_game_system_GameSystemId",
-                        column: x => x.GameSystemId,
+                        name: "fk_documents_game_system_game_system_id",
+                        column: x => x.game_system_id,
                         principalTable: "game_system",
                         principalColumn: "id",
                         onDelete: ReferentialAction.SetNull);
                     table.ForeignKey(
-                        name: "FK_Documents_projects_ProjectId",
-                        column: x => x.ProjectId,
-                        principalTable: "projects",
-                        principalColumn: "id",
-                        onDelete: ReferentialAction.SetNull);
-                    table.ForeignKey(
-                        name: "FK_Documents_user_OwnerId",
-                        column: x => x.OwnerId,
+                        name: "fk_documents_user_owner_id",
+                        column: x => x.owner_id,
                         principalTable: "user",
                         principalColumn: "id",
                         onDelete: ReferentialAction.Cascade);
@@ -309,10 +302,10 @@ namespace Loremaster.Infrastructure.Persistence.Migrations
                 {
                     table.PrimaryKey("PK_entity_template", x => x.id);
                     table.ForeignKey(
-                        name: "FK_entity_template_Documents_source_document_id",
+                        name: "fk_entity_template_documents_source_document_id",
                         column: x => x.source_document_id,
-                        principalTable: "Documents",
-                        principalColumn: "Id",
+                        principalTable: "documents",
+                        principalColumn: "id",
                         onDelete: ReferentialAction.SetNull);
                     table.ForeignKey(
                         name: "FK_entity_template_game_system_game_system_id",
@@ -551,34 +544,29 @@ namespace Loremaster.Infrastructure.Persistence.Migrations
                 unique: true);
 
             migrationBuilder.CreateIndex(
-                name: "IX_Documents_CreatedAt",
-                table: "Documents",
-                column: "CreatedAt");
+                name: "ix_documents_created_at",
+                table: "documents",
+                column: "created_at");
 
             migrationBuilder.CreateIndex(
-                name: "IX_Documents_GameSystemId",
-                table: "Documents",
-                column: "GameSystemId");
+                name: "ix_documents_game_system_id",
+                table: "documents",
+                column: "game_system_id");
 
             migrationBuilder.CreateIndex(
-                name: "IX_Documents_OwnerId",
-                table: "Documents",
-                column: "OwnerId");
+                name: "ix_documents_owner_id",
+                table: "documents",
+                column: "owner_id");
 
             migrationBuilder.CreateIndex(
-                name: "IX_Documents_ParentDocumentId",
-                table: "Documents",
-                column: "ParentDocumentId");
+                name: "ix_documents_parent_document_id",
+                table: "documents",
+                column: "parent_document_id");
 
             migrationBuilder.CreateIndex(
-                name: "IX_Documents_ProjectId",
-                table: "Documents",
-                column: "ProjectId");
-
-            migrationBuilder.CreateIndex(
-                name: "IX_Documents_SourceType",
-                table: "Documents",
-                column: "SourceType");
+                name: "ix_documents_source_type",
+                table: "documents",
+                column: "source_type");
 
             migrationBuilder.CreateIndex(
                 name: "ix_entity_template_confirmed",
@@ -598,7 +586,7 @@ namespace Loremaster.Infrastructure.Persistence.Migrations
                 column: "owner_id");
 
             migrationBuilder.CreateIndex(
-                name: "IX_entity_template_source_document_id",
+                name: "ix_entity_template_source_document_id",
                 table: "entity_template",
                 column: "source_document_id");
 
@@ -873,7 +861,7 @@ namespace Loremaster.Infrastructure.Persistence.Migrations
                 name: "lore_entity_relationship");
 
             migrationBuilder.DropTable(
-                name: "Documents");
+                name: "documents");
 
             migrationBuilder.DropTable(
                 name: "generation_result");

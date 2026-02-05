@@ -47,7 +47,6 @@ public class ApplicationDbContext : DbContext, IApplicationDbContext, IUnitOfWor
     public DbSet<EntityTemplate> EntityTemplates => Set<EntityTemplate>();
     
     // Legacy entities (to be migrated/removed)
-    public DbSet<Project> Projects => Set<Project>();
     public DbSet<Document> Documents => Set<Document>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)

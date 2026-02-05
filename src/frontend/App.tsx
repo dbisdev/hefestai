@@ -18,8 +18,10 @@ import {
   EncounterGeneratorPage,
   CampaignGeneratorPage,
   CampaignSettingsPage,
-  GameSystemsPage
+  GameSystemsPage,
+  TemplatesPage
 } from '@features/generators';
+import { AdminUsersPage, AdminCampaignsPage } from '@features/admin';
 import { AccessDenied, ErrorScreen } from '@shared/components/feedback';
 import { Screen } from '@core/types';
 
@@ -51,7 +53,10 @@ const AppContent: React.FC = () => {
       Screen.ENCOUNTER_GEN,
       Screen.CAMPAIGN_GEN,
       Screen.CAMPAIGN_SETTINGS,
-      Screen.GAME_SYSTEMS
+      Screen.GAME_SYSTEMS,
+      Screen.TEMPLATES,
+      Screen.ADMIN_USERS,
+      Screen.ADMIN_CAMPAIGNS
     ];
     if (!user && !isLoading && protectedScreens.includes(displayScreen)) {
       setDisplayScreen(Screen.LOGIN);
@@ -194,6 +199,18 @@ const AppContent: React.FC = () => {
       // Game systems management (Master or Admin only - access control in component)
       case Screen.GAME_SYSTEMS:
         return <GameSystemsPage onBack={() => navigate(Screen.GALLERY)} />;
+      
+      // Templates management (Admin only - access control in component)
+      case Screen.TEMPLATES:
+        return <TemplatesPage onBack={() => navigate(Screen.GALLERY)} />;
+      
+      // Admin users management (Admin only - access control in component)
+      case Screen.ADMIN_USERS:
+        return <AdminUsersPage onBack={() => navigate(Screen.GALLERY)} />;
+      
+      // Admin campaigns management (Admin only - access control in component)
+      case Screen.ADMIN_CAMPAIGNS:
+        return <AdminCampaignsPage onBack={() => navigate(Screen.GALLERY)} />;
       
       case Screen.ERROR:
         return <ErrorScreen onReboot={() => navigate(Screen.LOGIN)} />;

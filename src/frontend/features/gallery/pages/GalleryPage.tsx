@@ -816,6 +816,44 @@ export const GalleryPage: React.FC<GalleryPageProps> = ({ user, onNavigate, onLo
               </button>
             ))}
           </nav>
+
+          {/* Admin Section (Admin only) */}
+          {user?.role === 'ADMIN' && (
+            <div className="mt-4">
+              <div className="p-1 border border-red-500/50 text-[10px] text-red-400 text-center uppercase mb-2 bg-red-500/5 font-bold tracking-[0.2em]">
+                :: ADMIN_PANEL ::
+              </div>
+              <div className="flex flex-col gap-2">
+                <button
+                  onClick={() => onNavigate(Screen.ADMIN_USERS)}
+                  className="group flex items-center gap-3 p-3 border border-red-500/30 hover:border-red-500 hover:bg-red-500/10 bg-surface-dark transition-all"
+                >
+                  <span className="material-icons text-xl text-red-500/60 group-hover:text-red-400">admin_panel_settings</span>
+                  <span className="hidden md:inline text-xs font-bold tracking-widest text-red-500/70 group-hover:text-red-400">
+                    USUARIOS
+                  </span>
+                </button>
+                <button
+                  onClick={() => onNavigate(Screen.ADMIN_CAMPAIGNS)}
+                  className="group flex items-center gap-3 p-3 border border-red-500/30 hover:border-red-500 hover:bg-red-500/10 bg-surface-dark transition-all"
+                >
+                  <span className="material-icons text-xl text-red-500/60 group-hover:text-red-400">shield</span>
+                  <span className="hidden md:inline text-xs font-bold tracking-widest text-red-500/70 group-hover:text-red-400">
+                    CAMPAÑAS
+                  </span>
+                </button>
+                <button
+                  onClick={() => onNavigate(Screen.TEMPLATES)}
+                  className="group flex items-center gap-3 p-3 border border-red-500/30 hover:border-red-500 hover:bg-red-500/10 bg-surface-dark transition-all"
+                >
+                  <span className="material-icons text-xl text-red-500/60 group-hover:text-red-400">description</span>
+                  <span className="hidden md:inline text-xs font-bold tracking-widest text-red-500/70 group-hover:text-red-400">
+                    PLANTILLAS
+                  </span>
+                </button>
+              </div>
+            </div>
+          )}
           
           <div className="mt-auto hidden md:block p-3 border border-primary/10 bg-black/20 text-[8px] text-primary/40 leading-tight uppercase tracking-widest">
             <p className="mb-1">ESTADO: {transitionStatus === 'idle' ? 'ESTABLE' : 'TRANSFIRIENDO...'}</p>

@@ -90,3 +90,31 @@ export type {
 // App types
 export { Screen } from './app.types';
 export type { TransitionStage, AppState } from './app.types';
+
+// Template types
+export { TemplateStatus, FieldType, TemplateStatusLabels, FieldTypeLabels } from './template.types';
+export type {
+  FieldDefinition,
+  EntityTemplate,
+  EntityTemplateSummary,
+  GetTemplatesResult,
+  ExtractedTemplateInfo,
+  ExtractTemplatesResult,
+  ConfirmTemplateResult,
+  ConfirmTemplateRequest,
+  CreateTemplateRequest,
+  CreateTemplateResult,
+  UpdateTemplateRequest,
+  UpdateTemplateResult,
+  DeleteTemplateResult,
+} from './template.types';
+
+// Admin types
+export { AdminUserRole, AdminUserRoleLabels, AdminUserRoleColors } from './admin.types';
+export type {
+  AdminUser,
+  AdminCampaign,
+  CreateUserRequest,
+  UpdateUserRequest,
+  AdminUpdateCampaignRequest,
+} from './admin.types';

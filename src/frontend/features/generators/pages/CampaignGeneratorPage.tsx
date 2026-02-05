@@ -358,7 +358,7 @@ export const CampaignGeneratorPage: React.FC<CampaignGeneratorPageProps> = ({ on
         </div>
 
         {/* Preview Panel */}
-        <div className="flex-1 flex flex-col gap-4">
+        <div className="flex-1 flex flex-col gap-4 overflow-y-auto">
           {/* Campaign Preview Card */}
           <div className="border border-primary/30 bg-black p-6 flex-1 flex flex-col">
             <div className="flex items-center justify-between mb-4">

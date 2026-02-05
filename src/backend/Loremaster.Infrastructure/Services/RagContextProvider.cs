@@ -55,7 +55,6 @@ public class RagContextProvider : IRagContextProvider
                 ownerId,
                 limit: maxChunks,
                 threshold: DefaultSimilarityThreshold,
-                projectId: null,
                 gameSystemId: gameSystemId,
                 cancellationToken: cancellationToken);
 
@@ -117,7 +116,6 @@ public class RagContextProvider : IRagContextProvider
                 ownerId,
                 limit: 3, // Fewer chunks needed for style context
                 threshold: 0.5f, // Lower threshold for broader style matches
-                projectId: null,
                 gameSystemId: gameSystemId,
                 cancellationToken: cancellationToken);
 

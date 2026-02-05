@@ -9,10 +9,12 @@ namespace Loremaster.Application.Features.EntityTemplates.Commands.ExtractTempla
 /// <param name="GameSystemId">The game system to extract templates for.</param>
 /// <param name="OwnerId">The owner (Master) requesting extraction.</param>
 /// <param name="SourceDocumentId">Optional specific document to analyze (null = all manuals).</param>
+/// <param name="IsAdmin">Whether the requesting user is an admin (allows searching all owners' documents).</param>
 public record ExtractTemplatesFromManualCommand(
     Guid GameSystemId,
     Guid OwnerId,
-    Guid? SourceDocumentId = null) : IRequest<ExtractTemplatesResult>;
+    Guid? SourceDocumentId = null,
+    bool IsAdmin = false) : IRequest<ExtractTemplatesResult>;
 
 /// <summary>
 /// Result of template extraction from manuals.

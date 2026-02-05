@@ -66,9 +66,9 @@ public class LoreEntityRelationshipConfiguration : IEntityTypeConfiguration<Lore
             .HasDefaultValueSql("CURRENT_TIMESTAMP")
             .IsRequired();
 
-        builder.HasCheckConstraint(
+        builder.ToTable(t => t.HasCheckConstraint(
             "chk_no_self_relationship",
-            "source_entity_id != target_entity_id");
+            "source_entity_id != target_entity_id"));
 
         builder.Ignore(ler => ler.UpdatedAt);
         builder.Ignore(ler => ler.DomainEvents);

@@ -24,50 +24,48 @@ public class ExtractTemplatesFromManualCommandHandler
 
     /// <summary>
     /// Prompt for RAG to extract entity types from manuals.
+    /// NOTE: Genkit limit is 2000 chars for query - keep this concise!
     /// </summary>
-    private const string EntityTypeExtractionPrompt = @"
-You are analyzing a tabletop RPG rulebook to identify the entity types (character types, creature types, vehicle types, item types, location types, etc.) that players can create in this game system.
+    private const string EntityTypeExtractionPrompt = @"Extract ALL entity types from this RPG rulebook. Look for:
+- Characters (player/NPC)
+- Vehicles, Starships
+- Monsters, Creatures
+- Locations, Places
+- Items, Equipment
 
-For each entity type found, extract:
-1. The entity type name (e.g., ""Character"", ""Vehicle"", ""Starship"", ""NPC"", ""Monster"")
-2. A display name (human-readable)
-3. A brief description
-4. The fields/attributes that define this entity type (name, type, required, description)
-
-Respond with a JSON array of entity types in this exact format:
+Return JSON array:
 ```json
-[
-  {
-    ""entityTypeName"": ""character"",
-    ""displayName"": ""Player Character"",
-    ""description"": ""A player-controlled character in the game"",
-    ""iconHint"": ""user"",
-    ""fields"": [
-      {
-        ""name"": ""name"",
-        ""displayName"": ""Character Name"",
-        ""fieldType"": ""Text"",
-        ""isRequired"": true,
-        ""description"": ""The character's name""
-      },
-      {
-        ""name"": ""level"",
-        ""displayName"": ""Level"",
-        ""fieldType"": ""Number"",
-        ""isRequired"": true,
-        ""minValue"": 1,
-        ""maxValue"": 20
-      }
-    ]
-  }
-]
+[{
+  ""entityTypeName"": ""player_character"",
+  ""displayName"": ""Player Character"",
+  ""description"": ""A player-controlled character"",
+  ""iconHint"": ""person"",
+  ""fields"": [{
+    ""name"": ""strength"",
+    ""displayName"": ""Strength"",
+    ""fieldType"": ""Number"",
+    ""isRequired"": true,
+    ""minValue"": 1,
+    ""maxValue"": 20
+  }]
+}]
 ```
+Field types: Text, TextArea, Number, Boolean, Select, MultiSelect, Date, Url, Json
+Include ALL stats/attributes for each entity type found.";
 
-Field types must be one of: Text, TextArea, Number, Boolean, Select, MultiSelect, Date, Url, Json
-
-Only include entity types that are explicitly defined in the rulebook with clear creation rules.
-Do not invent entity types that are not in the source material.
-";
+    /// <summary>
+    /// Search queries to find different types of entities in manuals.
+    /// </summary>
+    private static readonly string[] EntitySearchQueries = new[]
+    {
+        "player character creation stats attributes abilities skills life path",
+        "NPC non-player character enemies allies contacts",
+        "vehicle car bike aircraft stats speed armor",
+        "starship spacecraft ship hull weapons shields",
+        "monster creature beast alien stats combat",
+        "location place planet system city base settlement star",
+        "equipment weapons armor gear items cybernetics"
+    };
 
     public ExtractTemplatesFromManualCommandHandler(
         IEntityTemplateRepository templateRepository,
@@ -102,19 +100,36 @@ Do not invent entity types that are not in the source material.
             throw new ArgumentException($"Game system with ID {request.GameSystemId} not found");
         }
 
-        // Get relevant document content via semantic search
-        var searchQuery = "entity types character creation rules attributes stats fields";
-        var queryEmbedding = await _embeddingService.GetEmbeddingAsync(searchQuery, cancellationToken);
+        // Perform multiple semantic searches to capture different entity types
+        var allResults = new Dictionary<Guid, DocumentSearchResult>();
+        Guid? firstDocumentId = null;
         
-        var searchResults = await _documentRepository.SemanticSearchAsync(
-            queryEmbedding,
-            request.OwnerId,
-            limit: 10,
-            threshold: 0.5f,
-            gameSystemId: request.GameSystemId,
-            cancellationToken: cancellationToken);
+        foreach (var searchQuery in EntitySearchQueries)
+        {
+            var queryEmbedding = await _embeddingService.GetEmbeddingAsync(searchQuery, cancellationToken);
+            
+            // Admin users can search across all owners' documents for the game system
+            var searchResults = await _documentRepository.SemanticSearchAsync(
+                queryEmbedding,
+                request.OwnerId,
+                limit: 7,  // 5 results per query category
+                threshold: 0.4f,  // Lower threshold to capture more content
+                gameSystemId: request.GameSystemId,
+                skipOwnerFilter: request.IsAdmin,
+                cancellationToken: cancellationToken);
 
-        if (!searchResults.Any())
+            foreach (var result in searchResults)
+            {
+                // Use dictionary to deduplicate by document ID
+                if (!allResults.ContainsKey(result.Document.Id))
+                {
+                    allResults[result.Document.Id] = result;
+                    firstDocumentId ??= result.Document.Id;
+                }
+            }
+        }
+
+        if (!allResults.Any())
         {
             _logger.LogWarning(
                 "No documents found for game system {GameSystemId}. Upload manuals first.",
@@ -126,8 +141,15 @@ Do not invent entity types that are not in the source material.
                 "No manuals found for this game system. Please upload manuals first.");
         }
 
-        // Build context from search results
-        var context = searchResults
+        _logger.LogInformation(
+            "Found {ChunkCount} unique document chunks for entity extraction",
+            allResults.Count);
+
+        // Build context from search results, sorted by similarity
+        // Genkit API limit: max 10 context items
+        var context = allResults.Values
+            .OrderByDescending(r => r.SimilarityScore)
+            .Take(10)
             .Select(r => r.Document.Content)
             .ToList();
 
@@ -135,7 +157,7 @@ Do not invent entity types that are not in the source material.
         var ragResult = await _embeddingService.GenerateWithContextAsync(
             EntityTypeExtractionPrompt,
             context,
-            "You are a game system analyst extracting structured data from rulebooks.",
+            "You are a game system analyst. Extract ALL entity types: characters, NPCs, vehicles, starships, monsters, locations, items.",
             cancellationToken: cancellationToken);
 
         // Parse the RAG response
@@ -150,8 +172,12 @@ Do not invent entity types that are not in the source material.
                 "Could not extract entity types from the manuals. The content may not contain clear entity definitions.");
         }
 
+        _logger.LogInformation(
+            "Extracted {EntityTypeCount} entity types from manuals",
+            extractedTypes.Count);
+
         // Get source document ID (first document if not specified)
-        var sourceDocumentId = request.SourceDocumentId ?? searchResults.First().Document.Id;
+        var sourceDocumentId = request.SourceDocumentId ?? firstDocumentId ?? Guid.Empty;
 
         // Process extracted types
         var results = new List<ExtractedTemplateInfo>();
@@ -265,21 +291,99 @@ Do not invent entity types that are not in the source material.
         return (template, true);
     }
 
+    /// <summary>
+    /// Converts extracted fields to domain FieldDefinition objects.
+    /// Handles edge cases like Select fields without options by converting them to Text.
+    /// Sanitizes field names to ensure they are valid identifiers.
+    /// </summary>
     private static List<FieldDefinition> ConvertToFieldDefinitions(List<ExtractedField> fields)
     {
-        return fields.Select((f, index) => FieldDefinition.Create(
-            f.Name,
-            f.DisplayName,
-            ParseFieldType(f.FieldType),
-            f.IsRequired,
-            f.DefaultValue,
-            f.Description,
-            f.Order ?? index,
-            f.Options,
-            f.MinValue,
-            f.MaxValue,
-            f.ValidationPattern
-        )).ToList();
+        var usedNames = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+        
+        return fields.Select((f, index) => 
+        {
+            var fieldType = ParseFieldType(f.FieldType);
+            var options = f.Options;
+            
+            // If Select/MultiSelect but no options provided, convert to Text field
+            if ((fieldType == FieldType.Select || fieldType == FieldType.MultiSelect) 
+                && (options == null || !options.Any()))
+            {
+                fieldType = FieldType.Text;
+                options = null;
+            }
+            
+            // Sanitize field name to be a valid identifier
+            var sanitizedName = SanitizeFieldName(f.Name);
+            
+            // Ensure unique name
+            var uniqueName = sanitizedName;
+            var counter = 1;
+            while (usedNames.Contains(uniqueName))
+            {
+                uniqueName = $"{sanitizedName}_{counter++}";
+            }
+            usedNames.Add(uniqueName);
+            
+            // Use original name as display name if not provided
+            var displayName = string.IsNullOrWhiteSpace(f.DisplayName) ? f.Name : f.DisplayName;
+            
+            return FieldDefinition.Create(
+                uniqueName,
+                displayName,
+                fieldType,
+                f.IsRequired,
+                f.DefaultValue,
+                f.Description,
+                f.Order ?? index,
+                options,
+                f.MinValue,
+                f.MaxValue,
+                f.ValidationPattern
+            );
+        }).ToList();
+    }
+
+    /// <summary>
+    /// Sanitizes a field name to be a valid identifier.
+    /// - Replaces spaces and hyphens with underscores
+    /// - Removes invalid characters
+    /// - Ensures it starts with a letter
+    /// - Converts to snake_case
+    /// </summary>
+    private static string SanitizeFieldName(string name)
+    {
+        if (string.IsNullOrWhiteSpace(name))
+            return "field";
+        
+        // Convert to lowercase and replace common separators with underscores
+        var sanitized = name.Trim()
+            .ToLowerInvariant()
+            .Replace(' ', '_')
+            .Replace('-', '_')
+            .Replace('.', '_');
+        
+        // Remove any character that's not a letter, digit, or underscore
+        sanitized = new string(sanitized
+            .Where(c => char.IsLetterOrDigit(c) || c == '_')
+            .ToArray());
+        
+        // Remove consecutive underscores
+        while (sanitized.Contains("__"))
+            sanitized = sanitized.Replace("__", "_");
+        
+        // Trim underscores from start and end
+        sanitized = sanitized.Trim('_');
+        
+        // If empty after sanitization, use default
+        if (string.IsNullOrEmpty(sanitized))
+            return "field";
+        
+        // Ensure it starts with a letter
+        if (!char.IsLetter(sanitized[0]))
+            sanitized = "f_" + sanitized;
+        
+        return sanitized;
     }
 
     private static FieldType ParseFieldType(string fieldType)

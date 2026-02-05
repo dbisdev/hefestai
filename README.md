@@ -1,4 +1,4 @@
-# HefestAI (Loremaster)
+# HefestAI
 
 AI-powered worldbuilding and lore management platform for tabletop RPG game masters and creative writers.
 

@@ -28,9 +28,9 @@ const SPECIES_OPTIONS = [
 
 const ROLE_OPTIONS = [
   { value: '', label: 'Seleccionar Función...' },
-  { value: 'marine', label: 'Colonial Marine' },
-  { value: 'marshal', label: 'Colonial Marshal' },
-  { value: 'agent', label: 'Company Agent' },
+  { value: 'colonial marine', label: 'Colonial Marine' },
+  { value: 'colonial marshal', label: 'Colonial Marshal' },
+  { value: 'company agent', label: 'Company Agent' },
   { value: 'kid', label: 'Kid' },
   { value: 'medic', label: 'Medic' },
   { value: 'officer', label: 'Officer' },
@@ -287,7 +287,7 @@ export const CharacterGeneratorPage: React.FC<CharacterGeneratorPageProps> = ({ 
         </div>
 
         {/* Preview Panel */}
-        <div className="flex-1 flex flex-col gap-4">
+        <div className="flex-1 flex flex-col gap-4 overflow-y-auto">
           <div className="relative w-full aspect-square border border-primary/30 bg-black p-1 flex flex-col overflow-hidden clip-tech-br group">
             <div className="relative flex-1 bg-black overflow-hidden flex items-center justify-center">
               <img 

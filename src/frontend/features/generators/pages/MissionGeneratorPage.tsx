@@ -323,7 +323,7 @@ export const MissionGeneratorPage: React.FC<MissionGeneratorPageProps> = ({ onBa
         </div>
 
         {/* Preview Panel - Mission Briefing Style */}
-        <div className="flex-1 flex flex-col gap-4">
+        <div className="flex-1 flex flex-col gap-4 overflow-y-auto">
           {/* Mission Header */}
           <div className={`border border-primary/30 bg-black p-4 transition-all ${generatedMission ? 'border-primary' : ''}`}>
             <div className="flex items-center justify-between mb-3">

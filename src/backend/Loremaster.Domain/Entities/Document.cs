@@ -32,12 +32,6 @@ public class Document : AuditableEntity
     public User Owner { get; private set; } = null!;
     
     /// <summary>
-    /// Optional project association
-    /// </summary>
-    public Guid? ProjectId { get; private set; }
-    public Project? Project { get; private set; }
-    
-    /// <summary>
     /// Optional game system association for system-specific RAG queries.
     /// When set, this document will only be included in searches for this game system.
     /// </summary>
@@ -69,7 +63,6 @@ public class Document : AuditableEntity
         Guid ownerId,
         string? source = null,
         string? metadata = null,
-        Guid? projectId = null,
         Guid? gameSystemId = null,
         RagSourceType? sourceType = null)
     {
@@ -85,7 +78,6 @@ public class Document : AuditableEntity
             OwnerId = ownerId,
             Source = source?.Trim(),
             Metadata = metadata,
-            ProjectId = projectId,
             GameSystemId = gameSystemId,
             SourceType = sourceType
         };

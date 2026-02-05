@@ -29,6 +29,20 @@ public class CampaignRepository : ICampaignRepository
             .FirstOrDefaultAsync(c => c.Id == id && c.DeletedAt == null, cancellationToken);
     }
 
+    /// <summary>
+    /// Gets a campaign by ID with full details including Owner, GameSystem, Members, and LoreEntities (for admin purposes).
+    /// </summary>
+    public async Task<Campaign?> GetByIdWithDetailsAsync(Guid id, CancellationToken cancellationToken = default)
+    {
+        return await _context.Campaigns
+            .Include(c => c.Owner)
+            .Include(c => c.GameSystem)
+            .Include(c => c.Members)
+                .ThenInclude(m => m.User)
+            .Include(c => c.LoreEntities)
+            .FirstOrDefaultAsync(c => c.Id == id && c.DeletedAt == null, cancellationToken);
+    }
+
     public async Task<Campaign?> GetByJoinCodeAsync(string joinCode, CancellationToken cancellationToken = default)
     {
         var normalizedCode = joinCode.ToUpperInvariant().Trim();
@@ -59,6 +73,29 @@ public class CampaignRepository : ICampaignRepository
     {
         return await _context.Campaigns
             .Where(c => c.GameSystemId == gameSystemId && c.IsActive && c.DeletedAt == null)
+            .OrderByDescending(c => c.CreatedAt)
+            .ToListAsync(cancellationToken);
+    }
+
+    /// <summary>
+    /// Gets all campaigns with full details including Owner, GameSystem, Members, and LoreEntities (for admin purposes).
+    /// </summary>
+    /// <param name="includeInactive">If true, includes inactive campaigns.</param>
+    public async Task<IEnumerable<Campaign>> GetAllWithDetailsAsync(bool includeInactive = false, CancellationToken cancellationToken = default)
+    {
+        var query = _context.Campaigns
+            .Include(c => c.Owner)
+            .Include(c => c.GameSystem)
+            .Include(c => c.Members)
+            .Include(c => c.LoreEntities)
+            .Where(c => c.DeletedAt == null);
+
+        if (!includeInactive)
+        {
+            query = query.Where(c => c.IsActive);
+        }
+
+        return await query
             .OrderByDescending(c => c.CreatedAt)
             .ToListAsync(cancellationToken);
     }
