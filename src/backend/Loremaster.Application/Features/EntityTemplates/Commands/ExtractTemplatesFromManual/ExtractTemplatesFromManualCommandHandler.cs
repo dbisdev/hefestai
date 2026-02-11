@@ -60,11 +60,11 @@ Include ALL attributes, skills, derived stats, identity fields, gear from the ru
     /// </summary>
     private static readonly string[] EntitySearchQueries = new[]
     {
-        "player character creation stats attributes abilities skills life path armor stress",
-        "NPC non-player character enemies allies contacts",
+        "player character creation stats attributes abilities skills life path resolve stress",
+        "npc non-player character enemies allies contacts",
         "vehicle car bike aircraft stats speed armor starship spacecraft ship hull weapons shields",
         "monster creature beast alien stats combat",
-        "location place planet system city base settlement star",
+        "location place planet system city base settlement star base station",
         "equipment weapons armor gear items cybernetics"
     };
 

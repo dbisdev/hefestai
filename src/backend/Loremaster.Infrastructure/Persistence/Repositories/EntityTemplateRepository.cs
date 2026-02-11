@@ -65,6 +65,20 @@ public class EntityTemplateRepository : IEntityTemplateRepository
     }
 
     /// <inheritdoc />
+    public async Task<IReadOnlyList<EntityTemplate>> GetAllConfirmedByGameSystemIdAsync(
+        Guid gameSystemId,
+        CancellationToken cancellationToken = default)
+    {
+        return await _context.EntityTemplates
+            .Include(et => et.GameSystem)
+            .Where(et => 
+                et.GameSystemId == gameSystemId && 
+                et.Status == TemplateStatus.Confirmed)
+            .OrderBy(et => et.DisplayName)
+            .ToListAsync(cancellationToken);
+    }
+
+    /// <inheritdoc />
     public async Task<IReadOnlyList<EntityTemplate>> GetByStatusAsync(
         Guid gameSystemId, 
         Guid ownerId,

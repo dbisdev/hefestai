@@ -21,7 +21,7 @@ public class Document : AuditableEntity
     public Vector? Embedding { get; private set; }
     
     /// <summary>
-    /// Embedding dimensions (typically 768 for text-embedding-004)
+    /// Embedding dimensions (3072 for gemini-embedding-001)
     /// </summary>
     public int? EmbeddingDimensions { get; private set; }
     

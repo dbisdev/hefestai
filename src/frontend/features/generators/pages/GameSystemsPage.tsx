@@ -7,9 +7,10 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { TerminalLayout, AdminLayout } from '@shared/components/layout';
 import { Button } from '@shared/components/ui';
+import { ManualUploadModal } from '@shared/components/modals';
 import { useAuth } from '@core/context';
 import { gameSystemService } from '@core/services/api';
-import type { GameSystem, CreateGameSystemRequest } from '@core/types';
+import type { GameSystem, CreateGameSystemRequest, UpdateGameSystemRequest } from '@core/types';
 import { Screen } from '@core/types';
 
 interface GameSystemsPageProps {
@@ -17,6 +18,8 @@ interface GameSystemsPageProps {
   onNavigate?: (screen: Screen) => void;
   /** Handler for returning to gallery */
   onBack: () => void;
+  /** Handler for logging out */
+  onLogout?: () => void;
 }
 
 /**
@@ -24,13 +27,16 @@ interface GameSystemsPageProps {
  * Provides UI for creating and managing game systems (tabletop RPG rule sets)
  * Only accessible to Master or Admin users
  */
-export const GameSystemsPage: React.FC<GameSystemsPageProps> = ({ onNavigate, onBack }) => {
+export const GameSystemsPage: React.FC<GameSystemsPageProps> = ({ onNavigate, onBack, onLogout }) => {
   const { user } = useAuth();
   
   const [gameSystems, setGameSystems] = useState<GameSystem[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [isCreating, setIsCreating] = useState(false);
+  const [isUpdating, setIsUpdating] = useState(false);
   const [showCreateForm, setShowCreateForm] = useState(false);
+  const [showEditForm, setShowEditForm] = useState(false);
+  const [showManualUpload, setShowManualUpload] = useState(false);
   const [selectedSystem, setSelectedSystem] = useState<GameSystem | null>(null);
   
   const [logs, setLogs] = useState([
@@ -51,6 +57,18 @@ export const GameSystemsPage: React.FC<GameSystemsPageProps> = ({ onNavigate, on
   
   // Entity types input (comma-separated for UX)
   const [entityTypesInput, setEntityTypesInput] = useState('');
+
+  // Form state for editing game system
+  const [editForm, setEditForm] = useState<UpdateGameSystemRequest>({
+    name: '',
+    publisher: '',
+    version: '',
+    description: '',
+    supportedEntityTypes: [],
+  });
+  
+  // Entity types input for edit form (comma-separated for UX)
+  const [editEntityTypesInput, setEditEntityTypesInput] = useState('');
 
   /**
    * Adds a log entry to the terminal display
@@ -106,6 +124,34 @@ export const GameSystemsPage: React.FC<GameSystemsPageProps> = ({ onNavigate, on
   };
 
   /**
+   * Validates the edit form
+   */
+  const validateEditForm = (): boolean => {
+    if (!editForm.name.trim()) {
+      addLog('ERROR: NOMBRE REQUERIDO');
+      return false;
+    }
+    return true;
+  };
+
+  /**
+   * Populates the edit form with the selected system's data and shows the edit form
+   */
+  const handleStartEdit = (system: GameSystem) => {
+    setEditForm({
+      name: system.name,
+      publisher: system.publisher || '',
+      version: system.version || '',
+      description: system.description || '',
+      supportedEntityTypes: system.supportedEntityTypes || [],
+    });
+    setEditEntityTypesInput((system.supportedEntityTypes || []).join(', '));
+    setShowEditForm(true);
+    setShowCreateForm(false); // Close create form if open
+    addLog(`EDITANDO: ${system.code.toUpperCase()}`);
+  };
+
+  /**
    * Handles creating a new game system
    */
   const handleCreate = async () => {
@@ -155,6 +201,60 @@ export const GameSystemsPage: React.FC<GameSystemsPageProps> = ({ onNavigate, on
   };
 
   /**
+   * Handles updating an existing game system
+   */
+  const handleUpdate = async () => {
+    if (!selectedSystem) {
+      addLog('ERROR: NO HAY SISTEMA SELECCIONADO');
+      return;
+    }
+    
+    if (!validateEditForm()) return;
+
+    setIsUpdating(true);
+    addLog(`ACTUALIZANDO ${selectedSystem.code.toUpperCase()}...`);
+
+    try {
+      // Parse entity types from comma-separated input
+      const entityTypes = editEntityTypesInput
+        .split(',')
+        .map(t => t.trim())
+        .filter(t => t.length > 0);
+
+      const request: UpdateGameSystemRequest = {
+        name: editForm.name.trim(),
+        publisher: editForm.publisher?.trim() || undefined,
+        version: editForm.version?.trim() || undefined,
+        description: editForm.description?.trim() || undefined,
+        supportedEntityTypes: entityTypes.length > 0 ? entityTypes : undefined,
+      };
+
+      const updatedSystem = await gameSystemService.update(selectedSystem.id, request);
+      
+      // Update the system in the list
+      setGameSystems(prev => prev.map(s => s.id === selectedSystem.id ? updatedSystem : s));
+      setSelectedSystem(updatedSystem);
+      addLog(`[SUCCESS] Sistema actualizado: ${updatedSystem.name.toUpperCase()}`);
+      
+      // Reset edit form and close
+      setShowEditForm(false);
+      setEditForm({
+        name: '',
+        publisher: '',
+        version: '',
+        description: '',
+        supportedEntityTypes: [],
+      });
+      setEditEntityTypesInput('');
+    } catch (error: unknown) {
+      const message = error instanceof Error ? error.message : 'ERROR AL ACTUALIZAR SISTEMA';
+      addLog(`ERROR_CRITICO: ${message}`);
+    } finally {
+      setIsUpdating(false);
+    }
+  };
+
+  /**
    * Handles toggling game system active status
    */
   const handleToggleStatus = async (system: GameSystem) => {
@@ -181,40 +281,37 @@ export const GameSystemsPage: React.FC<GameSystemsPageProps> = ({ onNavigate, on
   const isMasterOrAdmin = user?.role === 'MASTER' || user?.role === 'ADMIN';
   const isAdmin = user?.role === 'ADMIN';
   
-  // Wrapper component based on user role
-  const LayoutWrapper: React.FC<{ children: React.ReactNode }> = ({ children }) => {
-    if (isAdmin && onNavigate) {
-      return (
-        <AdminLayout 
-          activeScreen={Screen.GAME_SYSTEMS} 
-          onNavigate={onNavigate} 
-          onBack={onBack}
-        >
-          {children}
-        </AdminLayout>
-      );
-    }
-    return (
-      <TerminalLayout title="GAME_SYSTEMS" subtitle="Gestión de sistemas de juego" onLogout={() => {}}>
-        {children}
-      </TerminalLayout>
-    );
-  };
+  // Determine which layout to use
+  const useAdminLayout = isAdmin && onNavigate;
+
+  // Content for access denied
+  const accessDeniedContent = (
+    <div className="flex flex-col items-center justify-center h-full text-danger/60">
+      <span className="material-icons text-6xl mb-4">lock</span>
+      <p className="text-sm uppercase tracking-widest">Acceso restringido a Masters</p>
+      <Button onClick={onBack} className="mt-4">VOLVER</Button>
+    </div>
+  );
   
   if (!isMasterOrAdmin) {
-    return (
-      <LayoutWrapper>
-        <div className="flex flex-col items-center justify-center h-full text-danger/60">
-          <span className="material-icons text-6xl mb-4">lock</span>
-          <p className="text-sm uppercase tracking-widest">Acceso restringido a Masters</p>
-          <Button onClick={onBack} className="mt-4">VOLVER</Button>
-        </div>
-      </LayoutWrapper>
+    return useAdminLayout ? (
+      <AdminLayout 
+        activeScreen={Screen.GAME_SYSTEMS} 
+        onNavigate={onNavigate} 
+        onBack={onBack}
+        onLogout={onLogout}
+      >
+        {accessDeniedContent}
+      </AdminLayout>
+    ) : (
+      <TerminalLayout title="GAME_SYSTEMS" subtitle="Gestión de sistemas de juego" onLogout={() => {}}>
+        {accessDeniedContent}
+      </TerminalLayout>
     );
   }
 
-  return (
-    <LayoutWrapper>
+  // Main content
+  const mainContent = (
       <div className="flex flex-col lg:flex-row h-full gap-6">
         {/* Main Content Section */}
         <div className="flex-1 flex flex-col gap-6 overflow-hidden">
@@ -236,14 +333,7 @@ export const GameSystemsPage: React.FC<GameSystemsPageProps> = ({ onNavigate, on
                   size="sm"
                 >
                   {showCreateForm ? 'CANCELAR' : '+ NUEVO SISTEMA'}
-                </Button>
-                <button 
-                  onClick={onBack}
-                  className="material-icons text-primary/60 hover:text-primary transition-colors"
-                  aria-label="Volver"
-                >
-                  arrow_back
-                </button>
+                </Button>                
               </div>
             </div>
           </div>
@@ -358,6 +448,133 @@ export const GameSystemsPage: React.FC<GameSystemsPageProps> = ({ onNavigate, on
                   className="min-w-[200px]"
                 >
                   {isCreating ? 'CREANDO...' : 'CREAR SISTEMA'}
+                </Button>
+              </div>
+            </div>
+          )}
+
+          {/* Edit Form */}
+          {showEditForm && selectedSystem && (
+            <div className="border border-yellow-500/30 bg-black/60 p-6">
+              <div className="flex items-center justify-between mb-4">
+                <h2 className="text-sm text-yellow-500/60 uppercase tracking-widest flex items-center gap-2">
+                  <span className="material-icons text-xs">edit</span>
+                  Editar Sistema: <span className="text-yellow-400 font-mono ml-1">{selectedSystem.code}</span>
+                </h2>
+                <button
+                  onClick={() => setShowEditForm(false)}
+                  className="text-primary/40 hover:text-primary transition-colors"
+                >
+                  <span className="material-icons text-sm">close</span>
+                </button>
+              </div>
+              
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                {/* Code (read-only) */}
+                <div>
+                  <label className="block text-xs text-primary/40 uppercase mb-1">
+                    Codigo (no editable)
+                  </label>
+                  <input
+                    type="text"
+                    value={selectedSystem.code}
+                    className="w-full bg-black/20 border border-primary/20 text-primary/50 p-3 text-sm font-mono cursor-not-allowed"
+                    disabled
+                  />
+                </div>
+
+                {/* Name */}
+                <div>
+                  <label className="block text-xs text-primary/40 uppercase mb-1">
+                    Nombre *
+                  </label>
+                  <input
+                    type="text"
+                    value={editForm.name}
+                    onChange={(e) => setEditForm(prev => ({ ...prev, name: e.target.value }))}
+                    placeholder="ej: Dungeons & Dragons 5e"
+                    className="w-full bg-black/40 border border-primary/30 text-primary p-3 text-sm focus:border-yellow-500 focus:outline-none placeholder:text-primary/20"
+                    disabled={isUpdating}
+                  />
+                </div>
+
+                {/* Publisher */}
+                <div>
+                  <label className="block text-xs text-primary/40 uppercase mb-1">
+                    Editorial
+                  </label>
+                  <input
+                    type="text"
+                    value={editForm.publisher || ''}
+                    onChange={(e) => setEditForm(prev => ({ ...prev, publisher: e.target.value }))}
+                    placeholder="ej: Wizards of the Coast"
+                    className="w-full bg-black/40 border border-primary/30 text-primary p-3 text-sm focus:border-yellow-500 focus:outline-none placeholder:text-primary/20"
+                    disabled={isUpdating}
+                  />
+                </div>
+
+                {/* Version */}
+                <div>
+                  <label className="block text-xs text-primary/40 uppercase mb-1">
+                    Version
+                  </label>
+                  <input
+                    type="text"
+                    value={editForm.version || ''}
+                    onChange={(e) => setEditForm(prev => ({ ...prev, version: e.target.value }))}
+                    placeholder="ej: 5.1, 2024"
+                    className="w-full bg-black/40 border border-primary/30 text-primary p-3 text-sm focus:border-yellow-500 focus:outline-none placeholder:text-primary/20"
+                    disabled={isUpdating}
+                  />
+                </div>
+
+                {/* Description */}
+                <div className="md:col-span-2">
+                  <label className="block text-xs text-primary/40 uppercase mb-1">
+                    Descripcion
+                  </label>
+                  <textarea
+                    value={editForm.description || ''}
+                    onChange={(e) => setEditForm(prev => ({ ...prev, description: e.target.value }))}
+                    placeholder="Descripcion del sistema de juego..."
+                    rows={2}
+                    className="w-full bg-black/40 border border-primary/30 text-primary p-3 text-sm focus:border-yellow-500 focus:outline-none placeholder:text-primary/20 resize-none"
+                    disabled={isUpdating}
+                  />
+                </div>
+
+                {/* Supported Entity Types */}
+                <div className="md:col-span-2">
+                  <label className="block text-xs text-primary/40 uppercase mb-1">
+                    Tipos de Entidad Soportados
+                  </label>
+                  <input
+                    type="text"
+                    value={editEntityTypesInput}
+                    onChange={(e) => setEditEntityTypesInput(e.target.value)}
+                    placeholder="ej: character, npc, monster, item, spell (separados por coma)"
+                    className="w-full bg-black/40 border border-primary/30 text-primary p-3 text-sm focus:border-yellow-500 focus:outline-none placeholder:text-primary/20"
+                    disabled={isUpdating}
+                  />
+                  <p className="text-xs text-primary/30 mt-1">Separa los tipos con comas</p>
+                </div>
+              </div>
+
+              {/* Update Buttons */}
+              <div className="mt-4 flex justify-end gap-2">
+                <Button 
+                  onClick={() => setShowEditForm(false)} 
+                  variant="secondary"
+                  disabled={isUpdating}
+                >
+                  CANCELAR
+                </Button>
+                <Button 
+                  onClick={handleUpdate} 
+                  disabled={isUpdating}
+                  className="min-w-[200px]"
+                >
+                  {isUpdating ? 'ACTUALIZANDO...' : 'GUARDAR CAMBIOS'}
                 </Button>
               </div>
             </div>
@@ -504,10 +721,65 @@ export const GameSystemsPage: React.FC<GameSystemsPageProps> = ({ onNavigate, on
                   </div>
                 )}
               </div>
+              
+              {/* Edit Button */}
+              <Button
+                onClick={() => handleStartEdit(selectedSystem)}
+                variant="secondary"
+                size="sm"
+                className="w-full mt-4"
+                disabled={showEditForm}
+              >
+                <span className="material-icons text-sm mr-2">edit</span>
+                EDITAR
+              </Button>
+              
+              {/* Manual Upload Button */}
+              <Button
+                onClick={() => setShowManualUpload(true)}
+                variant="primary"
+                size="sm"
+                className="w-full mt-2"
+              >
+                <span className="material-icons text-sm mr-2">upload_file</span>
+                CARGAR MANUAL RAG
+              </Button>
             </div>
           )}
         </div>
       </div>
-    </LayoutWrapper>
+  );
+
+  // Render with appropriate layout
+  return (
+    <>
+      {useAdminLayout ? (
+        <AdminLayout 
+          activeScreen={Screen.GAME_SYSTEMS} 
+          onNavigate={onNavigate} 
+          onBack={onBack}
+          onLogout={onLogout}
+        >
+          {mainContent}
+        </AdminLayout>
+      ) : (
+        <TerminalLayout title="GAME_SYSTEMS" subtitle="Gestión de sistemas de juego" onLogout={() => {}}>
+          {mainContent}
+        </TerminalLayout>
+      )}
+      
+      {/* Manual Upload Modal */}
+      {showManualUpload && selectedSystem && (
+        <ManualUploadModal
+          onClose={() => setShowManualUpload(false)}
+          gameSystemId={selectedSystem.id}
+          gameSystemName={selectedSystem.name}
+          onSuccess={() => {
+            addLog(`[SUCCESS] Manual cargado para ${selectedSystem.code.toUpperCase()}`);
+            setShowManualUpload(false);
+          }}
+        />
+      )}
+    </>
   );
 };

@@ -6,6 +6,7 @@
 
 import React, { useState } from 'react';
 import DiceRoller from '../../../components/DiceRoller';
+import { useAuth } from '@core/context';
 import { Screen } from '@core/types';
 
 /** Navigation item definition for admin sidebar */
@@ -25,22 +26,28 @@ const ADMIN_NAV_ITEMS: AdminNavItem[] = [
     description: 'Gestión de usuarios',
   },
   {
+    id: Screen.GAME_SYSTEMS,
+    label: 'SISTEMAS',
+    icon: 'sports_esports',
+    description: 'Sistemas de juego',
+  },
+  {
     id: Screen.ADMIN_CAMPAIGNS,
     label: 'CAMPAÑAS',
     icon: 'shield',
     description: 'Gestión de campañas',
   },
   {
+    id: Screen.ADMIN_SYSTEM,
+    label: 'RAG',
+    icon: 'settings_suggest',
+    description: 'Operaciones del sistema',
+  },
+  {
     id: Screen.TEMPLATES,
     label: 'PLANTILLAS',
     icon: 'description',
     description: 'Plantillas de entidades',
-  },
-  {
-    id: Screen.GAME_SYSTEMS,
-    label: 'SISTEMAS',
-    icon: 'sports_esports',
-    description: 'Sistemas de juego',
   },
 ];
 
@@ -71,6 +78,7 @@ export const AdminLayout: React.FC<AdminLayoutProps> = ({
   onBack,
   onLogout,
 }) => {
+  const { isAdmin } = useAuth();
   const [showDice, setShowDice] = useState(false);
 
   return (
@@ -96,21 +104,27 @@ export const AdminLayout: React.FC<AdminLayoutProps> = ({
             <span>PROTOCOLO: ADMIN</span>
           </div>
 
-          <button
-            onClick={() => setShowDice(true)}
-            className="flex items-center gap-2 border border-red-500/40 px-3 py-1 text-xs uppercase hover:bg-red-500/20 transition-all text-red-500 font-bold"
-          >
-            <span className="material-icons text-sm">casino</span>
-            <span className="hidden sm:inline">DADOS</span>
-          </button>
+          {/* Hide dice roller for admin users */}
+          {!isAdmin && (
+            <button
+              onClick={() => setShowDice(true)}
+              className="flex items-center gap-2 border border-red-500/40 px-3 py-1 text-xs uppercase hover:bg-red-500/20 transition-all text-red-500 font-bold"
+            >
+              <span className="material-icons text-sm">casino</span>
+              <span className="hidden sm:inline">DADOS</span>
+            </button>
+          )}
 
-          <button
-            onClick={onBack}
-            className="flex items-center gap-2 border border-primary/40 px-3 py-1 text-xs uppercase hover:bg-primary/20 transition-all text-primary font-bold"
-          >
-            <span className="material-icons text-sm">arrow_back</span>
-            <span className="hidden sm:inline">GALERÍA</span>
-          </button>
+          {/* Hide gallery button for admin users - they only have access to admin panel */}
+          {!isAdmin && (
+            <button
+              onClick={onBack}
+              className="flex items-center gap-2 border border-primary/40 px-3 py-1 text-xs uppercase hover:bg-primary/20 transition-all text-primary font-bold"
+            >
+              <span className="material-icons text-sm">arrow_back</span>
+              <span className="hidden sm:inline">GALERÍA</span>
+            </button>
+          )}
 
           {onLogout && (
             <button

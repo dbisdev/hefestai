@@ -18,6 +18,8 @@ interface AdminCampaignsPageProps {
   onNavigate: (screen: Screen) => void;
   /** Handler for returning to gallery */
   onBack: () => void;
+  /** Handler for logging out */
+  onLogout?: () => void;
 }
 
 /**
@@ -28,7 +30,7 @@ interface AdminCampaignsPageProps {
  * - Transfer campaign ownership
  * - Delete (soft delete) campaigns
  */
-export const AdminCampaignsPage: React.FC<AdminCampaignsPageProps> = ({ onNavigate, onBack }) => {
+export const AdminCampaignsPage: React.FC<AdminCampaignsPageProps> = ({ onNavigate, onBack, onLogout }) => {
   const { user: currentUser } = useAuth();
   
   // Data state
@@ -281,6 +283,7 @@ export const AdminCampaignsPage: React.FC<AdminCampaignsPageProps> = ({ onNaviga
         activeScreen={Screen.ADMIN_CAMPAIGNS} 
         onNavigate={onNavigate} 
         onBack={onBack}
+        onLogout={onLogout}
       >
         <div className="flex flex-col items-center justify-center h-full text-danger/60">
           <span className="material-icons text-6xl mb-4">lock</span>
@@ -296,6 +299,7 @@ export const AdminCampaignsPage: React.FC<AdminCampaignsPageProps> = ({ onNaviga
       activeScreen={Screen.ADMIN_CAMPAIGNS} 
       onNavigate={onNavigate} 
       onBack={onBack}
+      onLogout={onLogout}
     >
       <div className="flex flex-col lg:flex-row h-full gap-6">
         {/* Left Column - Campaigns List */}
@@ -311,13 +315,6 @@ export const AdminCampaignsPage: React.FC<AdminCampaignsPageProps> = ({ onNaviga
                   {filteredCampaigns.length} de {campaigns.length} campañas
                 </p>
               </div>
-              <button 
-                onClick={onBack}
-                className="material-icons text-primary/60 hover:text-primary transition-colors"
-                aria-label="Volver"
-              >
-                arrow_back
-              </button>
             </div>
             
             {/* Search & Filter */}

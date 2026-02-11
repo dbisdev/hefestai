@@ -41,8 +41,9 @@ public class DocumentConfiguration : IEntityTypeConfiguration<Document>
             .HasColumnName("metadata");
 
         // pgvector column - Pgvector.Vector type maps automatically with UseVector()
+        // Using 3072 dimensions for gemini-embedding-001 model
         builder.Property(d => d.Embedding)
-            .HasColumnType("vector(768)")
+            .HasColumnType("vector(3072)")
             .HasColumnName("embedding");
 
         builder.Property(d => d.EmbeddingDimensions)

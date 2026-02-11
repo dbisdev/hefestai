@@ -29,7 +29,7 @@ import {
 /** Google GenAI model references using the new API style */
 const geminiModel = googleAI.model('gemini-2.0-flash');
 const geminiImageModel = googleAI.model('gemini-2.5-flash-image');
-const embeddingModel = googleAI.embedder('text-embedding-004');
+const embeddingModel = googleAI.embedder('gemini-embedding-001');
 
 /**
  * Strips markdown code fences from a string.
@@ -200,7 +200,7 @@ export const embeddingsFlow = ai.defineFlow(
     for (const text of input.texts) {
       const result = await ai.embed({
         embedder: embeddingModel,
-        content: text,
+        content: text,        
       });
       // Genkit returns array of objects with 'embedding' property
       const embeddingVector = Array.isArray(result) 
@@ -210,11 +210,11 @@ export const embeddingsFlow = ai.defineFlow(
       embeddings.push(embeddingVector);
     }
 
-    const dimensions = embeddings[0]?.length || 768;
+    const dimensions = embeddings[0]?.length || 3072;
 
     return {
       embeddings,
-      model: input.model || 'text-embedding-004',
+      model: input.model || 'gemini-embedding-001',
       dimensions,
     };
   }

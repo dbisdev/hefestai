@@ -40,11 +40,17 @@ public interface IDocumentRepository
     Task<bool> ExistsAsync(Guid id, CancellationToken cancellationToken = default);
     
     /// <summary>
-    /// Get documents that need embedding generation
+    /// Get documents that need embedding generation.
     /// </summary>
+    /// <param name="ownerId">The owner ID to filter documents.</param>
+    /// <param name="limit">Maximum number of documents to return.</param>
+    /// <param name="skipOwnerFilter">When true, skips owner filtering (for admin operations).</param>
+    /// <param name="cancellationToken">Cancellation token.</param>
+    /// <returns>List of documents without embeddings.</returns>
     Task<IReadOnlyList<Document>> GetDocumentsWithoutEmbeddingAsync(
         Guid ownerId,
         int limit = 10,
+        bool skipOwnerFilter = false,
         CancellationToken cancellationToken = default);
     
     /// <summary>

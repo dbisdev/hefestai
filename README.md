@@ -245,7 +245,7 @@ hefestai/
 | `/api/generate` | POST | Text generation (Gemini 2.0 Flash) |
 | `/api/chat` | POST | Multi-turn conversation |
 | `/api/summarize` | POST | Text summarization (concise/detailed/bullet-points) |
-| `/api/embeddings` | POST | Vector embeddings (text-embedding-004) |
+| `/api/embeddings` | POST | Vector embeddings (gemini-embedding-001) |
 | `/api/rag/generate` | POST | RAG-based generation |
 | `/api/generate-image` | POST | Image generation (Gemini 2.5 Flash) |
 | `/health` | GET | Health check |
@@ -447,7 +447,7 @@ npm run build
 |-------|---------|
 | Gemini 2.0 Flash | Text generation, chat, summarization |
 | Gemini 2.5 Flash | Image generation |
-| text-embedding-004 | Vector embeddings for RAG |
+| gemini-embedding-001 | Vector embeddings for RAG (3072 dimensions) |
 
 ### Database
 - **PostgreSQL 16** - Relational database

@@ -222,12 +222,14 @@ public class DocumentsController : ControllerBase
         CancellationToken cancellationToken)
     {
         var userId = GetCurrentUserId();
+        var isAdmin = IsCurrentUserAdmin();
 
         var command = new GenerateMissingEmbeddingsCommand(
             userId,
             request.BatchSize ?? 10,
             request.MaxDocuments ?? 100,
-            request.GameSystemId);
+            request.GameSystemId,
+            isAdmin);
 
         var result = await _mediator.Send(command, cancellationToken);
 
@@ -247,6 +249,17 @@ public class DocumentsController : ControllerBase
         }
 
         return userId;
+    }
+
+    /// <summary>
+    /// Checks if the current user has the Admin role.
+    /// </summary>
+    private bool IsCurrentUserAdmin()
+    {
+        var roleClaim = User.FindFirst("role")?.Value
+            ?? User.FindFirst(ClaimTypes.Role)?.Value;
+        
+        return roleClaim == "Admin";
     }
 }
 

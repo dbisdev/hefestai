@@ -14,9 +14,9 @@ import React, { useState, useEffect, useCallback, useRef, KeyboardEvent, forward
 import { TerminalLayout } from '@shared/components/layout';
 import { EntityEditModal } from '@shared/components/modals';
 import { useCampaign } from '@core/context';
-import { entityService } from '@core/services/api';
+import { entityService, entityTemplateService } from '@core/services/api';
 import { useCharacterSheetPdf } from '@core/hooks';
-import type { LoreEntity, User, EntityCategory, Campaign, CreateLoreEntityInput } from '@core/types';
+import type { LoreEntity, User, EntityCategory, Campaign, CreateLoreEntityInput, EntityTemplateSummary } from '@core/types';
 import { Screen, CampaignRole, VisibilityLevel } from '@core/types';
 
 interface GalleryPageProps {
@@ -61,6 +61,70 @@ const CATEGORY_TO_SCREEN: Record<EntityCategory, Screen> = {
   'encounter': Screen.ENCOUNTER_GEN,
 };
 
+/**
+ * Map template entityTypeName to the corresponding generator screen.
+ * Handles common variations and naming conventions.
+ * @param entityTypeName - The entity type name from the template
+ * @returns The corresponding Screen or null if not found
+ */
+const getScreenForTemplate = (entityTypeName: string): Screen | null => {
+  const mapping: Record<string, Screen> = {
+    'player_character': Screen.CHAR_GEN,
+    'character': Screen.CHAR_GEN,
+    'npc': Screen.NPC_GEN,
+    'non_player_character': Screen.NPC_GEN,
+    'actor': Screen.NPC_GEN,
+    'enemy': Screen.ENEMY_GEN,
+    'adversary': Screen.ENEMY_GEN,
+    'vehicle': Screen.VEHI_GEN,
+    'starship': Screen.VEHI_GEN,
+    'spacecraft': Screen.VEHI_GEN,
+    'solar_system': Screen.SOLAR_GEN,
+    'star_system': Screen.SOLAR_GEN,
+    'planet': Screen.SOLAR_GEN,
+    'mission': Screen.MISSION_GEN,
+    'quest': Screen.MISSION_GEN,
+    'encounter': Screen.ENCOUNTER_GEN,
+    'combat': Screen.ENCOUNTER_GEN,
+  };
+  return mapping[entityTypeName.toLowerCase()] || null;
+};
+
+/**
+ * Get a Material Icons icon name for a template based on its entityTypeName.
+ * Uses iconHint from template if available, otherwise falls back to defaults.
+ * @param template - The template summary
+ * @returns Material icon name
+ */
+const getIconForTemplate = (template: EntityTemplateSummary): string => {
+  // Use iconHint if available
+  if (template.iconHint) {
+    return template.iconHint;
+  }
+  
+  // Fallback based on entityTypeName
+  const icons: Record<string, string> = {
+    'player_character': 'face',
+    'character': 'face',
+    'npc': 'groups',
+    'non_player_character': 'groups',
+    'actor': 'groups',
+    'enemy': 'pest_control',
+    'adversary': 'dangerous',
+    'vehicle': 'rocket_launch',
+    'starship': 'rocket',
+    'spacecraft': 'flight',
+    'solar_system': 'public',
+    'star_system': 'public',
+    'planet': 'language',
+    'mission': 'assignment',
+    'quest': 'explore',
+    'encounter': 'swords',
+    'combat': 'sports_martial_arts',
+  };
+  return icons[template.entityTypeName.toLowerCase()] || 'category';
+};
+
 export const GalleryPage: React.FC<GalleryPageProps> = ({ user, onNavigate, onLogout }) => {
   const { 
     campaigns, 
@@ -82,6 +146,10 @@ export const GalleryPage: React.FC<GalleryPageProps> = ({ user, onNavigate, onLo
   const [showEditModal, setShowEditModal] = useState(false);
   const [transitionStatus, setTransitionStatus] = useState<'idle' | 'out' | 'in'>('idle');
   const [searchTerm, setSearchTerm] = useState<string>('');
+  
+  // Confirmed templates for the current campaign's game system (used for dynamic generator links)
+  const [confirmedTemplates, setConfirmedTemplates] = useState<EntityTemplateSummary[]>([]);
+  const [isLoadingTemplates, setIsLoadingTemplates] = useState(false);
   
   // Accessibility: Screen reader announcement state
   const [announcement, setAnnouncement] = useState<string>('');
@@ -137,6 +205,39 @@ export const GalleryPage: React.FC<GalleryPageProps> = ({ user, onNavigate, onLo
   useEffect(() => {
     loadEntities();
   }, [loadEntities]);
+
+  /**
+   * Load confirmed templates for the active campaign's game system.
+   * These templates are displayed in the GENERADORES sidebar section for Masters.
+   * Uses confirmedOnly=true to get all confirmed templates regardless of owner.
+   */
+  useEffect(() => {
+    const loadTemplates = async () => {
+      if (!activeCampaign?.gameSystemId) {
+        setConfirmedTemplates([]);
+        return;
+      }
+      
+      setIsLoadingTemplates(true);
+      try {
+        // Use confirmedOnly=true to get ALL confirmed templates for this game system
+        // (not filtered by owner, so any Master can see templates created by others)
+        const result = await entityTemplateService.getByGameSystem(
+          activeCampaign.gameSystemId,
+          undefined,  // no status filter
+          true        // confirmedOnly
+        );
+        setConfirmedTemplates(result.templates);
+      } catch (error) {
+        console.error('Failed to load templates:', error);
+        setConfirmedTemplates([]);
+      } finally {
+        setIsLoadingTemplates(false);
+      }
+    };
+    
+    loadTemplates();
+  }, [activeCampaign?.gameSystemId]);
 
   /**
    * Handle category tab change with transition effect
@@ -526,7 +627,6 @@ export const GalleryPage: React.FC<GalleryPageProps> = ({ user, onNavigate, onLo
       subtitle={`Usuario: ${user?.username} // ${activeCampaign ? `Campaña: ${activeCampaign.name}` : 'Sin campaña'}`} 
       onLogout={onLogout}
       gameSystemId={activeCampaign?.gameSystemId}
-      isMaster={isMaster}
       actions={
         <div className="flex items-center gap-2">
           {/* Campaign Selector Button */}
@@ -817,6 +917,49 @@ export const GalleryPage: React.FC<GalleryPageProps> = ({ user, onNavigate, onLo
                   )}
                 </button>
               ))}
+            </nav>
+          )}
+
+          {/* Generators Section - Master users only, when templates are available */}
+          {isMaster && user?.role !== 'ADMIN' && confirmedTemplates.length > 0 && (
+            <nav 
+              aria-label="Generadores de entidades"
+              className="flex flex-col gap-2"
+            >
+              <div className="p-1 border border-cyan-500/50 text-[10px] text-cyan-400 text-center uppercase mb-2 bg-cyan-500/5 font-bold tracking-[0.2em]">
+                :: GENERADORES ::
+              </div>
+              {isLoadingTemplates ? (
+                <div className="flex items-center justify-center p-4 text-cyan-500/60">
+                  <span className="material-icons text-sm animate-spin mr-2">sync</span>
+                  <span className="text-[10px] uppercase tracking-widest">Cargando...</span>
+                </div>
+              ) : (
+                confirmedTemplates.map((template) => {
+                  const screen = getScreenForTemplate(template.entityTypeName);
+                  const icon = getIconForTemplate(template);
+                  
+                  // Skip templates that don't have a corresponding generator screen
+                  if (!screen) return null;
+                  
+                  return (
+                    <button
+                      key={template.id}
+                      onClick={() => onNavigate(screen)}
+                      disabled={!activeCampaignId}
+                      className="group flex items-center gap-3 p-3 border border-cyan-500/30 hover:border-cyan-500 hover:bg-cyan-500/10 bg-surface-dark transition-all disabled:opacity-50"
+                      title={`Generar ${template.displayName}`}
+                    >
+                      <span className="material-icons text-xl text-cyan-500/60 group-hover:text-cyan-400">
+                        {icon}
+                      </span>
+                      <span className="hidden md:inline text-xs font-bold tracking-widest text-cyan-500/70 group-hover:text-cyan-400 truncate">
+                        {template.displayName.toUpperCase()}
+                      </span>
+                    </button>
+                  );
+                })
+              )}
             </nav>
           )}
 

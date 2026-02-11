@@ -64,7 +64,7 @@ export const SummarizeResponseSchema = z.object({
 // =============================================================================
 export const EmbeddingsRequestSchema = z.object({
   texts: z.array(z.string().min(1).max(8000)).min(1).max(100),
-  model: z.string().optional().default('text-embedding-004'),
+  model: z.string().optional().default('gemini-embedding-001'),
 });
 
 export const EmbeddingsResponseSchema = z.object({

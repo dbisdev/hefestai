@@ -24,6 +24,8 @@ interface TemplatesPageProps {
   onNavigate: (screen: Screen) => void;
   /** Handler for returning to gallery */
   onBack: () => void;
+  /** Handler for logging out */
+  onLogout?: () => void;
 }
 
 /**
@@ -33,7 +35,7 @@ interface TemplatesPageProps {
  * - View and edit template field definitions
  * - Confirm templates to make them available for entity creation
  */
-export const TemplatesPage: React.FC<TemplatesPageProps> = ({ onNavigate, onBack }) => {
+export const TemplatesPage: React.FC<TemplatesPageProps> = ({ onNavigate, onBack, onLogout }) => {
   const { user } = useAuth();
   
   // Data state
@@ -618,6 +620,7 @@ export const TemplatesPage: React.FC<TemplatesPageProps> = ({ onNavigate, onBack
         activeScreen={Screen.TEMPLATES} 
         onNavigate={onNavigate} 
         onBack={onBack}
+        onLogout={onLogout}
       >
         <div className="flex flex-col items-center justify-center h-full text-danger/60">
           <span className="material-icons text-6xl mb-4">lock</span>
@@ -633,6 +636,7 @@ export const TemplatesPage: React.FC<TemplatesPageProps> = ({ onNavigate, onBack
       activeScreen={Screen.TEMPLATES} 
       onNavigate={onNavigate} 
       onBack={onBack}
+      onLogout={onLogout}
     >
       <div className="flex flex-col lg:flex-row h-full gap-6">
         {/* Left Column - Game Systems & Templates List */}
@@ -644,13 +648,6 @@ export const TemplatesPage: React.FC<TemplatesPageProps> = ({ onNavigate, onBack
                 <span className="material-icons text-sm">sports_esports</span>
                 Sistema de Juego
               </h2>
-              <button 
-                onClick={onBack}
-                className="material-icons text-primary/60 hover:text-primary transition-colors text-sm"
-                aria-label="Volver"
-              >
-                arrow_back
-              </button>
             </div>
             
             {isLoadingGameSystems ? (

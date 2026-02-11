@@ -361,9 +361,9 @@ public class UploadManualCommandHandlerTests
                     throw new Exception("Embedding service unavailable");
                 }
                 return new EmbeddingsResult(
-                    Embeddings: Enumerable.Range(0, 5).Select(_ => new float[1536]).ToArray(),
-                    Model: "text-embedding-3-small",
-                    Dimensions: 1536);
+                    Embeddings: Enumerable.Range(0, 5).Select(_ => new float[3072]).ToArray(),
+                    Model: "gemini-embedding-001",
+                    Dimensions: 3072);
             });
 
         var command = new UploadManualCommand(
@@ -587,9 +587,9 @@ public class UploadManualCommandHandlerTests
             .Setup(x => x.GetEmbeddingsAsync(It.IsAny<IEnumerable<string>>(), It.IsAny<CancellationToken>()))
             .ReturnsAsync((IEnumerable<string> texts, CancellationToken _) =>
                 new EmbeddingsResult(
-                    Embeddings: texts.Select(_ => new float[1536]).ToArray(),
-                    Model: "text-embedding-3-small",
-                    Dimensions: 1536));
+                    Embeddings: texts.Select(_ => new float[3072]).ToArray(),
+                    Model: "gemini-embedding-001",
+                    Dimensions: 3072));
     }
 
     #endregion

@@ -5,3 +5,4 @@
 
 // Pages
 export { GalleryPage } from './pages/GalleryPage';
+export { MasterHubPage } from './pages/MasterHubPage';

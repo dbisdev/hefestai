@@ -7,7 +7,7 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { AuthProvider, useAuth, CampaignProvider } from '@core/context';
 import { LoginPage, SignupPage } from '@features/auth';
-import { GalleryPage } from '@features/gallery';
+import { GalleryPage, MasterHubPage } from '@features/gallery';
 import { 
   CharacterGeneratorPage, 
   SolarSystemGeneratorPage, 
@@ -21,7 +21,7 @@ import {
   GameSystemsPage,
   TemplatesPage
 } from '@features/generators';
-import { AdminUsersPage, AdminCampaignsPage } from '@features/admin';
+import { AdminUsersPage, AdminCampaignsPage, AdminSystemPage } from '@features/admin';
 import { AccessDenied, ErrorScreen } from '@shared/components/feedback';
 import { Screen } from '@core/types';
 
@@ -33,16 +33,24 @@ const AppContent: React.FC = () => {
   const [displayScreen, setDisplayScreen] = useState<Screen>(Screen.LOGIN);
   const [transitionStage, setTransitionStage] = useState<'idle' | 'out' | 'in'>('idle');
 
-  // Redirect to gallery if already authenticated
+  // Redirect to appropriate screen if already authenticated
+  // Admin users go to admin panel, Master users go to hub, Players go to gallery
   useEffect(() => {
     if (user && displayScreen === Screen.LOGIN) {
-      setDisplayScreen(Screen.GALLERY);
+      if (user.role === 'ADMIN') {
+        setDisplayScreen(Screen.ADMIN_USERS);
+      } else if (user.role === 'MASTER') {
+        setDisplayScreen(Screen.MASTER_HUB);
+      } else {
+        setDisplayScreen(Screen.GALLERY);
+      }
     }
   }, [user, displayScreen]);
 
   // Redirect to login if user logs out while on a protected screen
   useEffect(() => {
     const protectedScreens = [
+      Screen.MASTER_HUB,
       Screen.GALLERY, 
       Screen.CHAR_GEN, 
       Screen.SOLAR_GEN, 
@@ -56,7 +64,8 @@ const AppContent: React.FC = () => {
       Screen.GAME_SYSTEMS,
       Screen.TEMPLATES,
       Screen.ADMIN_USERS,
-      Screen.ADMIN_CAMPAIGNS
+      Screen.ADMIN_CAMPAIGNS,
+      Screen.ADMIN_SYSTEM
     ];
     if (!user && !isLoading && protectedScreens.includes(displayScreen)) {
       setDisplayScreen(Screen.LOGIN);
@@ -82,13 +91,17 @@ const AppContent: React.FC = () => {
     await logout();
   }, [logout]);
 
+  // Handle successful login - navigation is handled by useEffect based on user role
+  // This is intentionally a no-op; the useEffect watching 'user' handles redirection
   const handleLoginSuccess = useCallback(() => {
-    navigate(Screen.GALLERY);
-  }, [navigate]);
+    // Navigation handled by useEffect when user state updates
+    // Admin users → ADMIN_USERS, others → GALLERY
+  }, []);
 
+  // Handle successful signup - navigation is handled by useEffect based on user role
   const handleSignupSuccess = useCallback(() => {
-    navigate(Screen.GALLERY);
-  }, [navigate]);
+    // Navigation handled by useEffect when user state updates
+  }, []);
 
   const handleNavigate = useCallback((screen: Screen) => {
     const isMaster = user?.role === 'MASTER';
@@ -141,6 +154,15 @@ const AppContent: React.FC = () => {
           <SignupPage 
             onSignupSuccess={handleSignupSuccess} 
             onBack={() => navigate(Screen.LOGIN)} 
+          />
+        );
+      
+      // Master hub - landing page for Master users
+      case Screen.MASTER_HUB:
+        return (
+          <MasterHubPage 
+            onNavigate={handleNavigate}
+            onLogout={handleLogout}
           />
         );
       
@@ -201,7 +223,8 @@ const AppContent: React.FC = () => {
         return (
           <GameSystemsPage 
             onNavigate={handleNavigate} 
-            onBack={() => navigate(Screen.GALLERY)} 
+            onBack={() => navigate(Screen.GALLERY)}
+            onLogout={handleLogout}
           />
         );
       
@@ -210,7 +233,8 @@ const AppContent: React.FC = () => {
         return (
           <TemplatesPage 
             onNavigate={handleNavigate} 
-            onBack={() => navigate(Screen.GALLERY)} 
+            onBack={() => navigate(Screen.GALLERY)}
+            onLogout={handleLogout}
           />
         );
       
@@ -219,7 +243,8 @@ const AppContent: React.FC = () => {
         return (
           <AdminUsersPage 
             onNavigate={handleNavigate} 
-            onBack={() => navigate(Screen.GALLERY)} 
+            onBack={() => navigate(Screen.GALLERY)}
+            onLogout={handleLogout}
           />
         );
       
@@ -228,7 +253,18 @@ const AppContent: React.FC = () => {
         return (
           <AdminCampaignsPage 
             onNavigate={handleNavigate} 
-            onBack={() => navigate(Screen.GALLERY)} 
+            onBack={() => navigate(Screen.GALLERY)}
+            onLogout={handleLogout}
+          />
+        );
+      
+      // Admin system operations (Admin only - access control in component)
+      case Screen.ADMIN_SYSTEM:
+        return (
+          <AdminSystemPage 
+            onNavigate={handleNavigate} 
+            onBack={() => navigate(Screen.GALLERY)}
+            onLogout={handleLogout}
           />
         );
       

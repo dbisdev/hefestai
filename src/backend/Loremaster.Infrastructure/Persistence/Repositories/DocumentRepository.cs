@@ -90,13 +90,13 @@ public class DocumentRepository : IDocumentRepository
         
         // Build SQL with pgvector cosine distance
         // Note: cosine distance = 1 - cosine similarity, so we subtract from 1
-        // IMPORTANT: We cast to vector(768) explicitly to match the column definition
+        // IMPORTANT: We cast to vector(3072) explicitly to match the column definition (gemini-embedding-001)
         // Note: Table/column names use snake_case to match migration
         var sql = @"
-            SELECT d.*, (1 - (d.embedding <=> @embedding::vector(768))) as similarity
+            SELECT d.*, (1 - (d.embedding <=> @embedding::vector(3072))) as similarity
             FROM public.documents d
             WHERE d.embedding IS NOT NULL
-            AND (1 - (d.embedding <=> @embedding::vector(768))) >= @threshold";
+            AND (1 - (d.embedding <=> @embedding::vector(3072))) >= @threshold";
         
         // Add owner filter unless skipped (for admin operations)
         if (!skipOwnerFilter)
@@ -110,7 +110,7 @@ public class DocumentRepository : IDocumentRepository
         }
         
         sql += @"
-            ORDER BY d.embedding <=> @embedding::vector(768)
+            ORDER BY d.embedding <=> @embedding::vector(3072)
             LIMIT @limit";
 
         var parameters = new List<NpgsqlParameter>
@@ -208,12 +208,20 @@ public class DocumentRepository : IDocumentRepository
     public async Task<IReadOnlyList<Document>> GetDocumentsWithoutEmbeddingAsync(
         Guid ownerId,
         int limit = 10,
+        bool skipOwnerFilter = false,
         CancellationToken cancellationToken = default)
     {
-        return await _context.Documents
-            .Where(d => d.OwnerId == ownerId 
-                && d.Embedding == null 
-                && d.Content.Length <= MaxEmbeddingContentLength)
+        var query = _context.Documents
+            .Where(d => d.Embedding == null 
+                && d.Content.Length <= MaxEmbeddingContentLength);
+        
+        // Apply owner filter unless admin override
+        if (!skipOwnerFilter)
+        {
+            query = query.Where(d => d.OwnerId == ownerId);
+        }
+
+        return await query
             .OrderBy(d => d.CreatedAt)
             .Take(limit)
             .ToListAsync(cancellationToken);

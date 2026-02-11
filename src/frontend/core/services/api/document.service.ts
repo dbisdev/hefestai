@@ -105,6 +105,28 @@ export interface UploadManualParams {
   version?: string;
 }
 
+/**
+ * Result of generating missing embeddings
+ */
+export interface GenerateMissingEmbeddingsResult {
+  totalProcessed: number;
+  successCount: number;
+  failureCount: number;
+  errors: string[];
+}
+
+/**
+ * Parameters for generating missing embeddings
+ */
+export interface GenerateMissingEmbeddingsParams {
+  /** Number of documents to process per batch (default: 10) */
+  batchSize?: number;
+  /** Maximum total documents to process (default: 100) */
+  maxDocuments?: number;
+  /** Optional game system ID to filter documents */
+  gameSystemId?: string;
+}
+
 export const documentService = {
   /**
    * Perform semantic search across documents.
@@ -175,5 +197,20 @@ export const documentService = {
     }
 
     return response.json();
+  },
+
+  /**
+   * Generate embeddings for documents that don't have them.
+   * Admin operation to backfill embeddings after migration or manual imports.
+   * 
+   * @param params - Parameters for batch processing
+   * @returns Result with success/failure counts
+   */
+  async generateMissingEmbeddings(params: GenerateMissingEmbeddingsParams = {}): Promise<GenerateMissingEmbeddingsResult> {
+    return httpClient.post<GenerateMissingEmbeddingsResult>('/documents/embeddings/generate', {
+      batchSize: params.batchSize ?? 10,
+      maxDocuments: params.maxDocuments ?? 100,
+      gameSystemId: params.gameSystemId,
+    });
   },
 };

@@ -17,6 +17,8 @@ interface AdminUsersPageProps {
   onNavigate: (screen: Screen) => void;
   /** Handler for returning to gallery */
   onBack: () => void;
+  /** Handler for logging out */
+  onLogout?: () => void;
 }
 
 /**
@@ -27,7 +29,7 @@ interface AdminUsersPageProps {
  * - Edit existing users (role, status, password)
  * - Delete (soft delete) users
  */
-export const AdminUsersPage: React.FC<AdminUsersPageProps> = ({ onNavigate, onBack }) => {
+export const AdminUsersPage: React.FC<AdminUsersPageProps> = ({ onNavigate, onBack, onLogout }) => {
   const { user: currentUser } = useAuth();
   
   // Data state
@@ -291,6 +293,7 @@ role: AdminUserRole.Player,
         activeScreen={Screen.ADMIN_USERS} 
         onNavigate={onNavigate} 
         onBack={onBack}
+        onLogout={onLogout}
       >
         <div className="flex flex-col items-center justify-center h-full text-danger/60">
           <span className="material-icons text-6xl mb-4">lock</span>
@@ -306,6 +309,7 @@ role: AdminUserRole.Player,
       activeScreen={Screen.ADMIN_USERS} 
       onNavigate={onNavigate} 
       onBack={onBack}
+      onLogout={onLogout}
     >
       <div className="flex flex-col lg:flex-row h-full gap-6">
         {/* Left Column - Users List */}
@@ -330,15 +334,8 @@ role: AdminUserRole.Player,
                   variant={showCreateForm ? 'secondary' : 'primary'}
                   size="sm"
                 >
-                  {showCreateForm ? 'CANCELAR' : '+ NUEVO'}
-                </Button>
-                <button 
-                  onClick={onBack}
-                  className="material-icons text-primary/60 hover:text-primary transition-colors"
-                  aria-label="Volver"
-                >
-                  arrow_back
-                </button>
+                  {showCreateForm ? 'CANCELAR' : '+ NUEVO USUARIO'}
+                </Button>                
               </div>
             </div>
             

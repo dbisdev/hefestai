@@ -33,8 +33,8 @@ public class GenerateMissingEmbeddingsCommandHandler
         CancellationToken cancellationToken)
     {
         _logger.LogInformation(
-            "Starting embedding generation for owner {OwnerId}, batch size: {BatchSize}, max: {MaxDocuments}",
-            request.OwnerId, request.BatchSize, request.MaxDocuments);
+            "Starting embedding generation for owner {OwnerId}, batch size: {BatchSize}, max: {MaxDocuments}, isAdmin: {IsAdmin}",
+            request.OwnerId, request.BatchSize, request.MaxDocuments, request.IsAdmin);
 
         var errors = new List<string>();
         var totalProcessed = 0;
@@ -51,6 +51,7 @@ public class GenerateMissingEmbeddingsCommandHandler
             var documents = await _documentRepository.GetDocumentsWithoutEmbeddingAsync(
                 request.OwnerId,
                 batchLimit,
+                skipOwnerFilter: request.IsAdmin,
                 cancellationToken);
 
             if (documents.Count == 0)

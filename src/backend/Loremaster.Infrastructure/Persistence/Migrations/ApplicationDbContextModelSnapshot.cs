@@ -210,7 +210,7 @@ namespace Loremaster.Infrastructure.Persistence.Migrations
                         .HasColumnName("created_by");
 
                     b.Property<Vector>("Embedding")
-                        .HasColumnType("vector(768)")
+                        .HasColumnType("vector(3072)")
                         .HasColumnName("embedding");
 
                     b.Property<int?>("EmbeddingDimensions")
