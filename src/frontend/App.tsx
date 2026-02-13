@@ -9,6 +9,7 @@ import { AuthProvider, useAuth, CampaignProvider } from '@core/context';
 import { Home, LoginPage, SignupPage } from '@features/auth';
 import { GalleryPage, MasterHubPage } from '@features/gallery';
 import { CampaignListPage } from '@features/campaigns';
+import { InvitationsPage } from '@features/invitations';
 import { 
   CharacterGeneratorPage, 
   SolarSystemGeneratorPage, 
@@ -65,6 +66,7 @@ const AppContent: React.FC = () => {
       Screen.CAMPAIGN_SETTINGS,
       Screen.GAME_SYSTEMS,
       Screen.TEMPLATES,
+      Screen.INVITATIONS,
       Screen.ADMIN_USERS,
       Screen.ADMIN_CAMPAIGNS,
       Screen.ADMIN_SYSTEM
@@ -249,6 +251,15 @@ const AppContent: React.FC = () => {
           <TemplatesPage 
             onNavigate={handleNavigate} 
             onBack={() => navigate(Screen.GALLERY)}
+            onLogout={handleLogout}
+          />
+        );
+      
+      // Invitations page - join campaigns and manage invitation codes
+      case Screen.INVITATIONS:
+        return (
+          <InvitationsPage 
+            onNavigate={handleNavigate} 
             onLogout={handleLogout}
           />
         );

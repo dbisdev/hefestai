@@ -3,6 +3,7 @@ using Loremaster.Application.Features.Documents.Commands.IngestDocument;
 using Loremaster.Application.Features.Documents.Commands.UploadManual;
 using Loremaster.Application.Features.Documents.DTOs;
 using Loremaster.Application.Features.Documents.Queries.GetManual;
+using Loremaster.Application.Features.Documents.Queries.GetManualsByGameSystem;
 using Loremaster.Application.Features.Documents.Queries.SemanticSearch;
 using Loremaster.Domain.Enums;
 using MediatR;
@@ -165,6 +166,35 @@ public class DocumentsController : ControllerBase
     }
 
     /// <summary>
+    /// Get all manuals for a game system with chunk counts.
+    /// Used to check if a game system has documents available for RAG search.
+    /// </summary>
+    /// <param name="gameSystemId">The game system ID.</param>
+    /// <param name="cancellationToken">Cancellation token.</param>
+    /// <returns>List of manuals with chunk counts.</returns>
+    [HttpGet("game-systems/{gameSystemId:guid}/manuals")]
+    [ProducesResponseType(typeof(IReadOnlyList<ManualSummaryDto>), StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status401Unauthorized)]
+    public async Task<ActionResult<IReadOnlyList<ManualSummaryDto>>> GetManualsByGameSystem(
+        [FromRoute] Guid gameSystemId,
+        CancellationToken cancellationToken)
+    {
+        var userId = GetCurrentUserId();
+
+        var query = new GetManualsByGameSystemQuery(gameSystemId, userId);
+        var results = await _mediator.Send(query, cancellationToken);
+
+        return Ok(results.Select(r => new ManualSummaryDto(
+            r.Id,
+            r.GameSystemId,
+            r.Title,
+            r.ChunkCount,
+            r.SourceType ?? RagSourceType.Rulebook,
+            r.Version,
+            r.CreatedAt)));
+    }
+
+    /// <summary>
     /// Bulk ingest multiple documents
     /// </summary>
     [HttpPost("ingest/bulk")]
@@ -315,6 +345,18 @@ public record ManualDto(
     Guid GameSystemId,
     string Title,
     int PageCount,
+    int ChunkCount,
+    RagSourceType SourceType,
+    string? Version,
+    DateTime CreatedAt);
+
+/// <summary>
+/// Summary DTO for manual listing (without page count).
+/// </summary>
+public record ManualSummaryDto(
+    Guid Id,
+    Guid GameSystemId,
+    string Title,
     int ChunkCount,
     RagSourceType SourceType,
     string? Version,

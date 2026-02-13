@@ -127,6 +127,7 @@ export const SolarSystemGeneratorPage: React.FC<SolarSystemGeneratorPageProps> =
       onLogout={onLogout}
       onNavigate={onNavigate}
       gameSystemId={activeCampaign?.gameSystemId}
+      hideCampaignSelector={false}
     >
       <div className="flex flex-col lg:flex-row gap-6 h-full overflow-hidden font-mono">
         {/* Controls Panel */}

@@ -13,6 +13,14 @@ export enum CampaignRole {
 }
 
 /**
+ * Game system summary for embedded display
+ */
+export interface GameSystemSummary {
+  id: string;
+  name: string;
+}
+
+/**
  * Campaign summary DTO matching backend CampaignDto
  */
 export interface Campaign {
@@ -20,6 +28,10 @@ export interface Campaign {
   name: string;
   description?: string;
   gameSystemId: string;
+  /** Game system details (when included in response) */
+  gameSystem?: GameSystemSummary;
+  /** Join code for the campaign (visible to Masters) */
+  joinCode?: string;
   isActive: boolean;
   userRole?: CampaignRole;
   createdAt: string;

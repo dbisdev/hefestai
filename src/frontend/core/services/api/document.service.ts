@@ -74,6 +74,19 @@ export interface ManualDto {
 }
 
 /**
+ * Manual summary DTO (for listing without page count)
+ */
+export interface ManualSummaryDto {
+  id: string;
+  gameSystemId: string;
+  title: string;
+  chunkCount: number;
+  sourceType: 'Rulebook' | 'Supplement' | 'Custom';
+  version?: string;
+  createdAt: string;
+}
+
+/**
  * RAG source type enum
  */
 export type RagSourceType = 'Rulebook' | 'Supplement' | 'Custom';
@@ -158,6 +171,17 @@ export const documentService = {
    */
   async getManual(gameSystemId: string, manualId: string): Promise<ManualDto> {
     return httpClient.get<ManualDto>(`/documents/game-systems/${gameSystemId}/manuals/${manualId}`);
+  },
+
+  /**
+   * Get all manuals for a game system.
+   * Used to check if a game system has documents available for RAG search.
+   * 
+   * @param gameSystemId - The game system ID
+   * @returns List of manuals with chunk counts
+   */
+  async getManualsByGameSystem(gameSystemId: string): Promise<ManualSummaryDto[]> {
+    return httpClient.get<ManualSummaryDto[]>(`/documents/game-systems/${gameSystemId}/manuals`);
   },
 
   /**

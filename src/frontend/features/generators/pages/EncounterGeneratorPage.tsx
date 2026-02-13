@@ -217,6 +217,7 @@ export const EncounterGeneratorPage: React.FC<EncounterGeneratorPageProps> = ({ 
       onLogout={onLogout}
       onNavigate={onNavigate}
       gameSystemId={activeCampaign?.gameSystemId}
+      hideCampaignSelector={false}
     >
       <div className="flex flex-col lg:flex-row gap-8 h-full font-mono">
         {/* Form Panel */}

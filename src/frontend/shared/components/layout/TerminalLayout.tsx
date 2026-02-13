@@ -62,7 +62,7 @@ export const TerminalLayout: React.FC<TerminalLayoutProps> = ({
   actions,
   gameSystemId,
   gameSystemName,
-  hideCampaignSelector = false,
+  hideCampaignSelector = true,
   hideBackToHub = false
 }) => {
   const [showDice, setShowDice] = useState(false);
@@ -136,7 +136,7 @@ export const TerminalLayout: React.FC<TerminalLayoutProps> = ({
             <div className="flex items-center gap-2 flex-wrap">
               {/* Subtitle with username */}
               <p className="text-[10px] md:text-xs text-primary/60 uppercase tracking-wider">
-                USER: {user?.username || 'Usuario'}
+                . {/* USER: {user?.username || 'Usuario'} */}
               </p>
               
               {/* Campaign Selector Button */}
@@ -188,7 +188,7 @@ export const TerminalLayout: React.FC<TerminalLayoutProps> = ({
             className="flex items-center gap-2 border border-primary/40 px-2 md:px-3 py-1 text-xs uppercase hover:bg-primary/20 transition-all text-primary font-bold"
             aria-label="Consultar reglas"
           >
-            <span className="material-icons text-sm">menu_book</span>
+            <span className="material-icons text-sm">auto_stories</span>
             <span className="hidden sm:inline">REGLAS</span>
           </button>
 
@@ -199,7 +199,7 @@ export const TerminalLayout: React.FC<TerminalLayoutProps> = ({
           {!hideBackToHub && onNavigate && (
             <button 
               onClick={handleBackToHub}
-              className="flex items-center gap-2 border border-primary/40 px-2 md:px-3 py-1 text-xs uppercase hover:bg-primary/20 transition-all text-primary font-bold"
+              className="flex items-center gap-2 border  px-2 md:px-3 py-1 text-xs uppercase border-cyan-500/30 hover:border-cyan-500 hover:bg-cyan-500/40 transition-all font-bold text-cyan-500 group-hover:text-cyan-400"
               aria-label="Volver al hub"
             >
               <span className="material-icons text-sm">home</span>
@@ -211,7 +211,7 @@ export const TerminalLayout: React.FC<TerminalLayoutProps> = ({
           {onLogout && (
             <button 
               onClick={onLogout}
-              className="border border-red-500/60 px-2 md:px-4 py-1 text-xs uppercase hover:bg-red-500 hover:text-black transition-colors text-red-500 font-bold"
+              className="border border-red-500/60 px-2 md:px-4 py-1.5 text-xs uppercase hover:bg-red-500 hover:text-black transition-colors text-red-500 font-bold"
               aria-label="Cerrar sesión"
             >
               <span className="material-icons text-sm md:hidden">logout</span>
@@ -295,6 +295,15 @@ export const TerminalLayout: React.FC<TerminalLayoutProps> = ({
                   >
                     + NUEVA
                   </button>
+                  <button
+                    onClick={() => {
+                      setShowCampaignSelector(false);
+                      onNavigate(Screen.INVITATIONS);
+                    }}
+                    className="flex-1 p-2 text-[10px] text-primary/60 hover:text-primary hover:bg-primary/10 transition-colors uppercase tracking-wider text-center"
+                  >
+                    UNIRSE
+                  </button>
                   {activeCampaign && user?.role === 'MASTER' && (
                     <button
                       onClick={() => {
@@ -323,7 +332,7 @@ export const TerminalLayout: React.FC<TerminalLayoutProps> = ({
         {/* Left: User Role and System Status */}
         <div className="flex gap-3 md:gap-4 items-center">
           <span className="text-primary/60 font-bold">
-            ROL: {getUserRoleDisplay()}
+            {user?.username || 'Usuario'} // {getUserRoleDisplay()}
           </span>
           <span className="hidden sm:inline">CONEXION: SEGURA</span>
           <span className="hidden md:inline">ENCRIPTACION: AES-4096</span>

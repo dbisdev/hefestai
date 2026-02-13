@@ -59,7 +59,7 @@ interface CampaignProviderProps {
 const DEFAULT_GAME_SYSTEM_ID = '00000000-0000-0000-0000-000000000001';
 
 export const CampaignProvider: React.FC<CampaignProviderProps> = ({ children }) => {
-  const { user, isAuthenticated } = useAuth();
+  const { user, isAuthenticated, isLoading: isAuthLoading } = useAuth();
   const [campaigns, setCampaigns] = useState<Campaign[]>([]);
   const [activeCampaign, setActiveCampaign] = useState<CampaignDetail | null>(null);
   const [isLoading, setIsLoading] = useState(false);
@@ -335,15 +335,20 @@ export const CampaignProvider: React.FC<CampaignProviderProps> = ({ children }) 
     setError(null);
   }, []);
 
-  // Fetch campaigns when user authenticates
+  // Fetch campaigns when user authenticates (wait for auth to finish loading first)
   useEffect(() => {
+    // Don't fetch while auth is still loading - wait for verification to complete
+    if (isAuthLoading) {
+      return;
+    }
+    
     if (isAuthenticated) {
       fetchCampaigns();
     } else {
       setCampaigns([]);
       setActiveCampaign(null);
     }
-  }, [isAuthenticated]);
+  }, [isAuthenticated, isAuthLoading]);
 
   // Derived values
   const isActiveCampaignMaster = activeCampaign?.userRole === 1; // CampaignRole.Master = 1

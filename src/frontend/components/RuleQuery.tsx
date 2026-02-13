@@ -3,23 +3,33 @@
  * Provides RAG-powered semantic search across game system manuals.
  * Allows users to ask natural language questions about rules and lore.
  * 
- * Accessibility Features:
+ * Features:
  * - Full keyboard navigation (Tab, Escape)
  * - ARIA labels and roles for screen readers
  * - Focus management for modal dialog
  * - Live region announcements for search results
+ * - GameSystem selector (always visible, pre-selects campaign's system)
+ * - Only shows game systems that have RAG documents
  */
 
 import React, { useState, useRef, useEffect, useCallback, KeyboardEvent } from 'react';
-import { documentService } from '../core/services/api';
-import type { DocumentSearchResult, SemanticSearchResult } from '../core/services/api';
+import { documentService, gameSystemService } from '../core/services/api';
+import type { DocumentSearchResult, SemanticSearchResult, ManualSummaryDto } from '../core/services/api';
+import type { GameSystem } from '../core/types';
+
+/**
+ * Game system with document availability info
+ */
+interface GameSystemWithDocs extends GameSystem {
+  documentCount: number;
+}
 
 interface RuleQueryProps {
   /** Callback to close the modal */
   onClose: () => void;
-  /** Optional game system ID to filter search results */
+  /** Optional game system ID to pre-select (from campaign) */
   gameSystemId?: string;
-  /** Optional game system name for display */
+  /** Optional game system name for display (unused, kept for compatibility) */
   gameSystemName?: string;
 }
 
@@ -28,8 +38,12 @@ interface RuleQueryProps {
  * 
  * Displays a search interface for querying game rules using RAG.
  * Results include relevant document excerpts and optionally an AI-generated answer.
+ * Shows a GameSystem selector with only systems that have documents loaded.
  */
-const RuleQuery: React.FC<RuleQueryProps> = ({ onClose, gameSystemId, gameSystemName }) => {
+const RuleQuery: React.FC<RuleQueryProps> = ({ onClose, gameSystemId: propGameSystemId }) => {
+  // Normalize empty string to undefined for consistent falsy checks
+  const initialGameSystemId = propGameSystemId || undefined;
+  
   // State
   const [query, setQuery] = useState('');
   const [isLoading, setIsLoading] = useState(false);
@@ -39,6 +53,11 @@ const RuleQuery: React.FC<RuleQueryProps> = ({ onClose, gameSystemId, gameSystem
   const [showSettings, setShowSettings] = useState(false);
   const [threshold, setThreshold] = useState(0.6);
   const [resultLimit, setResultLimit] = useState(6);
+  
+  // GameSystem selector state - always load all systems with their document counts
+  const [gameSystemsWithDocs, setGameSystemsWithDocs] = useState<GameSystemWithDocs[]>([]);
+  const [selectedGameSystemId, setSelectedGameSystemId] = useState<string>('');
+  const [isLoadingGameSystems, setIsLoadingGameSystems] = useState(true);
 
   // Refs for focus management
   const inputRef = useRef<HTMLInputElement>(null);
@@ -46,6 +65,11 @@ const RuleQuery: React.FC<RuleQueryProps> = ({ onClose, gameSystemId, gameSystem
 
   // Accessibility announcement
   const [announcement, setAnnouncement] = useState('');
+
+  // Computed: get current selected system's document count
+  const selectedSystem = gameSystemsWithDocs.find(gs => gs.id === selectedGameSystemId);
+  const hasDocuments = selectedSystem ? selectedSystem.documentCount > 0 : false;
+  const documentCount = selectedSystem?.documentCount ?? 0;
 
   /**
    * Announce to screen readers
@@ -72,11 +96,67 @@ const RuleQuery: React.FC<RuleQueryProps> = ({ onClose, gameSystemId, gameSystem
   }, []);
 
   /**
+   * Load all game systems and their document counts on mount.
+   * Pre-selects the campaign's game system if available, otherwise first with documents.
+   */
+  useEffect(() => {
+    const loadGameSystemsWithDocs = async () => {
+      setIsLoadingGameSystems(true);
+      try {
+        // Load all game systems
+        const systems = await gameSystemService.getAll();
+        
+        // Load document counts for each system in parallel
+        const systemsWithCounts = await Promise.all(
+          systems.map(async (system): Promise<GameSystemWithDocs> => {
+            try {
+              const manuals = await documentService.getManualsByGameSystem(system.id);
+              const totalChunks = manuals.reduce((sum, m) => sum + m.chunkCount, 0);
+              return { ...system, documentCount: totalChunks };
+            } catch {
+              return { ...system, documentCount: 0 };
+            }
+          })
+        );
+        
+        setGameSystemsWithDocs(systemsWithCounts);
+        
+        // Pre-select: campaign's system if provided, otherwise first with documents
+        if (systemsWithCounts.length > 0) {
+          if (initialGameSystemId && systemsWithCounts.some(s => s.id === initialGameSystemId)) {
+            setSelectedGameSystemId(initialGameSystemId);
+          } else {
+            // Select first system with documents, or first system if none have docs
+            const firstWithDocs = systemsWithCounts.find(s => s.documentCount > 0);
+            setSelectedGameSystemId(firstWithDocs?.id || systemsWithCounts[0].id);
+          }
+        }
+      } catch (err) {
+        console.error('Failed to load game systems:', err);
+      } finally {
+        setIsLoadingGameSystems(false);
+      }
+    };
+    
+    loadGameSystemsWithDocs();
+  }, [initialGameSystemId]);
+
+  /**
    * Perform semantic search
    */
   const handleSearch = async () => {
     if (!query.trim()) {
-      setError('Please enter a search query');
+      setError('Por favor, introduce una consulta');
+      return;
+    }
+
+    if (!selectedGameSystemId) {
+      setError('Por favor, selecciona un sistema de juego');
+      return;
+    }
+
+    if (!hasDocuments) {
+      setError('El sistema de juego seleccionado no tiene manuales cargados.');
       return;
     }
 
@@ -87,7 +167,7 @@ const RuleQuery: React.FC<RuleQueryProps> = ({ onClose, gameSystemId, gameSystem
     try {
       const searchResult = await documentService.semanticSearch({
         query: query.trim(),
-        gameSystemId,
+        gameSystemId: selectedGameSystemId,
         generateAnswer,
         limit: resultLimit,
         threshold,
@@ -158,17 +238,58 @@ const RuleQuery: React.FC<RuleQueryProps> = ({ onClose, gameSystemId, gameSystem
         onClick={(e) => e.stopPropagation()}
       >
         {/* Header */}
-        <div className="border-b border-primary/30 p-4 flex justify-between items-center">
-          <div>
+        <div className="border-b border-primary/30 p-4 flex justify-between items-start">
+          <div className="flex-1">
             <h2
               id="rule-query-title"
               className="text-xl font-display uppercase tracking-wider text-primary text-glow"
             >
               CONSULTA DE REGLAS
             </h2>
-            <p className="text-xs text-primary/60 uppercase tracking-wider mt-1">
-              {gameSystemName ? `Sistema: ${gameSystemName}` : 'Búsqueda Semántica en Manuales'}
-            </p>
+            {/* Game System Selector - always visible */}
+            <div className="flex items-center gap-2 mt-2 flex-wrap">
+              <label className="text-xs text-primary/60 uppercase tracking-wider">
+                Sistema:
+              </label>
+              {isLoadingGameSystems ? (
+                <span className="text-xs text-primary/40 italic">Cargando sistemas...</span>
+              ) : gameSystemsWithDocs.length === 0 ? (
+                <span className="text-xs text-red-400 flex items-center gap-1">
+                  <span className="material-icons text-xs">warning</span>
+                  No hay sistemas disponibles
+                </span>
+              ) : (
+                <>
+                  <select
+                    value={selectedGameSystemId}
+                    onChange={(e) => setSelectedGameSystemId(e.target.value)}
+                    className="bg-black/50 border border-primary/40 px-2 py-1 text-xs text-primary focus:border-primary focus:outline-none font-mono"
+                    aria-label="Seleccionar sistema de juego"
+                  >
+                    {gameSystemsWithDocs.map((gs) => (
+                      <option 
+                        key={gs.id} 
+                        value={gs.id}                        
+                      >
+                        {gs.name}
+                      </option>
+                    ))}
+                  </select>
+                  {/* Document availability indicator */}
+                  {hasDocuments ? (
+                    <span className="text-xs text-green-400 flex items-center gap-1">
+                      <span className="material-icons text-xs">check_circle</span>
+                      {documentCount} fragmentos
+                    </span>
+                  ) : (
+                    <span className="text-xs text-red-400 flex items-center gap-1">
+                      <span className="material-icons text-xs">warning</span>
+                      Sin manuales cargados
+                    </span>
+                  )}
+                </>
+              )}
+            </div>
           </div>
           <button
             onClick={onClose}
@@ -194,7 +315,7 @@ const RuleQuery: React.FC<RuleQueryProps> = ({ onClose, gameSystemId, gameSystem
             />
             <button
               type="submit"
-              disabled={isLoading || !query.trim()}
+              disabled={isLoading || !query.trim() || !hasDocuments || isLoadingGameSystems}
               className="border border-primary px-3 py-3 text-xs uppercase hover:bg-primary hover:text-black transition-colors text-primary font-bold disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
               aria-label="Buscar"
             >

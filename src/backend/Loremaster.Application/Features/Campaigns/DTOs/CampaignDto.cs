@@ -5,6 +5,30 @@ using Loremaster.Domain.Enums;
 namespace Loremaster.Application.Features.Campaigns.DTOs;
 
 /// <summary>
+/// Summary of a game system for embedded display.
+/// </summary>
+public record GameSystemSummaryDto
+{
+    public Guid Id { get; init; }
+    public string Name { get; init; } = null!;
+
+    /// <summary>
+    /// Creates a GameSystemSummaryDto from a GameSystem entity.
+    /// </summary>
+    /// <param name="gameSystem">The game system entity.</param>
+    /// <returns>A GameSystemSummaryDto instance, or null if the input is null.</returns>
+    public static GameSystemSummaryDto? FromEntity(GameSystem? gameSystem)
+    {
+        if (gameSystem == null) return null;
+        return new GameSystemSummaryDto
+        {
+            Id = gameSystem.Id,
+            Name = gameSystem.Name
+        };
+    }
+}
+
+/// <summary>
 /// Basic campaign information for list views.
 /// </summary>
 public record CampaignDto
@@ -13,6 +37,10 @@ public record CampaignDto
     public string Name { get; init; } = null!;
     public string? Description { get; init; }
     public Guid GameSystemId { get; init; }
+    /// <summary>
+    /// Game system details (when included in response).
+    /// </summary>
+    public GameSystemSummaryDto? GameSystem { get; init; }
     public bool IsActive { get; init; }
     public CampaignRole? UserRole { get; init; }
     public DateTime CreatedAt { get; init; }
@@ -31,6 +59,7 @@ public record CampaignDto
             Name = campaign.Name,
             Description = campaign.Description,
             GameSystemId = campaign.GameSystemId,
+            GameSystem = GameSystemSummaryDto.FromEntity(campaign.GameSystem),
             IsActive = campaign.IsActive,
             UserRole = userRole,
             CreatedAt = campaign.CreatedAt
@@ -48,6 +77,10 @@ public record CampaignDetailDto
     public string? Description { get; init; }
     public Guid OwnerId { get; init; }
     public Guid GameSystemId { get; init; }
+    /// <summary>
+    /// Game system details (when included in response).
+    /// </summary>
+    public GameSystemSummaryDto? GameSystem { get; init; }
     
     /// <summary>
     /// Only visible to campaign Masters.
@@ -77,6 +110,7 @@ public record CampaignDetailDto
             Description = campaign.Description,
             OwnerId = campaign.OwnerId,
             GameSystemId = campaign.GameSystemId,
+            GameSystem = GameSystemSummaryDto.FromEntity(campaign.GameSystem),
             // Only Masters can see the join code
             JoinCode = userRole == CampaignRole.Master ? campaign.JoinCode : null,
             IsActive = campaign.IsActive,

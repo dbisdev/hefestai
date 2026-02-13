@@ -51,6 +51,14 @@ const HUB_PANELS: HubPanel[] = [
     description: 'Crea y administra tus hilos narrativos. Controla el progreso de los operativos en tiempo real.'
   },
   {
+    id: Screen.INVITATIONS,
+    title: 'Invitaciones',
+    subtitle: 'Códigos de acceso y unión a campañas',
+    icon: 'mail',
+    color: 'border-primary/20',
+    description: 'Únete a campañas usando códigos de acceso. Comparte tu código de Master con nuevos jugadores.'
+  },
+  {
     id: Screen.GAME_SYSTEMS,
     title: 'Sistemas de Juego',
     subtitle: 'Configuración de reglas y mecánicas',
@@ -102,22 +110,22 @@ export const MasterHubPage: React.FC<MasterHubPageProps> = ({ onNavigate, onLogo
           </div>
 
           {/* Navigation Panels Grid */}
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-8 w-full max-w-6xl mb-12">
+          <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-6 w-full max-w-7xl mb-12">
             {HUB_PANELS.map((panel) => (
               <button
                 key={panel.id}
                 onClick={() => onNavigate(panel.id)}
-                className={`group relative bg-surface-dark/40 border ${panel.color} p-8 text-left transition-all duration-700 hover:scale-[1.01] hover:bg-surface-dark/80 hover:shadow-[0_0_20px_rgba(37,244,106,0.03)] clip-tech-br flex flex-col md:min-h-[350px] min-h-[250px] overflow-hidden`}
+                className={`group relative bg-surface-dark/40 border ${panel.color} p-6 text-left transition-all duration-700 hover:scale-[1.01] hover:bg-surface-dark/80 hover:shadow-[0_0_20px_rgba(37,244,106,0.03)] clip-tech-br flex flex-col md:min-h-[280px] min-h-[220px] overflow-hidden`}
               >
                 {/* Panel Header - Icon and Title inline */}
-                <div className="mb-6">
-                  <div className="flex items-center gap-4 mb-3">
-                    <div className="w-14 h-14 shrink-0 border border-primary/10 flex items-center justify-center bg-primary/5 group-hover:bg-primary/10 transition-colors duration-700">
-                      <span className="material-icons text-primary/40 group-hover:text-primary/80 text-3xl transition-all">
+                <div className="mb-4">
+                  <div className="flex items-center gap-3 mb-2">
+                    <div className="w-12 h-12 shrink-0 border border-primary/10 flex items-center justify-center bg-primary/5 group-hover:bg-primary/10 transition-colors duration-700">
+                      <span className="material-icons text-primary/40 group-hover:text-primary/80 text-2xl transition-all">
                         {panel.icon}
                       </span>
                     </div>
-                    <h3 className="text-2xl font-display font-bold text-primary/70 group-hover:text-primary group-hover:text-glow uppercase tracking-widest leading-none transition-colors duration-500">
+                    <h3 className="text-xl font-display font-bold text-primary/70 group-hover:text-primary group-hover:text-glow uppercase tracking-widest leading-none transition-colors duration-500">
                       {panel.title}
                     </h3>
                   </div>
@@ -127,7 +135,7 @@ export const MasterHubPage: React.FC<MasterHubPageProps> = ({ onNavigate, onLogo
                 </div>
 
                 {/* Panel Description */}
-                <p className="text-xs text-primary/40 leading-relaxed font-mono mt-2 mb-8 flex-1 group-hover:text-primary/60 transition-colors duration-700">
+                <p className="text-xs text-primary/40 leading-relaxed font-mono mt-2 mb-6 flex-1 group-hover:text-primary/60 transition-colors duration-700">
                   {panel.description}
                 </p>
 

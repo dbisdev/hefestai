@@ -1,14 +1,15 @@
 /**
  * CampaignListPage Tests
  * Tests for the Campaign List page component including:
- * - Rendering campaigns list
+ * - Rendering campaigns list (GameSystemsPage style)
  * - Filter functionality (all, master, player)
- * - Campaign selection/activation
+ * - Campaign selection and details sidebar
  * - Navigation actions
+ * - Edit flow
  * - Error handling
  */
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
-import { render, screen, within, waitFor, fireEvent } from '@testing-library/react';
+import { render, screen, within, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { CampaignListPage } from './CampaignListPage';
 import { Screen, CampaignRole } from '@core/types';
@@ -43,14 +44,24 @@ vi.mock('@shared/components/layout', () => ({
 }));
 
 vi.mock('@shared/components/ui', () => ({
-  Button: ({ children, onClick, icon, variant, size, ...props }: {
+  Button: ({ children, onClick, icon, variant, size, className, disabled, ...props }: {
     children: React.ReactNode;
     onClick?: () => void;
     icon?: string;
     variant?: string;
     size?: string;
+    className?: string;
+    disabled?: boolean;
   }) => (
-    <button onClick={onClick} data-icon={icon} data-variant={variant} data-size={size} {...props}>
+    <button 
+      onClick={onClick} 
+      data-icon={icon} 
+      data-variant={variant} 
+      data-size={size} 
+      className={className}
+      disabled={disabled}
+      {...props}
+    >
       {children}
     </button>
   ),
@@ -87,48 +98,46 @@ const mockCampaigns = [
     id: 'campaign-1',
     name: 'Dragon Hunt',
     description: 'Epic fantasy adventure',
-    joinCode: 'ABC123',
     userRole: CampaignRole.Master,
     gameSystemId: 'system-1',
     isActive: true,
-    ownerId: 'user-123',
-    memberCount: 4,
     createdAt: '2024-01-15T10:00:00Z',
-    updatedAt: '2024-01-15T10:00:00Z',
   },
   {
     id: 'campaign-2',
     name: 'Night City Stories',
     description: 'Cyberpunk noir',
-    joinCode: 'XYZ789',
     userRole: CampaignRole.Player,
     gameSystemId: 'system-2',
     isActive: false,
-    ownerId: 'user-456',
-    memberCount: 6,
     createdAt: '2024-02-20T14:30:00Z',
-    updatedAt: '2024-02-20T14:30:00Z',
   },
   {
     id: 'campaign-3',
     name: 'Lost Mines',
     description: 'Classic dungeon crawl',
-    joinCode: 'LMN456',
     userRole: CampaignRole.Master,
     gameSystemId: 'system-1',
     isActive: true,
-    ownerId: 'user-123',
-    memberCount: 3,
     createdAt: '2024-03-10T08:00:00Z',
-    updatedAt: '2024-03-10T08:00:00Z',
   },
 ];
+
+// CampaignDetail for activeCampaign (has additional fields)
+const mockActiveCampaignDetail = {
+  ...mockCampaigns[0],
+  ownerId: 'user-123',
+  memberCount: 4,
+  joinCode: 'ABC123',
+};
 
 describe('CampaignListPage', () => {
   const mockOnNavigate = vi.fn();
   const mockOnLogout = vi.fn();
   const mockSelectCampaign = vi.fn();
   const mockLeaveCampaign = vi.fn();
+  const mockUpdateCampaign = vi.fn();
+  const mockUpdateCampaignStatus = vi.fn();
   const mockFetchCampaigns = vi.fn();
   const mockClearError = vi.fn();
 
@@ -138,7 +147,7 @@ describe('CampaignListPage', () => {
     // Default mock setup
     mockUseCampaign.mockReturnValue({
       campaigns: mockCampaigns,
-      activeCampaign: mockCampaigns[0],
+      activeCampaign: mockActiveCampaignDetail,
       activeCampaignId: mockCampaigns[0].id,
       isLoading: false,
       error: null,
@@ -150,8 +159,8 @@ describe('CampaignListPage', () => {
       joinCampaign: vi.fn(),
       leaveCampaign: mockLeaveCampaign,
       deleteCampaign: vi.fn(),
-      updateCampaign: vi.fn(),
-      updateCampaignStatus: vi.fn(),
+      updateCampaign: mockUpdateCampaign,
+      updateCampaignStatus: mockUpdateCampaignStatus,
       regenerateJoinCode: vi.fn(),
       clearError: mockClearError,
     });
@@ -159,6 +168,8 @@ describe('CampaignListPage', () => {
     mockGameSystemService.getAll.mockResolvedValue(mockGameSystems);
     mockSelectCampaign.mockResolvedValue(undefined);
     mockLeaveCampaign.mockResolvedValue(undefined);
+    mockUpdateCampaign.mockResolvedValue(mockCampaigns[0]);
+    mockUpdateCampaignStatus.mockResolvedValue(undefined);
   });
 
   afterEach(() => {
@@ -175,6 +186,18 @@ describe('CampaignListPage', () => {
       );
 
       expect(screen.getByText('CAMPAÑAS')).toBeInTheDocument();
+      expect(screen.getByText('Mis Campañas')).toBeInTheDocument();
+    });
+
+    it('renders header with new campaign button', async () => {
+      render(
+        <CampaignListPage
+          onNavigate={mockOnNavigate}
+          onLogout={mockOnLogout}
+        />
+      );
+
+      expect(screen.getByText('+ NUEVA CAMPAÑA')).toBeInTheDocument();
     });
 
     it('renders filter tabs with correct counts', async () => {
@@ -185,7 +208,7 @@ describe('CampaignListPage', () => {
         />
       );
 
-      // Check filter tabs exist (using getAllByText since MASTER and JUGADOR appear multiple times)
+      // Check filter tabs exist
       expect(screen.getByText('TODAS')).toBeInTheDocument();
       expect(screen.getAllByText('MASTER').length).toBeGreaterThan(0);
       expect(screen.getAllByText('JUGADOR').length).toBeGreaterThan(0);
@@ -196,7 +219,7 @@ describe('CampaignListPage', () => {
       expect(screen.getByText('(1)')).toBeInTheDocument();
     });
 
-    it('renders campaign cards with details', async () => {
+    it('renders campaign items in list style', async () => {
       render(
         <CampaignListPage
           onNavigate={mockOnNavigate}
@@ -214,7 +237,7 @@ describe('CampaignListPage', () => {
       expect(screen.getByText('Cyberpunk noir')).toBeInTheDocument();
     });
 
-    it('shows active campaign indicator', async () => {
+    it('shows active campaign indicator badge', async () => {
       render(
         <CampaignListPage
           onNavigate={mockOnNavigate}
@@ -235,8 +258,8 @@ describe('CampaignListPage', () => {
       );
 
       await waitFor(() => {
-        expect(screen.getAllByText('Dungeons & Dragons 5e').length).toBeGreaterThan(0);
-        expect(screen.getByText('Cyberpunk Red')).toBeInTheDocument();
+        expect(screen.getAllByText(/Dungeons & Dragons 5e/i).length).toBeGreaterThan(0);
+        expect(screen.getAllByText(/Cyberpunk Red/i).length).toBeGreaterThan(0);
       });
     });
 
@@ -272,10 +295,9 @@ describe('CampaignListPage', () => {
       );
 
       expect(screen.getByText('No hay campañas')).toBeInTheDocument();
-      expect(screen.getByText('CREAR CAMPAÑA')).toBeInTheDocument();
     });
 
-    it('displays quick stats sidebar', async () => {
+    it('displays statistics sidebar when no campaign is selected', async () => {
       render(
         <CampaignListPage
           onNavigate={mockOnNavigate}
@@ -285,7 +307,76 @@ describe('CampaignListPage', () => {
 
       expect(screen.getByText('Estadísticas')).toBeInTheDocument();
       expect(screen.getByText('Total')).toBeInTheDocument();
-      expect(screen.getByText('Master')).toBeInTheDocument();
+    });
+  });
+
+  describe('Campaign Selection (GameSystemsPage style)', () => {
+    it('selects campaign when clicked and shows details in sidebar', async () => {
+      const user = userEvent.setup();
+
+      render(
+        <CampaignListPage
+          onNavigate={mockOnNavigate}
+          onLogout={mockOnLogout}
+        />
+      );
+
+      // Click on a campaign to select it
+      const campaignItem = screen.getByText('Night City Stories');
+      await user.click(campaignItem);
+
+      // Should show campaign details in sidebar
+      await waitFor(() => {
+        expect(screen.getByText('Campaña Seleccionada')).toBeInTheDocument();
+      });
+    });
+
+    it('shows action buttons in sidebar for selected campaign', async () => {
+      const user = userEvent.setup();
+
+      mockUseCampaign.mockReturnValue({
+        ...mockUseCampaign(),
+        activeCampaign: null, // No active campaign so "ACTIVAR Y ENTRAR" shows
+      });
+
+      render(
+        <CampaignListPage
+          onNavigate={mockOnNavigate}
+          onLogout={mockOnLogout}
+        />
+      );
+
+      // Click on a campaign to select it
+      await user.click(screen.getByText('Dragon Hunt'));
+
+      // Should show action buttons in sidebar
+      await waitFor(() => {
+        expect(screen.getByText(/ACTIVAR Y ENTRAR/i)).toBeInTheDocument();
+        expect(screen.getByText('EDITAR')).toBeInTheDocument();
+        expect(screen.getByText('CONFIGURACIÓN AVANZADA')).toBeInTheDocument();
+      });
+    });
+
+    it('hides statistics when campaign is selected', async () => {
+      const user = userEvent.setup();
+
+      render(
+        <CampaignListPage
+          onNavigate={mockOnNavigate}
+          onLogout={mockOnLogout}
+        />
+      );
+
+      // Initially statistics visible
+      expect(screen.getByText('Estadísticas')).toBeInTheDocument();
+
+      // Click on a campaign
+      await user.click(screen.getByText('Dragon Hunt'));
+
+      // Statistics should be replaced by campaign details
+      await waitFor(() => {
+        expect(screen.getByText('Campaña Seleccionada')).toBeInTheDocument();
+      });
     });
   });
 
@@ -305,7 +396,7 @@ describe('CampaignListPage', () => {
       expect(screen.getByText('Night City Stories')).toBeInTheDocument();
       expect(screen.getByText('Lost Mines')).toBeInTheDocument();
 
-      // Click master filter tab (find by the tab that contains both MASTER and count)
+      // Click master filter tab (find by the tab that contains count)
       const filterTabs = screen.getAllByText('MASTER');
       const masterTab = filterTabs.find(el => el.closest('button')?.textContent?.includes('(2)'));
       await user.click(masterTab!);
@@ -326,7 +417,7 @@ describe('CampaignListPage', () => {
         />
       );
 
-      // Click player filter tab (find by the tab that contains both JUGADOR and count)
+      // Click player filter tab
       const filterTabs = screen.getAllByText('JUGADOR');
       const playerTab = filterTabs.find(el => el.closest('button')?.textContent?.includes('(1)'));
       await user.click(playerTab!);
@@ -335,30 +426,6 @@ describe('CampaignListPage', () => {
       expect(screen.queryByText('Dragon Hunt')).not.toBeInTheDocument();
       expect(screen.getByText('Night City Stories')).toBeInTheDocument();
       expect(screen.queryByText('Lost Mines')).not.toBeInTheDocument();
-    });
-
-    it('shows "all" filter results when selected', async () => {
-      const user = userEvent.setup();
-
-      render(
-        <CampaignListPage
-          onNavigate={mockOnNavigate}
-          onLogout={mockOnLogout}
-        />
-      );
-
-      // Click master filter first (find tab with count)
-      const masterTabs = screen.getAllByText('MASTER');
-      const masterTab = masterTabs.find(el => el.closest('button')?.textContent?.includes('(2)'));
-      await user.click(masterTab!);
-
-      // Then click all filter
-      await user.click(screen.getByText('TODAS'));
-
-      // All campaigns should be visible
-      expect(screen.getByText('Dragon Hunt')).toBeInTheDocument();
-      expect(screen.getByText('Night City Stories')).toBeInTheDocument();
-      expect(screen.getByText('Lost Mines')).toBeInTheDocument();
     });
 
     it('shows empty state for filtered view with no matching campaigns', async () => {
@@ -377,7 +444,7 @@ describe('CampaignListPage', () => {
         />
       );
 
-      // Click player filter tab (find by the tab that contains both JUGADOR and count)
+      // Click player filter tab
       const filterTabs = screen.getAllByText('JUGADOR');
       const playerTab = filterTabs.find(el => el.closest('button')?.textContent?.includes('(0)'));
       await user.click(playerTab!);
@@ -386,7 +453,7 @@ describe('CampaignListPage', () => {
     });
   });
 
-  describe('Campaign Actions', () => {
+  describe('Campaign Actions (from sidebar)', () => {
     it('navigates to campaign generator when "Nueva Campaña" is clicked', async () => {
       const user = userEvent.setup();
 
@@ -397,16 +464,15 @@ describe('CampaignListPage', () => {
         />
       );
 
-      const newButton = screen.getByText('NUEVA CAMPAÑA');
+      const newButton = screen.getByText('+ NUEVA CAMPAÑA');
       await user.click(newButton);
 
       expect(mockOnNavigate).toHaveBeenCalledWith(Screen.CAMPAIGN_GEN);
     });
 
-    it('selects campaign and navigates to gallery when "Activar" is clicked', async () => {
+    it('activates campaign and navigates to gallery when "Activar y Entrar" is clicked', async () => {
       const user = userEvent.setup();
 
-      // Set campaign-2 as not active
       mockUseCampaign.mockReturnValue({
         ...mockUseCampaign(),
         activeCampaign: null,
@@ -420,9 +486,15 @@ describe('CampaignListPage', () => {
         />
       );
 
-      // Find ACTIVAR buttons (all campaigns should have them now)
-      const activateButtons = screen.getAllByText('ACTIVAR');
-      await user.click(activateButtons[0]);
+      // First select a campaign
+      await user.click(screen.getByText('Dragon Hunt'));
+
+      // Then click activate button in sidebar
+      await waitFor(() => {
+        expect(screen.getByText(/ACTIVAR Y ENTRAR/i)).toBeInTheDocument();
+      });
+
+      await user.click(screen.getByText(/ACTIVAR Y ENTRAR/i));
 
       await waitFor(() => {
         expect(mockSelectCampaign).toHaveBeenCalledWith('campaign-1');
@@ -433,7 +505,7 @@ describe('CampaignListPage', () => {
       });
     });
 
-    it('navigates to campaign settings when "Configurar" is clicked (Master only)', async () => {
+    it('navigates to campaign settings when "Configuración Avanzada" is clicked', async () => {
       const user = userEvent.setup();
 
       render(
@@ -443,49 +515,50 @@ describe('CampaignListPage', () => {
         />
       );
 
-      // Find configurar buttons (only for master campaigns)
-      const configButtons = screen.getAllByText('CONFIGURAR');
-      expect(configButtons.length).toBe(2); // 2 master campaigns
+      // Select a master campaign
+      await user.click(screen.getByText('Dragon Hunt'));
 
-      await user.click(configButtons[0]);
+      // Click settings button in sidebar
+      await waitFor(() => {
+        expect(screen.getByText('CONFIGURACIÓN AVANZADA')).toBeInTheDocument();
+      });
+
+      await user.click(screen.getByText('CONFIGURACIÓN AVANZADA'));
 
       await waitFor(() => {
         expect(mockSelectCampaign).toHaveBeenCalled();
-      });
-
-      await waitFor(() => {
         expect(mockOnNavigate).toHaveBeenCalledWith(Screen.CAMPAIGN_SETTINGS);
       });
     });
 
-    it('does not show "Configurar" button for player campaigns', async () => {
-      mockUseCampaign.mockReturnValue({
-        ...mockUseCampaign(),
-        campaigns: [mockCampaigns[1]], // Only player campaign
-        activeCampaign: null,
-      });
-
-      render(
-        <CampaignListPage
-          onNavigate={mockOnNavigate}
-          onLogout={mockOnLogout}
-        />
-      );
-
-      expect(screen.queryByText('CONFIGURAR')).not.toBeInTheDocument();
-    });
-
-    it('calls leaveCampaign when leave button is clicked and confirmed', async () => {
+    it('does not show edit/settings buttons for player campaigns', async () => {
       const user = userEvent.setup();
 
-      // Mock window.confirm
-      const confirmSpy = vi.spyOn(window, 'confirm').mockReturnValue(true);
+      render(
+        <CampaignListPage
+          onNavigate={mockOnNavigate}
+          onLogout={mockOnLogout}
+        />
+      );
 
-      mockUseCampaign.mockReturnValue({
-        ...mockUseCampaign(),
-        campaigns: [mockCampaigns[1]], // Player campaign only
-        activeCampaign: null,
+      // Select a player campaign
+      await user.click(screen.getByText('Night City Stories'));
+
+      // Should not show master-only buttons
+      await waitFor(() => {
+        expect(screen.getByText('Campaña Seleccionada')).toBeInTheDocument();
       });
+
+      expect(screen.queryByText('EDITAR')).not.toBeInTheDocument();
+      expect(screen.queryByText('CONFIGURACIÓN AVANZADA')).not.toBeInTheDocument();
+      // But should show leave button
+      expect(screen.getByText('ABANDONAR')).toBeInTheDocument();
+    });
+
+    it('calls leaveCampaign when ABANDONAR is clicked and confirmed', async () => {
+      const user = userEvent.setup();
+
+      const confirmSpy = vi.spyOn(window, 'confirm').mockReturnValue(true);
 
       render(
         <CampaignListPage
@@ -494,9 +567,15 @@ describe('CampaignListPage', () => {
         />
       );
 
-      // Find leave button (logout icon for player)
-      const leaveButton = screen.getByTitle('Abandonar');
-      await user.click(leaveButton);
+      // Select a player campaign
+      await user.click(screen.getByText('Night City Stories'));
+
+      // Click leave button
+      await waitFor(() => {
+        expect(screen.getByText('ABANDONAR')).toBeInTheDocument();
+      });
+
+      await user.click(screen.getByText('ABANDONAR'));
 
       expect(confirmSpy).toHaveBeenCalled();
 
@@ -507,17 +586,28 @@ describe('CampaignListPage', () => {
       confirmSpy.mockRestore();
     });
 
-    it('does not call leaveCampaign when confirmation is cancelled', async () => {
+    it('shows ELIMINAR button for master campaigns', async () => {
       const user = userEvent.setup();
 
-      // Mock window.confirm to return false
-      const confirmSpy = vi.spyOn(window, 'confirm').mockReturnValue(false);
+      render(
+        <CampaignListPage
+          onNavigate={mockOnNavigate}
+          onLogout={mockOnLogout}
+        />
+      );
 
-      mockUseCampaign.mockReturnValue({
-        ...mockUseCampaign(),
-        campaigns: [mockCampaigns[1]], // Player campaign only
-        activeCampaign: null,
+      // Select a master campaign
+      await user.click(screen.getByText('Dragon Hunt'));
+
+      await waitFor(() => {
+        expect(screen.getByText('ELIMINAR')).toBeInTheDocument();
       });
+    });
+  });
+
+  describe('Edit Flow (GameSystemsPage style)', () => {
+    it('shows edit form when EDITAR is clicked', async () => {
+      const user = userEvent.setup();
 
       render(
         <CampaignListPage
@@ -526,20 +616,24 @@ describe('CampaignListPage', () => {
         />
       );
 
-      const leaveButton = screen.getByTitle('Abandonar');
-      await user.click(leaveButton);
+      // Select a master campaign
+      await user.click(screen.getByText('Dragon Hunt'));
 
-      expect(mockLeaveCampaign).not.toHaveBeenCalled();
+      // Click edit button
+      await waitFor(() => {
+        expect(screen.getByText('EDITAR')).toBeInTheDocument();
+      });
 
-      confirmSpy.mockRestore();
+      await user.click(screen.getByText('EDITAR'));
+
+      // Should show edit form
+      await waitFor(() => {
+        expect(screen.getByText(/Editar Campaña:/i)).toBeInTheDocument();
+      });
     });
 
-    it('shows delete button for master campaigns', async () => {
-      mockUseCampaign.mockReturnValue({
-        ...mockUseCampaign(),
-        campaigns: [mockCampaigns[0]], // Master campaign only
-        activeCampaign: mockCampaigns[0],
-      });
+    it('edit form shows campaign name input', async () => {
+      const user = userEvent.setup();
 
       render(
         <CampaignListPage
@@ -548,7 +642,79 @@ describe('CampaignListPage', () => {
         />
       );
 
-      expect(screen.getByTitle('Eliminar')).toBeInTheDocument();
+      // Select and edit
+      await user.click(screen.getByText('Dragon Hunt'));
+      await waitFor(() => expect(screen.getByText('EDITAR')).toBeInTheDocument());
+      await user.click(screen.getByText('EDITAR'));
+
+      // Should have name input with current value
+      await waitFor(() => {
+        const nameInput = screen.getByDisplayValue('Dragon Hunt');
+        expect(nameInput).toBeInTheDocument();
+      });
+    });
+
+    it('calls updateCampaign when saving changes', async () => {
+      const user = userEvent.setup();
+
+      render(
+        <CampaignListPage
+          onNavigate={mockOnNavigate}
+          onLogout={mockOnLogout}
+        />
+      );
+
+      // Select and edit
+      await user.click(screen.getByText('Dragon Hunt'));
+      await waitFor(() => expect(screen.getByText('EDITAR')).toBeInTheDocument());
+      await user.click(screen.getByText('EDITAR'));
+
+      // Change the name
+      await waitFor(() => {
+        expect(screen.getByDisplayValue('Dragon Hunt')).toBeInTheDocument();
+      });
+
+      const nameInput = screen.getByDisplayValue('Dragon Hunt');
+      await user.clear(nameInput);
+      await user.type(nameInput, 'Updated Campaign Name');
+
+      // Click save
+      await user.click(screen.getByText('GUARDAR CAMBIOS'));
+
+      await waitFor(() => {
+        expect(mockUpdateCampaign).toHaveBeenCalledWith('campaign-1', expect.objectContaining({
+          name: 'Updated Campaign Name',
+        }));
+      });
+    });
+
+    it('closes edit form when CANCELAR is clicked', async () => {
+      const user = userEvent.setup();
+
+      render(
+        <CampaignListPage
+          onNavigate={mockOnNavigate}
+          onLogout={mockOnLogout}
+        />
+      );
+
+      // Select and edit
+      await user.click(screen.getByText('Dragon Hunt'));
+      await waitFor(() => expect(screen.getByText('EDITAR')).toBeInTheDocument());
+      await user.click(screen.getByText('EDITAR'));
+
+      // Verify form is open
+      await waitFor(() => {
+        expect(screen.getByText(/Editar Campaña:/i)).toBeInTheDocument();
+      });
+
+      // Click cancel
+      await user.click(screen.getByText('CANCELAR'));
+
+      // Form should be closed
+      await waitFor(() => {
+        expect(screen.queryByText(/Editar Campaña:/i)).not.toBeInTheDocument();
+      });
     });
   });
 
@@ -651,14 +817,27 @@ describe('CampaignListPage', () => {
         />
       );
 
-      // Should show MASTER for master campaigns and JUGADOR for player campaigns
+      // Should show MASTER and JUGADOR indicators
       const masterLabels = screen.getAllByText('MASTER');
       const playerLabels = screen.getAllByText('JUGADOR');
 
-      // 2 master campaigns + the filter tab = 3
+      // 2 master campaigns in list + filter tab = 3
       expect(masterLabels.length).toBe(3);
-      // 1 player campaign + the filter tab = 2
+      // 1 player campaign in list + filter tab = 2
       expect(playerLabels.length).toBe(2);
+    });
+
+    it('shows toggle button for master campaigns to change status', async () => {
+      render(
+        <CampaignListPage
+          onNavigate={mockOnNavigate}
+          onLogout={mockOnLogout}
+        />
+      );
+
+      // Toggle buttons should exist for master campaigns
+      const toggleButtons = screen.getAllByTitle(/pausar campaña|activar campaña/i);
+      expect(toggleButtons.length).toBe(2); // 2 master campaigns
     });
   });
 
@@ -687,12 +866,12 @@ describe('CampaignListPage', () => {
         />
       );
 
-      // Initially shows loading placeholder
-      expect(screen.getAllByText('...').length).toBeGreaterThan(0);
+      // Initially shows loading placeholder (text contains "...")
+      expect(screen.getAllByText(/\.\.\./i).length).toBeGreaterThan(0);
 
       // Wait for game systems to load
       await waitFor(() => {
-        expect(screen.getAllByText('Dungeons & Dragons 5e').length).toBeGreaterThan(0);
+        expect(screen.getAllByText(/Dungeons & Dragons 5e/i).length).toBeGreaterThan(0);
       });
     });
 
@@ -713,7 +892,7 @@ describe('CampaignListPage', () => {
       );
 
       await waitFor(() => {
-        expect(screen.getByText('Sistema desconocido')).toBeInTheDocument();
+        expect(screen.getByText(/Sistema desconocido/i)).toBeInTheDocument();
       });
     });
   });

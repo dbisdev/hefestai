@@ -45,7 +45,7 @@ const ENTITY_CATEGORIES: CategoryInfo[] = [
   { id: 'enemy', label: 'ENEMIGOS', icon: 'pest_control' },
   { id: 'vehicle', label: 'VEHÍCULOS', icon: 'rocket_launch' },
   { id: 'mission', label: 'MISIONES', icon: 'assignment' },
-  { id: 'encounter', label: 'ENCUENTROS', icon: 'swords' },
+  { id: 'encounter', label: 'ENCUENTROS', icon: 'pest_control' },
 ];
 
 /**
@@ -629,37 +629,38 @@ export const GalleryPage: React.FC<GalleryPageProps> = ({ user, onNavigate, onLo
       onLogout={onLogout}
       onNavigate={onNavigate}
       gameSystemId={activeCampaign?.gameSystemId}
-      actions={
-        <div className="flex items-center gap-2">
-          {/* Import PDF Button (Master only, requires campaign) */}
-          {isMaster && activeCampaignId && (
-            <button 
-              onClick={handleImportDialogToggle}
-              aria-expanded={showImportDialog}
-              aria-haspopup="dialog"
-              aria-label="Importar ficha desde PDF"
-              className="border border-cyan-500/60 px-3 py-1 text-[10px] uppercase hover:bg-cyan-500/10 hover:border-cyan-500 transition-colors text-cyan-500 font-bold flex items-center gap-1 focus:outline-none focus:ring-2 focus:ring-cyan-500"
-            >
-              <span className="material-icons text-sm">upload_file</span> 
-              <span className="hidden sm:inline">IMPORTAR</span>
-            </button>
-          )}
+      hideCampaignSelector={false}
+      // actions={
+      //   <div className="flex items-center gap-2">
+      //     {/* Import PDF Button (Master only, requires campaign) */}
+      //     {/* {isMaster && activeCampaignId && (
+      //       <button 
+      //         onClick={handleImportDialogToggle}
+      //         aria-expanded={showImportDialog}
+      //         aria-haspopup="dialog"
+      //         aria-label="Importar ficha desde PDF"
+      //         className="border border-cyan-500/60 px-3 py-1 text-[10px] uppercase hover:bg-cyan-500/10 hover:border-cyan-500 transition-colors text-cyan-500 font-bold flex items-center gap-1 focus:outline-none focus:ring-2 focus:ring-cyan-500"
+      //       >
+      //         <span className="material-icons text-sm">upload_file</span> 
+      //         <span className="hidden sm:inline">IMPORTAR</span>
+      //       </button>
+      //     )} */}
 
-          {/* Invite Button (Master only) */}
-          {isMaster && activeCampaign?.joinCode && (
-            <button 
-              onClick={handleInviteToggle}
-              aria-expanded={showInvite}
-              aria-haspopup="dialog"
-              aria-label="Mostrar código de invitación"
-              className="border border-primary px-3 py-1 text-[10px] uppercase hover:bg-primary hover:text-black transition-colors text-primary font-bold flex items-center gap-1 focus:outline-none focus:ring-2 focus:ring-primary"
-            >
-              <span className="material-icons text-sm">share</span> 
-              <span className="hidden sm:inline">INVITAR</span>
-            </button>
-          )}
-        </div>
-      }
+      //     {/* Invite Button (Master only) */}
+      //     {/* {isMaster && activeCampaign?.joinCode && (
+      //       <button 
+      //         onClick={handleInviteToggle}
+      //         aria-expanded={showInvite}
+      //         aria-haspopup="dialog"
+      //         aria-label="Mostrar código de invitación"
+      //         className="border border-primary px-3 py-1 text-[10px] uppercase hover:bg-primary hover:text-black transition-colors text-primary font-bold flex items-center gap-1 focus:outline-none focus:ring-2 focus:ring-primary"
+      //       >
+      //         <span className="material-icons text-sm">share</span> 
+      //         <span className="hidden sm:inline">INVITAR</span>
+      //       </button>
+      //     )} */}
+      //   </div>
+      // }
     >
       <div className="flex h-full gap-6 overflow-hidden relative font-mono">
         {/* Live region for screen reader announcements */}

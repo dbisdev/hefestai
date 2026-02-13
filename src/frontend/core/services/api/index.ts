@@ -18,6 +18,7 @@ export type {
   SemanticSearchParams, 
   SemanticSearchResult,
   ManualDto,
+  ManualSummaryDto,
   UploadManualResult,
   RagSourceType
 } from './document.service';
