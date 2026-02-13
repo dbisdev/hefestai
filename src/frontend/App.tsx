@@ -6,7 +6,7 @@
 
 import React, { useState, useEffect, useCallback } from 'react';
 import { AuthProvider, useAuth, CampaignProvider } from '@core/context';
-import { LoginPage, SignupPage } from '@features/auth';
+import { Home, LoginPage, SignupPage } from '@features/auth';
 import { GalleryPage, MasterHubPage } from '@features/gallery';
 import { 
   CharacterGeneratorPage, 
@@ -30,13 +30,13 @@ import { Screen } from '@core/types';
  */
 const AppContent: React.FC = () => {
   const { user, isLoading, logout } = useAuth();
-  const [displayScreen, setDisplayScreen] = useState<Screen>(Screen.LOGIN);
+  const [displayScreen, setDisplayScreen] = useState<Screen>(Screen.HOME);
   const [transitionStage, setTransitionStage] = useState<'idle' | 'out' | 'in'>('idle');
 
   // Redirect to appropriate screen if already authenticated
   // Admin users go to admin panel, Master users go to hub, Players go to gallery
   useEffect(() => {
-    if (user && displayScreen === Screen.LOGIN) {
+    if (user && (displayScreen === Screen.HOME || displayScreen === Screen.LOGIN)) {
       if (user.role === 'ADMIN') {
         setDisplayScreen(Screen.ADMIN_USERS);
       } else if (user.role === 'MASTER') {
@@ -68,7 +68,7 @@ const AppContent: React.FC = () => {
       Screen.ADMIN_SYSTEM
     ];
     if (!user && !isLoading && protectedScreens.includes(displayScreen)) {
-      setDisplayScreen(Screen.LOGIN);
+      setDisplayScreen(Screen.HOME);
       setTransitionStage('idle');
     }
   }, [user, isLoading, displayScreen]);
@@ -86,7 +86,7 @@ const AppContent: React.FC = () => {
   const handleLogout = useCallback(async () => {
     // Navigate away first to prevent GalleryPage from making API calls
     // while logout is clearing the auth state
-    setDisplayScreen(Screen.LOGIN);
+    setDisplayScreen(Screen.HOME);
     setTransitionStage('idle');
     await logout();
   }, [logout]);
@@ -141,11 +141,20 @@ const AppContent: React.FC = () => {
 
   const renderScreen = () => {
     switch (displayScreen) {
+      case Screen.HOME:
+        return (
+          <Home 
+            onLogin={() => navigate(Screen.LOGIN)} 
+            onSignup={() => navigate(Screen.SIGNUP)} 
+          />
+        );
+      
       case Screen.LOGIN:
         return (
           <LoginPage 
             onLoginSuccess={handleLoginSuccess} 
-            onGoSignup={() => navigate(Screen.SIGNUP)} 
+            onGoSignup={() => navigate(Screen.SIGNUP)}
+            onBack={() => navigate(Screen.HOME)}
           />
         );
       
@@ -153,7 +162,7 @@ const AppContent: React.FC = () => {
         return (
           <SignupPage 
             onSignupSuccess={handleSignupSuccess} 
-            onBack={() => navigate(Screen.LOGIN)} 
+            onBack={() => navigate(Screen.HOME)} 
           />
         );
       
@@ -269,16 +278,16 @@ const AppContent: React.FC = () => {
         );
       
       case Screen.ERROR:
-        return <ErrorScreen onReboot={() => navigate(Screen.LOGIN)} />;
+        return <ErrorScreen onReboot={() => navigate(Screen.HOME)} />;
       
       case Screen.ACCESS_DENIED:
         return <AccessDenied onBack={() => navigate(Screen.GALLERY)} />;
       
       default:
         return (
-          <LoginPage 
-            onLoginSuccess={handleLoginSuccess} 
-            onGoSignup={() => navigate(Screen.SIGNUP)} 
+          <Home 
+            onLogin={() => navigate(Screen.LOGIN)} 
+            onSignup={() => navigate(Screen.SIGNUP)} 
           />
         );
     }

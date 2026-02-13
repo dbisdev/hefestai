@@ -32,16 +32,16 @@ const ADMIN_NAV_ITEMS: AdminNavItem[] = [
     description: 'Sistemas de juego',
   },
   {
-    id: Screen.ADMIN_CAMPAIGNS,
-    label: 'CAMPAÑAS',
-    icon: 'shield',
-    description: 'Gestión de campañas',
-  },
-  {
     id: Screen.ADMIN_SYSTEM,
     label: 'RAG',
     icon: 'settings_suggest',
     description: 'Operaciones del sistema',
+  },
+  {
+    id: Screen.ADMIN_CAMPAIGNS,
+    label: 'CAMPAÑAS',
+    icon: 'shield',
+    description: 'Gestión de campañas',
   },
   {
     id: Screen.TEMPLATES,

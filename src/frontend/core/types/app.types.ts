@@ -4,6 +4,7 @@
  */
 
 export enum Screen {
+  HOME = 'HOME',
   LOGIN = 'LOGIN',
   SIGNUP = 'SIGNUP',
   MASTER_HUB = 'MASTER_HUB',

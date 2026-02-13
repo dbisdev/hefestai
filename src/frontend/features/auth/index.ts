@@ -4,5 +4,6 @@
  */
 
 // Pages
+export { default as Home } from './pages/Home';
 export { LoginPage } from './pages/LoginPage';
 export { SignupPage } from './pages/SignupPage';

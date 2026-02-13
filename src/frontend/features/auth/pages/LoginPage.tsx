@@ -13,9 +13,11 @@ import { useAuth } from '@core/context/AuthContext';
 interface LoginPageProps {
   onLoginSuccess: () => void;
   onGoSignup: () => void;
+  /** Optional callback to navigate back to home page */
+  onBack?: () => void;
 }
 
-export const LoginPage: React.FC<LoginPageProps> = ({ onLoginSuccess, onGoSignup }) => {
+export const LoginPage: React.FC<LoginPageProps> = ({ onLoginSuccess, onGoSignup, onBack }) => {
   const { login, error: authError, isLoading: authLoading, clearError } = useAuth();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
@@ -58,6 +60,17 @@ export const LoginPage: React.FC<LoginPageProps> = ({ onLoginSuccess, onGoSignup
       
       <div className="relative z-10 w-full max-w-[450px]">
         <Card className="p-8 shadow-[0_0_20px_rgba(37,244,106,0.15)] font-mono">
+          {/* Back to Home Button */}
+          {onBack && (
+            <button 
+              onClick={onBack}
+              className="flex items-center gap-1 text-primary/50 hover:text-primary text-[10px] uppercase mb-6 transition-colors"
+            >
+              <span className="material-icons text-sm">arrow_back</span>
+              VOLVER_AL_INICIO
+            </button>
+          )}
+          
           {/* Header */}
           <div className="text-center mb-8">
             <h1 className="text-primary text-4xl font-display font-black text-glow uppercase mb-2">
