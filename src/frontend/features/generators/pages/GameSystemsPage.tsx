@@ -304,7 +304,14 @@ export const GameSystemsPage: React.FC<GameSystemsPageProps> = ({ onNavigate, on
         {accessDeniedContent}
       </AdminLayout>
     ) : (
-      <TerminalLayout title="GAME_SYSTEMS" subtitle="Gestión de sistemas de juego" onLogout={() => {}}>
+      <TerminalLayout 
+        title="SISTEMAS DE JUEGO" 
+        subtitle="Gestion de sistemas de juego"
+        icon="sports_esports"
+        onLogout={onLogout}
+        onNavigate={onNavigate}
+        hideCampaignSelector={true}
+      >
         {accessDeniedContent}
       </TerminalLayout>
     );
@@ -763,7 +770,14 @@ export const GameSystemsPage: React.FC<GameSystemsPageProps> = ({ onNavigate, on
           {mainContent}
         </AdminLayout>
       ) : (
-        <TerminalLayout title="GAME_SYSTEMS" subtitle="Gestión de sistemas de juego" onLogout={() => {}}>
+        <TerminalLayout 
+          title="SISTEMAS DE JUEGO" 
+          subtitle="Gestion de sistemas de juego"
+          icon="sports_esports"
+          onLogout={onLogout}
+          onNavigate={onNavigate}
+          hideCampaignSelector={true}
+        >
           {mainContent}
         </TerminalLayout>
       )}

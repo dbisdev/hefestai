@@ -623,25 +623,14 @@ export const GalleryPage: React.FC<GalleryPageProps> = ({ user, onNavigate, onLo
 
   return (
     <TerminalLayout 
-      title="Galería de Creaciones" 
-      subtitle={`Usuario: ${user?.username} // ${activeCampaign ? `Campaña: ${activeCampaign.name}` : 'Sin campaña'}`} 
+      title="GALERÍA" 
+      subtitle="Archivo de Entidades"
+      icon="grid_view"
       onLogout={onLogout}
+      onNavigate={onNavigate}
       gameSystemId={activeCampaign?.gameSystemId}
       actions={
         <div className="flex items-center gap-2">
-          {/* Campaign Selector Button */}
-          <button 
-            onClick={handleCampaignSelectorToggle}
-            aria-expanded={showCampaignSelector}
-            aria-haspopup="dialog"
-            aria-label="Seleccionar campaña"
-            className="border border-primary/60 px-3 py-1 text-[10px] uppercase hover:bg-primary/10 hover:border-primary transition-colors text-primary font-bold flex items-center gap-1 focus:outline-none focus:ring-2 focus:ring-primary"
-          >
-            <span className="material-icons text-sm">public</span> 
-            {activeCampaign ? activeCampaign.name.slice(0, 10) : 'CAMPAÑA'}
-            {activeCampaign && '...'}
-          </button>
-
           {/* Import PDF Button (Master only, requires campaign) */}
           {isMaster && activeCampaignId && (
             <button 
@@ -651,7 +640,8 @@ export const GalleryPage: React.FC<GalleryPageProps> = ({ user, onNavigate, onLo
               aria-label="Importar ficha desde PDF"
               className="border border-cyan-500/60 px-3 py-1 text-[10px] uppercase hover:bg-cyan-500/10 hover:border-cyan-500 transition-colors text-cyan-500 font-bold flex items-center gap-1 focus:outline-none focus:ring-2 focus:ring-cyan-500"
             >
-              <span className="material-icons text-sm">upload_file</span> IMPORTAR
+              <span className="material-icons text-sm">upload_file</span> 
+              <span className="hidden sm:inline">IMPORTAR</span>
             </button>
           )}
 
@@ -664,7 +654,8 @@ export const GalleryPage: React.FC<GalleryPageProps> = ({ user, onNavigate, onLo
               aria-label="Mostrar código de invitación"
               className="border border-primary px-3 py-1 text-[10px] uppercase hover:bg-primary hover:text-black transition-colors text-primary font-bold flex items-center gap-1 focus:outline-none focus:ring-2 focus:ring-primary"
             >
-              <span className="material-icons text-sm">share</span> INVITAR
+              <span className="material-icons text-sm">share</span> 
+              <span className="hidden sm:inline">INVITAR</span>
             </button>
           )}
         </div>

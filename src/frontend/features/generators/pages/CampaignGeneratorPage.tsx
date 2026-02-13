@@ -10,16 +10,19 @@ import { Button } from '@shared/components/ui';
 import { useCampaign } from '@core/context';
 import { gameSystemService } from '@core/services/api';
 import type { GameSystem } from '@core/types';
+import { Screen } from '@core/types';
 
 interface CampaignGeneratorPageProps {
   onBack: () => void;
+  onNavigate?: (screen: Screen) => void;
+  onLogout?: () => void;
 }
 
 /**
  * Campaign Generator Page Component
  * Provides UI for creating new campaigns or joining existing ones via invite code
  */
-export const CampaignGeneratorPage: React.FC<CampaignGeneratorPageProps> = ({ onBack }) => {
+export const CampaignGeneratorPage: React.FC<CampaignGeneratorPageProps> = ({ onBack, onNavigate, onLogout }) => {
   const { createCampaign, joinCampaign, isLoading } = useCampaign();
   
   const [logs, setLogs] = useState([
@@ -161,16 +164,12 @@ export const CampaignGeneratorPage: React.FC<CampaignGeneratorPageProps> = ({ on
 
   return (
     <TerminalLayout 
-      title="Campaign_Control // V.1.0" 
-      subtitle="Sistema de Gestión de Campañas"
-      actions={
-        <button 
-          onClick={onBack} 
-          className="text-primary/60 hover:text-primary transition-colors flex items-center gap-1 text-xs font-mono uppercase"
-        >
-          <span className="material-icons text-sm">arrow_back</span> VOLVER
-        </button>
-      }
+      title="CONTROL DE CAMPAÑAS" 
+      subtitle="Sistema de Gestion de Campañas"
+      icon="campaign"
+      onLogout={onLogout}
+      onNavigate={onNavigate}
+      hideCampaignSelector={true}
     >
       <div className="flex flex-col lg:flex-row gap-8 h-full font-mono">
         {/* Form Panel */}

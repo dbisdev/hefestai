@@ -8,6 +8,7 @@ import React, { useState, useEffect, useCallback } from 'react';
 import { AuthProvider, useAuth, CampaignProvider } from '@core/context';
 import { Home, LoginPage, SignupPage } from '@features/auth';
 import { GalleryPage, MasterHubPage } from '@features/gallery';
+import { CampaignListPage } from '@features/campaigns';
 import { 
   CharacterGeneratorPage, 
   SolarSystemGeneratorPage, 
@@ -60,6 +61,7 @@ const AppContent: React.FC = () => {
       Screen.MISSION_GEN,
       Screen.ENCOUNTER_GEN,
       Screen.CAMPAIGN_GEN,
+      Screen.CAMPAIGN_LIST,
       Screen.CAMPAIGN_SETTINGS,
       Screen.GAME_SYSTEMS,
       Screen.TEMPLATES,
@@ -186,46 +188,50 @@ const AppContent: React.FC = () => {
       
       case Screen.CHAR_GEN:
         return isMaster 
-          ? <CharacterGeneratorPage onBack={() => navigate(Screen.GALLERY)} /> 
+          ? <CharacterGeneratorPage onBack={() => navigate(Screen.GALLERY)} onNavigate={handleNavigate} onLogout={handleLogout} /> 
           : <AccessDenied onBack={() => navigate(Screen.GALLERY)} />;
       
       case Screen.SOLAR_GEN:
         return isMaster 
-          ? <SolarSystemGeneratorPage onBack={() => navigate(Screen.GALLERY)} /> 
+          ? <SolarSystemGeneratorPage onBack={() => navigate(Screen.GALLERY)} onNavigate={handleNavigate} onLogout={handleLogout} /> 
           : <AccessDenied onBack={() => navigate(Screen.GALLERY)} />;
       
       case Screen.VEHI_GEN:
         return isMaster 
-          ? <VehicleGeneratorPage onBack={() => navigate(Screen.GALLERY)} /> 
+          ? <VehicleGeneratorPage onBack={() => navigate(Screen.GALLERY)} onNavigate={handleNavigate} onLogout={handleLogout} /> 
           : <AccessDenied onBack={() => navigate(Screen.GALLERY)} />;
       
       case Screen.NPC_GEN:
         return isMaster 
-          ? <NpcGeneratorPage onBack={() => navigate(Screen.GALLERY)} /> 
+          ? <NpcGeneratorPage onBack={() => navigate(Screen.GALLERY)} onNavigate={handleNavigate} onLogout={handleLogout} /> 
           : <AccessDenied onBack={() => navigate(Screen.GALLERY)} />;
       
       case Screen.ENEMY_GEN:
         return isMaster 
-          ? <EnemyGeneratorPage onBack={() => navigate(Screen.GALLERY)} /> 
+          ? <EnemyGeneratorPage onBack={() => navigate(Screen.GALLERY)} onNavigate={handleNavigate} onLogout={handleLogout} /> 
           : <AccessDenied onBack={() => navigate(Screen.GALLERY)} />;
       
       case Screen.MISSION_GEN:
         return isMaster 
-          ? <MissionGeneratorPage onBack={() => navigate(Screen.GALLERY)} /> 
+          ? <MissionGeneratorPage onBack={() => navigate(Screen.GALLERY)} onNavigate={handleNavigate} onLogout={handleLogout} /> 
           : <AccessDenied onBack={() => navigate(Screen.GALLERY)} />;
       
       case Screen.ENCOUNTER_GEN:
         return isMaster 
-          ? <EncounterGeneratorPage onBack={() => navigate(Screen.GALLERY)} /> 
+          ? <EncounterGeneratorPage onBack={() => navigate(Screen.GALLERY)} onNavigate={handleNavigate} onLogout={handleLogout} /> 
           : <AccessDenied onBack={() => navigate(Screen.GALLERY)} />;
       
       // Campaign creation is available to all authenticated users
       case Screen.CAMPAIGN_GEN:
-        return <CampaignGeneratorPage onBack={() => navigate(Screen.GALLERY)} />;
+        return <CampaignGeneratorPage onBack={() => navigate(Screen.CAMPAIGN_LIST)} onNavigate={handleNavigate} onLogout={handleLogout} />;
+      
+      // Campaign list - shows all campaigns the user belongs to
+      case Screen.CAMPAIGN_LIST:
+        return <CampaignListPage onNavigate={handleNavigate} onLogout={handleLogout} />;
       
       // Campaign settings (Master only - access control in component)
       case Screen.CAMPAIGN_SETTINGS:
-        return <CampaignSettingsPage onBack={() => navigate(Screen.GALLERY)} />;
+        return <CampaignSettingsPage onBack={() => navigate(Screen.CAMPAIGN_LIST)} onNavigate={handleNavigate} onLogout={handleLogout} />;
       
       // Game systems management (Master or Admin only - access control in component)
       case Screen.GAME_SYSTEMS:

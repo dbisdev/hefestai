@@ -12,9 +12,12 @@ import { aiService, entityService } from '@core/services/api';
 import { useCampaign } from '@core/context';
 import { parseJsonResponse } from '@core/utils';
 import type { EnemyData } from '@core/types';
+import { Screen } from '@core/types';
 
 interface EnemyGeneratorPageProps {
   onBack: () => void;
+  onNavigate?: (screen: Screen) => void;
+  onLogout?: () => void;
 }
 
 const UNKNOWN_ENEMY_IMAGE = "https://images.unsplash.com/photo-1614728263952-84ea256f9679?q=80&w=400&auto=format&fit=crop";
@@ -58,7 +61,7 @@ const BEHAVIOR_OPTIONS = [
   { value: 'berserker', label: 'Berserker - Furia descontrolada' },
 ];
 
-export const EnemyGeneratorPage: React.FC<EnemyGeneratorPageProps> = ({ onBack }) => {
+export const EnemyGeneratorPage: React.FC<EnemyGeneratorPageProps> = ({ onBack, onNavigate, onLogout }) => {
   const { activeCampaignId, activeCampaign } = useCampaign();
   const [logs, setLogs] = useState([
     '> Threat analysis system online...',
@@ -200,13 +203,12 @@ export const EnemyGeneratorPage: React.FC<EnemyGeneratorPageProps> = ({ onBack }
 
   return (
     <TerminalLayout 
-      title="Threat_Analyzer // V.1.0" 
-      subtitle={`Campaña: ${activeCampaign?.name || 'N/A'} // Generador de Perfiles de Amenazas Hostiles`}
-      actions={
-        <button onClick={onBack} className="text-primary/60 hover:text-primary transition-colors flex items-center gap-1 text-xs font-mono uppercase">
-          <span className="material-icons text-sm">arrow_back</span> VOLVER
-        </button>
-      }
+      title="SYNTH_AMENAZA" 
+      subtitle="Analizador de Hostiles"
+      icon="pest_control"
+      onLogout={onLogout}
+      onNavigate={onNavigate}
+      gameSystemId={activeCampaign?.gameSystemId}
     >
       <div className="flex flex-col lg:flex-row gap-8 h-full font-mono">
         {/* Form Panel */}

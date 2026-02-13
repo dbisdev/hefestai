@@ -12,12 +12,15 @@ import { aiService, entityService } from '@core/services/api';
 import { useCampaign } from '@core/context';
 import { parseJsonResponse } from '@core/utils';
 import type { VehicleData } from '@core/types';
+import { Screen } from '@core/types';
 
 /** Placeholder image for vehicles without generated images */
 const VEHICLE_PLACEHOLDER_IMAGE = "https://lh3.googleusercontent.com/aida-public/AB6AXuDwdfYYr9eKFLnajyN2Ac6wDARXA_-mfibVDogKPYkAVDBc8v4xmz5S0onKageqWHbJkwaMQal6d_37piOBkfBRODrtpzVCAORmDmN9Lhms-1nWa0CAGhzL-5Cn16UzV3rpA-y-YrjlCMY3FBwJuARw1b7kBd9u5-Ix8KNLLf33w-D8gYTS1IH94XfBXDAo-nEqDs-LwRpisgMDqMM3vEgtruTqz-qjLsv8dR7IrSoRWDYyOqfAh36rTTDQBiDtNWaL6sCxsMV7POo";
 
 interface VehicleGeneratorPageProps {
   onBack: () => void;
+  onNavigate?: (screen: Screen) => void;
+  onLogout?: () => void;
 }
 
 const VEHICLE_TYPE_OPTIONS = [
@@ -32,7 +35,7 @@ const CHASSIS_CLASS_OPTIONS = [
   { value: 'explorer', label: 'Explorador de Larga Distancia' },
 ];
 
-export const VehicleGeneratorPage: React.FC<VehicleGeneratorPageProps> = ({ onBack }) => {
+export const VehicleGeneratorPage: React.FC<VehicleGeneratorPageProps> = ({ onBack, onNavigate, onLogout }) => {
   const { activeCampaignId, activeCampaign } = useCampaign();
   const [logs, setLogs] = useState(['> Awaiting construction parameters...']);
   const [isGenerating, setIsGenerating] = useState(false);
@@ -144,13 +147,12 @@ export const VehicleGeneratorPage: React.FC<VehicleGeneratorPageProps> = ({ onBa
 
   return (
     <TerminalLayout 
-      title="Shipyard_Forge // V.1.0" 
-      subtitle={`Campaña: ${activeCampaign?.name || 'N/A'} // Ensamblaje de Vehículos Persistentes`}
-      actions={
-        <button onClick={onBack} className="text-primary/60 hover:text-primary transition-colors flex items-center gap-1 text-xs font-mono uppercase">
-          <span className="material-icons text-sm">arrow_back</span> VOLVER
-        </button>
-      }
+      title="SYNTH_VEHICULO" 
+      subtitle="Ensamblaje Naval"
+      icon="rocket_launch"
+      onLogout={onLogout}
+      onNavigate={onNavigate}
+      gameSystemId={activeCampaign?.gameSystemId}
     >
       <div className="flex flex-col lg:flex-row gap-8 h-full font-mono">
         {/* Form Panel */}

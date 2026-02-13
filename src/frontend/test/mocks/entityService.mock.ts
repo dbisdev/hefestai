@@ -4,6 +4,7 @@
  */
 import { vi } from 'vitest';
 import type { LoreEntity } from '@core/types';
+import { OwnershipType, VisibilityLevel } from '@core/types';
 
 // Default mock entities
 export const mockEntities: LoreEntity[] = [
@@ -12,7 +13,9 @@ export const mockEntities: LoreEntity[] = [
     name: 'Test Character',
     description: 'A test character for testing',
     entityType: 'character',
-    visibility: 2,
+    visibility: VisibilityLevel.Campaign,
+    ownershipType: OwnershipType.Master,
+    isTemplate: false,
     imageUrl: 'https://example.com/char.jpg',
     attributes: { strength: 10, dexterity: 12 },
     campaignId: 'campaign-123',
@@ -25,7 +28,9 @@ export const mockEntities: LoreEntity[] = [
     name: 'Test NPC',
     description: 'A test NPC',
     entityType: 'npc',
-    visibility: 2,
+    visibility: VisibilityLevel.Campaign,
+    ownershipType: OwnershipType.Master,
+    isTemplate: false,
     imageUrl: 'https://example.com/npc.jpg',
     attributes: {},
     campaignId: 'campaign-123',
@@ -38,8 +43,10 @@ export const mockEntities: LoreEntity[] = [
     name: 'Test Enemy',
     description: 'A test enemy',
     entityType: 'enemy',
-    visibility: 2,
-    imageUrl: null,
+    visibility: VisibilityLevel.Campaign,
+    ownershipType: OwnershipType.Master,
+    isTemplate: false,
+    imageUrl: undefined,
     attributes: { health: 100 },
     campaignId: 'campaign-123',
     ownerId: 'user-123',
@@ -98,8 +105,10 @@ export const entityService = {
       name: input.name || 'New Entity',
       description: input.description || '',
       entityType: input.entityType || 'character',
-      visibility: input.visibility ?? 2,
-      imageUrl: input.imageUrl || null,
+      visibility: input.visibility ?? VisibilityLevel.Campaign,
+      ownershipType: input.ownershipType ?? OwnershipType.Master,
+      isTemplate: input.isTemplate ?? false,
+      imageUrl: input.imageUrl || undefined,
       attributes: input.attributes || {},
       campaignId,
       ownerId: 'user-123',

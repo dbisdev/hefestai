@@ -76,8 +76,8 @@ describe('CharacterSheetPdfService', () => {
   beforeEach(() => {
     createObjectURLMock = vi.fn(() => 'blob:mock-url');
     revokeObjectURLMock = vi.fn();
-    global.URL.createObjectURL = createObjectURLMock;
-    global.URL.revokeObjectURL = revokeObjectURLMock;
+    global.URL.createObjectURL = createObjectURLMock as unknown as typeof URL.createObjectURL;
+    global.URL.revokeObjectURL = revokeObjectURLMock as unknown as typeof URL.revokeObjectURL;
   });
   
   afterEach(() => {

@@ -13,9 +13,12 @@ import { aiService, entityService } from '@core/services/api';
 import { useCampaign } from '@core/context';
 import { parseJsonResponse } from '@core/utils';
 import type { MissionData } from '@core/types';
+import { Screen } from '@core/types';
 
 interface MissionGeneratorPageProps {
   onBack: () => void;
+  onNavigate?: (screen: Screen) => void;
+  onLogout?: () => void;
 }
 
 /** Placeholder image for missions without generated images */
@@ -58,7 +61,7 @@ const ENVIRONMENT_OPTIONS = [
   { value: 'underground', label: 'Instalacion Subterranea' },
 ];
 
-export const MissionGeneratorPage: React.FC<MissionGeneratorPageProps> = ({ onBack }) => {
+export const MissionGeneratorPage: React.FC<MissionGeneratorPageProps> = ({ onBack, onNavigate, onLogout }) => {
   const { activeCampaignId, activeCampaign } = useCampaign();
 
   const [logs, setLogs] = useState([
@@ -206,13 +209,12 @@ export const MissionGeneratorPage: React.FC<MissionGeneratorPageProps> = ({ onBa
 
   return (
     <TerminalLayout 
-      title="Mission_Briefing // V.1.0" 
-      subtitle={`Campaña: ${activeCampaign?.name || 'N/A'} // Generador de Misiones Tacticas`}
-      actions={
-        <button onClick={onBack} className="text-primary/60 hover:text-primary transition-colors flex items-center gap-1 text-xs font-mono uppercase">
-          <span className="material-icons text-sm">arrow_back</span> VOLVER
-        </button>
-      }
+      title="GENERADOR DE MISIONES" 
+      subtitle="Generador de Misiones Tacticas"
+      icon="assignment"
+      onLogout={onLogout}
+      onNavigate={onNavigate}
+      gameSystemId={activeCampaign?.gameSystemId}
     >
       <div className="flex flex-col lg:flex-row gap-8 h-full font-mono">
         {/* Form Panel */}

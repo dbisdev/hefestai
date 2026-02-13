@@ -8,9 +8,12 @@ import React, { useState, useEffect, useCallback } from 'react';
 import { TerminalLayout } from '@shared/components/layout';
 import { Button } from '@shared/components/ui';
 import { useCampaign } from '@core/context';
+import { Screen } from '@core/types';
 
 interface CampaignSettingsPageProps {
   onBack: () => void;
+  onNavigate?: (screen: Screen) => void;
+  onLogout?: () => void;
 }
 
 /**
@@ -18,7 +21,7 @@ interface CampaignSettingsPageProps {
  * Provides UI for editing campaign details, changing status, and managing join codes
  * Only accessible to campaign Masters
  */
-export const CampaignSettingsPage: React.FC<CampaignSettingsPageProps> = ({ onBack }) => {
+export const CampaignSettingsPage: React.FC<CampaignSettingsPageProps> = ({ onBack, onNavigate, onLogout }) => {
   const { 
     activeCampaign, 
     updateCampaign, 
@@ -186,7 +189,14 @@ export const CampaignSettingsPage: React.FC<CampaignSettingsPageProps> = ({ onBa
   // Check if user has access
   if (!activeCampaign) {
     return (
-      <TerminalLayout title="CONFIG_CAMPAÑA" onLogout={() => {}}>
+      <TerminalLayout 
+        title="CONFIG_CAMPAÑA" 
+        subtitle="Configuracion de Campaña"
+        icon="settings"
+        onLogout={onLogout}
+        onNavigate={onNavigate}
+        hideCampaignSelector={true}
+      >
         <div className="flex flex-col items-center justify-center h-full text-primary/60">
           <span className="material-icons text-6xl mb-4">warning</span>
           <p className="text-sm uppercase tracking-widest">No hay campaña seleccionada</p>
@@ -198,7 +208,14 @@ export const CampaignSettingsPage: React.FC<CampaignSettingsPageProps> = ({ onBa
 
   if (!isActiveCampaignMaster) {
     return (
-      <TerminalLayout title="CONFIG_CAMPAÑA" onLogout={() => {}}>
+      <TerminalLayout 
+        title="CONFIG_CAMPAÑA" 
+        subtitle="Configuracion de Campaña"
+        icon="settings"
+        onLogout={onLogout}
+        onNavigate={onNavigate}
+        hideCampaignSelector={true}
+      >
         <div className="flex flex-col items-center justify-center h-full text-danger/60">
           <span className="material-icons text-6xl mb-4">lock</span>
           <p className="text-sm uppercase tracking-widest">Acceso restringido a Masters</p>
@@ -211,7 +228,14 @@ export const CampaignSettingsPage: React.FC<CampaignSettingsPageProps> = ({ onBa
   const isAnyOperationInProgress = isSaving || isRegenerating || isDeleting || isTogglingStatus || isLoading;
 
   return (
-    <TerminalLayout title="CONFIG_CAMPAÑA" onLogout={() => {}}>
+    <TerminalLayout 
+      title="CONFIG_CAMPAÑA" 
+      subtitle="Configuracion de Campaña"
+      icon="settings"
+      onLogout={onLogout}
+      onNavigate={onNavigate}
+      hideCampaignSelector={true}
+    >
       <div className="flex flex-col lg:flex-row h-full p-4 lg:p-8 gap-6">
         {/* Main Form Section */}
         <div className="flex-1 flex flex-col gap-6">

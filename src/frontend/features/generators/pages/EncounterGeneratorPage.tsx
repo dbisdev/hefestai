@@ -12,9 +12,12 @@ import { aiService, entityService } from '@core/services/api';
 import { useCampaign } from '@core/context';
 import { parseJsonResponse } from '@core/utils';
 import type { EncounterData } from '@core/types';
+import { Screen } from '@core/types';
 
 interface EncounterGeneratorPageProps {
   onBack: () => void;
+  onNavigate?: (screen: Screen) => void;
+  onLogout?: () => void;
 }
 
 /** Placeholder image for encounters without generated images */
@@ -67,7 +70,7 @@ const ENEMY_COUNT_OPTIONS = [
   { value: 'horde', label: '6+ Enemigos' },
 ];
 
-export const EncounterGeneratorPage: React.FC<EncounterGeneratorPageProps> = ({ onBack }) => {
+export const EncounterGeneratorPage: React.FC<EncounterGeneratorPageProps> = ({ onBack, onNavigate, onLogout }) => {
   const { activeCampaignId, activeCampaign } = useCampaign();
   const [logs, setLogs] = useState([
     '> Tactical simulation online...',
@@ -208,13 +211,12 @@ export const EncounterGeneratorPage: React.FC<EncounterGeneratorPageProps> = ({ 
 
   return (
     <TerminalLayout 
-      title="Combat_Simulator // V.1.0" 
-      subtitle={`Campaña: ${activeCampaign?.name || 'N/A'} // Generador de Encuentros Tacticos`}
-      actions={
-        <button onClick={onBack} className="text-primary/60 hover:text-primary transition-colors flex items-center gap-1 text-xs font-mono uppercase">
-          <span className="material-icons text-sm">arrow_back</span> VOLVER
-        </button>
-      }
+      title="SIMULADOR DE COMBATE" 
+      subtitle="Generador de Encuentros Tacticos"
+      icon="swords"
+      onLogout={onLogout}
+      onNavigate={onNavigate}
+      gameSystemId={activeCampaign?.gameSystemId}
     >
       <div className="flex flex-col lg:flex-row gap-8 h-full font-mono">
         {/* Form Panel */}

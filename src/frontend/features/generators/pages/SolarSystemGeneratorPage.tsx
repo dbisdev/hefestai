@@ -12,9 +12,12 @@ import { aiService, entityService } from '@core/services/api';
 import { useCampaign } from '@core/context';
 import { parseJsonResponse } from '@core/utils';
 import type { SystemData } from '@core/types';
+import { Screen } from '@core/types';
 
 interface SolarSystemGeneratorPageProps {
   onBack: () => void;
+  onNavigate?: (screen: Screen) => void;
+  onLogout?: () => void;
 }
 
 const SYSTEM_PLACEHOLDER_IMAGE = "https://images.unsplash.com/photo-1464802686167-b939a6910659?q=80&w=400&auto=format&fit=crop";
@@ -25,7 +28,7 @@ const SPECTRAL_CLASSES = [
   { value: 'O', label: 'Blue Giant' },
 ];
 
-export const SolarSystemGeneratorPage: React.FC<SolarSystemGeneratorPageProps> = ({ onBack }) => {
+export const SolarSystemGeneratorPage: React.FC<SolarSystemGeneratorPageProps> = ({ onBack, onNavigate, onLogout }) => {
   const { activeCampaignId, activeCampaign } = useCampaign();
   
   const [spectralClass, setSpectralClass] = useState('G');
@@ -118,13 +121,12 @@ export const SolarSystemGeneratorPage: React.FC<SolarSystemGeneratorPageProps> =
 
   return (
     <TerminalLayout 
-      title="Generador Solar // OS.CORE" 
-      subtitle={`Campaña: ${activeCampaign?.name || 'N/A'} // Sintetizador de Mapas Estelares`}
-      actions={
-        <button onClick={onBack} className="text-primary/60 hover:text-primary transition-colors flex items-center gap-1 text-xs">
-          <span className="material-icons text-sm">arrow_back</span> VOLVER
-        </button>
-      }
+      title="GENERADOR SOLAR" 
+      subtitle="Sintetizador de Mapas Estelares"
+      icon="public"
+      onLogout={onLogout}
+      onNavigate={onNavigate}
+      gameSystemId={activeCampaign?.gameSystemId}
     >
       <div className="flex flex-col lg:flex-row gap-6 h-full overflow-hidden font-mono">
         {/* Controls Panel */}

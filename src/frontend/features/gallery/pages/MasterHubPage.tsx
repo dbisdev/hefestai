@@ -43,7 +43,7 @@ interface HubPanel {
  */
 const HUB_PANELS: HubPanel[] = [
   {
-    id: Screen.CAMPAIGN_GEN,
+    id: Screen.CAMPAIGN_LIST,
     title: 'Campañas',
     subtitle: 'Gestión de crónicas y sesiones activas',
     icon: 'auto_stories',
@@ -81,8 +81,11 @@ export const MasterHubPage: React.FC<MasterHubPageProps> = ({ onNavigate, onLogo
   return (
     <TerminalLayout 
       title="NÚCLEO DE MANDO" 
-      subtitle="Master Operating System // Hub Central"
+      subtitle="Hub Central"
+      icon="hub"
       onLogout={onLogout}
+      onNavigate={onNavigate}
+      hideBackToHub={true}
     >
       <div className="h-full overflow-y-auto custom-scrollbar px-4 md:px-10 py-6 md:py-0">
         <div className="min-h-full flex flex-col items-center justify-center">

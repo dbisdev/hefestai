@@ -12,9 +12,12 @@ import { aiService, entityService } from '@core/services/api';
 import { useCampaign } from '@core/context';
 import { parseJsonResponse } from '@core/utils';
 import type { NpcData } from '@core/types';
+import { Screen } from '@core/types';
 
 interface NpcGeneratorPageProps {
   onBack: () => void;
+  onNavigate?: (screen: Screen) => void;
+  onLogout?: () => void;
 }
 
 const UNKNOWN_NPC_IMAGE = "https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?q=80&w=400&auto=format&fit=crop";
@@ -60,7 +63,7 @@ const SPECIES_OPTIONS = [
   { value: 'clone', label: 'Clon' },
 ];
 
-export const NpcGeneratorPage: React.FC<NpcGeneratorPageProps> = ({ onBack }) => {
+export const NpcGeneratorPage: React.FC<NpcGeneratorPageProps> = ({ onBack, onNavigate, onLogout }) => {
   const { activeCampaignId, activeCampaign } = useCampaign();
   const [logs, setLogs] = useState([
     '> Actor database initialized...',
@@ -193,13 +196,12 @@ export const NpcGeneratorPage: React.FC<NpcGeneratorPageProps> = ({ onBack }) =>
 
   return (
     <TerminalLayout 
-      title="Actor_Synth // V.1.0" 
-      subtitle={`Campaña: ${activeCampaign?.name || 'N/A'} // Generador de Perfiles de Actores NPC`}
-      actions={
-        <button onClick={onBack} className="text-primary/60 hover:text-primary transition-colors flex items-center gap-1 text-xs font-mono uppercase">
-          <span className="material-icons text-sm">arrow_back</span> VOLVER
-        </button>
-      }
+      title="SYNTH_ACTOR" 
+      subtitle="Generador de NPCs"
+      icon="groups"
+      onLogout={onLogout}
+      onNavigate={onNavigate}
+      gameSystemId={activeCampaign?.gameSystemId}
     >
       <div className="flex flex-col lg:flex-row gap-8 h-full font-mono">
         {/* Form Panel */}

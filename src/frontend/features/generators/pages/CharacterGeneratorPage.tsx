@@ -12,9 +12,12 @@ import { aiService, entityService } from '@core/services/api';
 import { useCampaign } from '@core/context';
 import { parseJsonResponse } from '@core/utils';
 import type { CharacterData } from '@core/types';
+import { Screen } from '@core/types';
 
 interface CharacterGeneratorPageProps {
   onBack: () => void;
+  onNavigate?: (screen: Screen) => void;
+  onLogout?: () => void;
 }
 
 const UNKNOWN_CHAR_IMAGE = "https://images.unsplash.com/photo-1518020382113-a7e8fc38eac9?q=80&w=400&auto=format&fit=crop";
@@ -41,7 +44,7 @@ const ROLE_OPTIONS = [
 
 const MORPHOLOGY_OPTIONS = ['MASCULINE', 'FEMININE', 'NEUTRAL'] as const;
 
-export const CharacterGeneratorPage: React.FC<CharacterGeneratorPageProps> = ({ onBack }) => {
+export const CharacterGeneratorPage: React.FC<CharacterGeneratorPageProps> = ({ onBack, onNavigate, onLogout }) => {
   const { activeCampaignId, activeCampaign } = useCampaign();
   
   const [logs, setLogs] = useState([
@@ -180,13 +183,12 @@ export const CharacterGeneratorPage: React.FC<CharacterGeneratorPageProps> = ({ 
 
   return (
     <TerminalLayout 
-      title="Character_Synth // V.2.0" 
-      subtitle={`Campaña: ${activeCampaign?.name || 'N/A'} // Sintetizador Biométrico`}
-      actions={
-        <button onClick={onBack} className="text-primary/60 hover:text-primary transition-colors flex items-center gap-1 text-xs font-mono uppercase">
-          <span className="material-icons text-sm">arrow_back</span> VOLVER
-        </button>
-      }
+      title="SYNTH_PERSONAJE" 
+      subtitle="Sintetizador Biométrico"
+      icon="face"
+      onLogout={onLogout}
+      onNavigate={onNavigate}
+      gameSystemId={activeCampaign?.gameSystemId}
     >
       <div className="flex flex-col lg:flex-row gap-8 h-full font-mono">
         {/* Form Panel */}

@@ -17,7 +17,9 @@ export type {
   DocumentSearchResult, 
   SemanticSearchParams, 
   SemanticSearchResult,
-  ManualDto 
+  ManualDto,
+  UploadManualResult,
+  RagSourceType
 } from './document.service';
 export type { 
   PaginatedEntitiesResult, 

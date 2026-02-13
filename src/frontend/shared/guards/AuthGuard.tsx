@@ -5,8 +5,8 @@
  */
 
 import React from 'react';
-import { useAuth } from '../../../core/context/AuthContext';
-import { LoadingSpinner } from '../ui/LoadingSpinner';
+import { useAuth } from '@core/context/AuthContext';
+import { LoadingSpinner } from '@shared/components/ui/LoadingSpinner';
 
 interface AuthGuardProps {
   children: React.ReactNode;
