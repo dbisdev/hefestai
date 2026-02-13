@@ -2,14 +2,16 @@
  * Master Hub Page
  * Landing page for Master users after login.
  * Displays 3 big panels for quick navigation to main sections.
- * Cyberpunk terminal aesthetics.
+ * Cyberpunk terminal aesthetics with clean, minimal animations.
  */
 
 import React from 'react';
-import { GridBackground } from '@shared/components/layout';
-import { useAuth } from '@core/context';
+import { TerminalLayout } from '@shared/components/layout';
 import { Screen } from '@core/types';
 
+/**
+ * Props for the MasterHubPage component
+ */
 interface MasterHubPageProps {
   /** Handler for navigating to other screens */
   onNavigate: (screen: Screen) => void;
@@ -17,176 +19,139 @@ interface MasterHubPageProps {
   onLogout: () => void;
 }
 
-/** Hub panel configuration */
+/**
+ * Hub panel configuration for navigation cards
+ */
 interface HubPanel {
+  /** Screen identifier for navigation */
   id: Screen;
+  /** Display title */
   title: string;
+  /** Secondary description */
   subtitle: string;
+  /** Material icon name */
   icon: string;
-  description: string;
+  /** Border color class */
   color: string;
-  glowColor: string;
+  /** Detailed description text */
+  description: string;
 }
 
-/** Available panels for Master users */
+/**
+ * Available panels for Master users
+ * Each panel represents a main section of the application
+ */
 const HUB_PANELS: HubPanel[] = [
   {
-    id: Screen.GALLERY,
-    title: 'GALERÍA',
-    subtitle: 'Entity Repository',
-    icon: 'collections',
-    description: 'Accede a todas tus entidades generadas: personajes, NPCs, vehículos, sistemas solares y más.',
-    color: 'primary',
-    glowColor: 'rgba(37, 244, 106, 0.3)',
-  },
-  {
     id: Screen.CAMPAIGN_GEN,
-    title: 'CAMPAÑAS',
-    subtitle: 'Campaign Manager',
-    icon: 'shield',
-    description: 'Crea y administra campañas, invita jugadores y organiza tus partidas.',
-    color: 'purple-400',
-    glowColor: 'rgba(192, 132, 252, 0.3)',
+    title: 'Campañas',
+    subtitle: 'Gestión de crónicas y sesiones activas',
+    icon: 'auto_stories',
+    color: 'border-primary/20',
+    description: 'Crea y administra tus hilos narrativos. Controla el progreso de los operativos en tiempo real.'
   },
   {
     id: Screen.GAME_SYSTEMS,
-    title: 'SISTEMAS',
-    subtitle: 'Game Systems',
-    icon: 'sports_esports',
-    description: 'Gestiona los sistemas de juego disponibles para tus campañas y entidades.',
-    color: 'cyan-400',
-    glowColor: 'rgba(34, 211, 238, 0.3)',
+    title: 'Sistemas de Juego',
+    subtitle: 'Configuración de reglas y mecánicas',
+    icon: 'settings_suggest',
+    color: 'border-primary/20',
+    description: 'Ajusta los parámetros del motor de juego. Define tablas de probabilidad y sistemas de combate.'
   },
+  {
+    id: Screen.GALLERY,
+    title: 'Galería de Entidades',
+    subtitle: 'Archivo central de activos sintetizados',
+    icon: 'grid_view',
+    color: 'border-primary/20',
+    description: 'Accede a tus personajes, vehículos y sistemas estelares generados por el núcleo de IA.'
+  }
 ];
 
 /**
  * MasterHubPage Component
  * Provides a hub interface for Master users to navigate to main sections.
+ * Features:
+ * - 3 large navigation panels with responsive layout
+ * - Clean terminal aesthetic
+ * - Scrollable content for mobile devices
+ * - Minimal hover animations for performance
  */
 export const MasterHubPage: React.FC<MasterHubPageProps> = ({ onNavigate, onLogout }) => {
-  const { user } = useAuth();
-
   return (
-    <div className="flex flex-col min-h-screen bg-background-dark font-mono relative overflow-hidden">
-      <GridBackground opacity={0.08} size={50} />
-      
-      {/* Header */}
-      <header className="relative z-10 flex justify-between items-center p-6 md:p-8 border-b border-primary/20">
-        <div className="flex items-center gap-4">
-          <div className="w-10 h-10 border-2 border-primary flex items-center justify-center bg-primary/10">
-            <span className="material-icons text-primary">hub</span>
-          </div>
-          <div>
-            <h1 className="text-2xl md:text-3xl font-display uppercase tracking-widest text-primary text-glow font-bold">
-              MASTER_HUB
-            </h1>
-            <p className="text-xs text-primary/60 uppercase tracking-wider">
-              Centro de control // {user?.email}
-            </p>
-          </div>
-        </div>
-        
-        <div className="flex items-center gap-4">
-          <div className="hidden md:flex flex-col text-right text-xs text-primary/60">
-            <span>ROL: MASTER</span>
-            <span>STATUS: ONLINE</span>
-          </div>
-          <button
-            onClick={onLogout}
-            className="border border-red-500 px-4 py-2 text-xs uppercase hover:bg-red-500 hover:text-black transition-colors text-red-500 font-bold"
-          >
-            LOGOUT
-          </button>
-        </div>
-      </header>
-
-      {/* Main Content - Hub Panels */}
-      <main className="relative z-10 flex-1 flex items-center justify-center p-6 md:p-12">
-        <div className="w-full max-w-6xl">
-          {/* Welcome Message */}
-          <div className="text-center mb-8 md:mb-12">
-            <p className="text-primary/60 text-sm uppercase tracking-[0.3em] mb-2">
-              Bienvenido, {user?.username || 'Master'}
-            </p>
-            <h2 className="text-xl md:text-2xl text-primary/80 font-display uppercase tracking-widest">
-              Selecciona un módulo para comenzar
+    <TerminalLayout 
+      title="NÚCLEO DE MANDO" 
+      subtitle="Master Operating System // Hub Central"
+      onLogout={onLogout}
+    >
+      <div className="h-full overflow-y-auto custom-scrollbar px-4 md:px-10 py-6 md:py-0">
+        <div className="min-h-full flex flex-col items-center justify-center">
+          {/* Welcome Header */}
+          <div className="mb-12 text-center relative w-full">
+            {/* Decorative line - static, no pulse animation */}
+            <div className="absolute -top-6 left-1/2 -translate-x-1/2 w-32 h-0.5 bg-primary/5" />
+            <h2 className="text-4xl md:text-5xl font-display font-black text-primary/90 text-glow uppercase tracking-[0.2em] mb-4">
+              Bienvenido, Maestro
             </h2>
+            <p className="text-primary/40 font-mono text-sm max-w-2xl mx-auto uppercase tracking-widest">
+              Selecciona un sector para inicializar los protocolos operativos. Todos los sistemas están nominales.
+            </p>
           </div>
 
-          {/* Panels Grid */}
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-6 md:gap-8">
+          {/* Navigation Panels Grid */}
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-8 w-full max-w-6xl mb-12">
             {HUB_PANELS.map((panel) => (
               <button
                 key={panel.id}
                 onClick={() => onNavigate(panel.id)}
-                className={`group relative flex flex-col items-center p-8 md:p-10 border-2 border-${panel.color}/30 bg-black/60 
-                  hover:border-${panel.color} hover:bg-${panel.color}/10 transition-all duration-300
-                  hover:shadow-[0_0_30px_${panel.glowColor}] active:scale-[0.98]`}
-                style={{
-                  boxShadow: `inset 0 0 20px rgba(0,0,0,0.5)`,
-                }}
+                className={`group relative bg-surface-dark/40 border ${panel.color} p-8 text-left transition-all duration-700 hover:scale-[1.01] hover:bg-surface-dark/80 hover:shadow-[0_0_20px_rgba(37,244,106,0.03)] clip-tech-br flex flex-col md:min-h-[350px] min-h-[250px] overflow-hidden`}
               >
-                {/* Decorative corners */}
-                <div className={`absolute top-0 left-0 w-4 h-4 border-t-2 border-l-2 border-${panel.color}/50`} />
-                <div className={`absolute top-0 right-0 w-4 h-4 border-t-2 border-r-2 border-${panel.color}/50`} />
-                <div className={`absolute bottom-0 left-0 w-4 h-4 border-b-2 border-l-2 border-${panel.color}/50`} />
-                <div className={`absolute bottom-0 right-0 w-4 h-4 border-b-2 border-r-2 border-${panel.color}/50`} />
-
-                {/* Icon */}
-                <div className={`w-20 h-20 md:w-24 md:h-24 border-2 border-${panel.color}/40 flex items-center justify-center 
-                  bg-${panel.color}/5 mb-6 group-hover:border-${panel.color} group-hover:bg-${panel.color}/20 transition-all`}>
-                  <span className={`material-icons text-4xl md:text-5xl text-${panel.color}/70 group-hover:text-${panel.color} transition-colors`}>
-                    {panel.icon}
-                  </span>
+                {/* Panel Header - Icon and Title inline */}
+                <div className="mb-6">
+                  <div className="flex items-center gap-4 mb-3">
+                    <div className="w-14 h-14 shrink-0 border border-primary/10 flex items-center justify-center bg-primary/5 group-hover:bg-primary/10 transition-colors duration-700">
+                      <span className="material-icons text-primary/40 group-hover:text-primary/80 text-3xl transition-all">
+                        {panel.icon}
+                      </span>
+                    </div>
+                    <h3 className="text-2xl font-display font-bold text-primary/70 group-hover:text-primary group-hover:text-glow uppercase tracking-widest leading-none transition-colors duration-500">
+                      {panel.title}
+                    </h3>
+                  </div>
+                  <p className="text-[10px] text-primary/20 font-mono uppercase tracking-wider italic">
+                    {panel.subtitle}
+                  </p>
                 </div>
 
-                {/* Title */}
-                <h3 className={`text-xl md:text-2xl font-display uppercase tracking-widest text-${panel.color}/80 
-                  group-hover:text-${panel.color} group-hover:text-glow transition-all mb-1`}>
-                  {panel.title}
-                </h3>
-
-                {/* Subtitle */}
-                <p className={`text-[10px] text-${panel.color}/40 uppercase tracking-[0.2em] mb-4`}>
-                  {panel.subtitle}
-                </p>
-
-                {/* Description */}
-                <p className={`text-xs text-${panel.color}/50 text-center leading-relaxed group-hover:text-${panel.color}/70 transition-colors`}>
+                {/* Panel Description */}
+                <p className="text-xs text-primary/40 leading-relaxed font-mono mt-2 mb-8 flex-1 group-hover:text-primary/60 transition-colors duration-700">
                   {panel.description}
                 </p>
 
-                {/* Bottom indicator */}
-                <div className={`mt-6 flex items-center gap-2 text-${panel.color}/40 group-hover:text-${panel.color} transition-colors`}>
-                  <span className="text-[10px] uppercase tracking-widest">Acceder</span>
-                  <span className="material-icons text-sm group-hover:translate-x-1 transition-transform">
+                {/* Panel Footer */}
+                <div className="mt-auto pt-4 border-t border-primary/5 flex items-center justify-between">
+                  <span className="text-[10px] text-primary/20 font-bold uppercase tracking-widest group-hover:text-primary/40 transition-colors">
+                    Entrada Disponible
+                  </span>
+                  <span className="material-icons text-primary/30 group-hover:text-primary/60 group-hover:translate-x-0.5 transition-all duration-500">
                     arrow_forward
                   </span>
                 </div>
-
-                {/* Hover glow effect */}
-                <div className={`absolute inset-0 opacity-0 group-hover:opacity-100 transition-opacity duration-300 pointer-events-none`}
-                  style={{
-                    background: `radial-gradient(ellipse at center, ${panel.glowColor} 0%, transparent 70%)`,
-                  }}
-                />
               </button>
             ))}
           </div>
-        </div>
-      </main>
 
-      {/* Footer */}
-      <footer className="relative z-10 p-4 border-t border-primary/20 flex justify-between text-[10px] md:text-xs text-primary/40 uppercase">
-        <div className="flex gap-4">
-          <span>HefestAI v3.0</span>
-          <span className="hidden md:inline">// Master Control Panel</span>
+          {/* Footer Status Indicators */}
+          <div className="mt-4 flex flex-wrap justify-center items-center gap-6 md:gap-10 opacity-10 text-[10px] font-mono uppercase tracking-[0.5em] text-primary pb-8">
+            <div className="flex items-center gap-2">
+              <span className="w-1 h-1 bg-primary/40 rounded-full" />
+              TRANSCEPTOR_ACTIVO
+            </div>
+            <div className="hidden sm:block">ENLACE_NEURAL_ESTABLE</div>
+            <div className="hidden sm:block">SEGURIDAD_NIVEL_ALPHA</div>
+          </div>
         </div>
-        <div className="flex gap-4 animate-pulse">
-          <span>Sistema operativo</span>
-          <span>[ |||||||||| ] OK</span>
-        </div>
-      </footer>
-    </div>
+      </div>
+    </TerminalLayout>
   );
 };

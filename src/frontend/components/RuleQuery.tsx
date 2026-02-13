@@ -37,8 +37,8 @@ const RuleQuery: React.FC<RuleQueryProps> = ({ onClose, gameSystemId, gameSystem
   const [results, setResults] = useState<SemanticSearchResult | null>(null);
   const [generateAnswer, setGenerateAnswer] = useState(true);
   const [showSettings, setShowSettings] = useState(false);
-  const [threshold, setThreshold] = useState(0.7);
-  const [resultLimit, setResultLimit] = useState(5);
+  const [threshold, setThreshold] = useState(0.6);
+  const [resultLimit, setResultLimit] = useState(6);
 
   // Refs for focus management
   const inputRef = useRef<HTMLInputElement>(null);
@@ -195,7 +195,7 @@ const RuleQuery: React.FC<RuleQueryProps> = ({ onClose, gameSystemId, gameSystem
             <button
               type="submit"
               disabled={isLoading || !query.trim()}
-              className="border border-primary px-6 py-3 text-xs uppercase hover:bg-primary hover:text-black transition-colors text-primary font-bold disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
+              className="border border-primary px-3 py-3 text-xs uppercase hover:bg-primary hover:text-black transition-colors text-primary font-bold disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
               aria-label="Buscar"
             >
               {isLoading ? (
@@ -208,7 +208,7 @@ const RuleQuery: React.FC<RuleQueryProps> = ({ onClose, gameSystemId, gameSystem
             <button
               type="button"
               onClick={() => setShowSettings(!showSettings)}
-              className={`border px-4 py-3 transition-colors ${
+              className={`border px-3 py-3 transition-colors ${
                 showSettings
                   ? 'bg-primary text-black border-primary'
                   : 'border-primary/40 text-primary hover:border-primary'
@@ -354,16 +354,16 @@ const RuleQuery: React.FC<RuleQueryProps> = ({ onClose, gameSystemId, gameSystem
                   onClick={() => setQuery('¿Cómo funciona el combate?')} 
                 />
                 <ExampleQuery 
-                  query="¿Qué habilidades tiene un piloto?" 
-                  onClick={() => setQuery('¿Qué habilidades tiene un piloto?')} 
+                  query="¿Qué talentos tiene un piloto y su descripción?" 
+                  onClick={() => setQuery('¿Qué talentos tiene un piloto y su descripción?')} 
                 />
                 <ExampleQuery 
-                  query="¿Cuánto daño hace un láser?" 
-                  onClick={() => setQuery('¿Cuánto daño hace un láser?')} 
+                  query="¿Cuánto daño hace un rifle M41A?" 
+                  onClick={() => setQuery('¿Cuánto daño hace un rifle M41A?')} 
                 />
                 <ExampleQuery 
-                  query="¿Cómo se crea un personaje?" 
-                  onClick={() => setQuery('¿Cómo se crea un personaje?')} 
+                  query="¿Cómo se crea un personaje paso a paso?" 
+                  onClick={() => setQuery('¿Cómo se crea un personaje paso a paso?')} 
                 />
               </div>
             </div>

@@ -6,6 +6,7 @@
 
 import React, { createContext, useContext, useState, useEffect, useCallback, useMemo } from 'react';
 import { authService } from '../services/api';
+import { tokenService } from '../services/storage/token.service';
 import type { User, LoginCredentials, RegisterCredentials, AuthState } from '../types';
 
 interface AuthContextValue extends AuthState {
@@ -25,11 +26,13 @@ interface AuthProviderProps {
 }
 
 export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
-  const [user, setUser] = useState<User | null>(null);
+  // Initialize with cached user for faster initial render
+  const [user, setUser] = useState<User | null>(() => tokenService.getUser());
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
   // Check authentication status on mount
+  // Only makes API call if token exists and appears valid
   useEffect(() => {
     const checkAuth = async () => {
       try {

@@ -49,12 +49,12 @@ const Home: React.FC<HomeProps> = ({ onLogin, onSignup }) => {
       {/* Hero Section */}
       <main className="relative flex-1 pt-32 pb-20 px-6 max-w-7xl mx-auto w-full flex flex-col">
         <section className="text-center mb-32 relative">
-          <div className="absolute -top-10 left-1/2 -translate-x-1/2 text-[8px] opacity-30 tracking-[1em] uppercase">INICIALIZANDO_SECUENCIA_DE_ARRANQUE</div>
+          <div className="absolute -top-10 left-1/2 -translate-x-1/2 text-[8px] opacity-30 tracking-[1em] uppercase">INICIALIZANDO SECUENCIA_DE_ARRANQUE</div>
           <h1 className="text-6xl md:text-8xl font-display font-black mb-6 text-glow-primary animate-glitch-in uppercase leading-none">
             Forja tu <br/>
             <span className="bg-primary text-black px-4 ml-[-8px]">Leyenda</span> Galáctica
           </h1>
-          <p className="max-w-2xl mx-auto text-primary/60 text-lg md:text-xl leading-relaxed font-sans">
+          <p className="max-w-2xl mx-auto text-primary/60 text-lg md:text-xl leading-relaxed font-mono">
             La interfaz retro-futurista definitiva para Maestros de Juego y Operativos. 
             Sintetiza mundos, despliega activos y archiva tu cronología a través de la nébula.
           </p>
@@ -83,7 +83,7 @@ const Home: React.FC<HomeProps> = ({ onLogin, onSignup }) => {
               <span className="material-icons text-3xl leading-none">hub</span>
             </div>
             <h3 className="text-xl font-display font-bold uppercase tracking-widest text-glow">Nodo Génesis</h3>
-            <p className="text-sm text-primary/50 leading-relaxed font-sans">
+            <p className="text-sm text-primary/50 leading-relaxed font-mono">
               Despliega sistemas estelares de alta fidelidad y entidades biométricas. Nuestro enlace neural GenAI sintetiza órbitas planetarias únicas, rasgos de especies y perfiles operativos en tiempo real.
             </p>
             <div className="mt-auto pt-6 flex gap-1">
@@ -97,7 +97,7 @@ const Home: React.FC<HomeProps> = ({ onLogin, onSignup }) => {
               <span className="material-icons text-3xl leading-none">auto_awesome_motion</span>
             </div>
             <h3 className="text-xl font-display font-bold uppercase tracking-widest text-glow">Núcleo de Archivo</h3>
-            <p className="text-sm text-primary/50 leading-relaxed font-sans">
+            <p className="text-sm text-primary/50 leading-relaxed font-mono">
               Repositorio centralizado para todos los activos operativos. Accede a la galería galáctica con fallas sincronizadas de CRT para una experiencia de recuperación de datos inmersiva.
             </p>
             <div className="mt-auto pt-6 flex gap-1">
@@ -111,7 +111,7 @@ const Home: React.FC<HomeProps> = ({ onLogin, onSignup }) => {
               <span className="material-icons text-3xl leading-none">front_hand</span>
             </div>
             <h3 className="text-xl font-display font-bold uppercase tracking-widest text-glow">Capa Táctica</h3>
-            <p className="text-sm text-primary/50 leading-relaxed font-sans">
+            <p className="text-sm text-primary/50 leading-relaxed font-mono">
               Interactúa con nuestro lanzador de dados integrado basado en física. Simulado en un entorno de vacío 3D para asegurar cero interferencia gravitacional en los resultados de probabilidad.
             </p>
             <div className="mt-auto pt-6 flex gap-1">

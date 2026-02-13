@@ -83,9 +83,18 @@ export const authService = {
 
   /**
    * Get the current authenticated user
+   * Validates token exists and is not expired before making API call
    */
   async getCurrentUser(): Promise<User | null> {
+    // No token at all - no need to make API call
     if (!tokenService.hasToken()) {
+      return null;
+    }
+
+    // Token appears expired client-side - clear and return null
+    // This prevents unnecessary 401 requests
+    if (tokenService.isTokenExpired()) {
+      tokenService.clearTokens();
       return null;
     }
 
@@ -95,6 +104,7 @@ export const authService = {
       tokenService.setUser(user);
       return user;
     } catch {
+      // Token invalid on server - clear local storage
       tokenService.clearTokens();
       return null;
     }
