@@ -17,6 +17,7 @@ namespace Loremaster.Application.Features.LoreEntities.Commands.CreateLoreEntity
 /// <param name="ImageUrl">Optional image URL.</param>
 /// <param name="Attributes">Game-system-specific attributes.</param>
 /// <param name="Metadata">Additional flexible metadata.</param>
+/// <param name="GenerationRequestId">Optional ID of the generation request that created this entity's content.</param>
 public record CreateLoreEntityCommand(
     Guid CampaignId,
     string EntityType,
@@ -27,5 +28,6 @@ public record CreateLoreEntityCommand(
     bool? IsTemplate = null,
     string? ImageUrl = null,
     Dictionary<string, object>? Attributes = null,
-    Dictionary<string, object>? Metadata = null
+    Dictionary<string, object>? Metadata = null,
+    Guid? GenerationRequestId = null
 ) : IRequest<LoreEntityDto>;

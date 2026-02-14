@@ -152,15 +152,17 @@ public class CreateLoreEntityCommandHandler : IRequestHandler<CreateLoreEntityCo
             isTemplate: request.IsTemplate ?? false,
             imageUrl: request.ImageUrl,
             attributes: attributes,
-            metadata: metadata
+            metadata: metadata,
+            generationRequestId: request.GenerationRequestId
         );
 
         await _loreEntityRepository.AddAsync(entity, cancellationToken);
         await _unitOfWork.SaveChangesAsync(cancellationToken);
 
         _logger.LogInformation(
-            "LoreEntity {EntityId} of type {EntityType} created by user {UserId} in campaign {CampaignId} using template {TemplateId}", 
-            entity.Id, entity.EntityType, userId, request.CampaignId, template.Id);
+            "LoreEntity {EntityId} of type {EntityType} created by user {UserId} in campaign {CampaignId} using template {TemplateId}" +
+            (request.GenerationRequestId.HasValue ? " linked to GenerationRequest {GenerationRequestId}" : ""), 
+            entity.Id, entity.EntityType, userId, request.CampaignId, template.Id, request.GenerationRequestId);
 
         return LoreEntityDto.FromEntity(entity);
     }

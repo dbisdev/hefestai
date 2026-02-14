@@ -25,42 +25,56 @@ export interface GeneratedCharacter {
   characterJson: string;
   imageBase64?: string;
   imageUrl?: string;
+  /** Unique identifier for this generation request. Use when saving to link entity to generation history. */
+  generationRequestId?: string;
 }
 
 export interface GeneratedSolarSystem {
   systemJson: string;
   imageBase64?: string;
   imageUrl?: string;
+  /** Unique identifier for this generation request. Use when saving to link entity to generation history. */
+  generationRequestId?: string;
 }
 
 export interface GeneratedVehicle {
   vehicleJson: string;
   imageBase64?: string;
   imageUrl?: string;
+  /** Unique identifier for this generation request. Use when saving to link entity to generation history. */
+  generationRequestId?: string;
 }
 
 export interface GeneratedNpc {
   npcJson: string;
   imageBase64?: string;
   imageUrl?: string;
+  /** Unique identifier for this generation request. Use when saving to link entity to generation history. */
+  generationRequestId?: string;
 }
 
 export interface GeneratedEnemy {
   enemyJson: string;
   imageBase64?: string;
   imageUrl?: string;
+  /** Unique identifier for this generation request. Use when saving to link entity to generation history. */
+  generationRequestId?: string;
 }
 
 export interface GeneratedMission {
   missionJson: string;
   imageBase64?: string;
   imageUrl?: string;
+  /** Unique identifier for this generation request. Use when saving to link entity to generation history. */
+  generationRequestId?: string;
 }
 
 export interface GeneratedEncounter {
   encounterJson: string;
   imageBase64?: string;
   imageUrl?: string;
+  /** Unique identifier for this generation request. Use when saving to link entity to generation history. */
+  generationRequestId?: string;
 }
 
 export const aiService = {
@@ -81,6 +95,7 @@ export const aiService = {
       characterJson: data.characterJson!,
       imageBase64: data.imageBase64,
       imageUrl: data.imageUrl,
+      generationRequestId: data.generationRequestId,
     };
   },
 
@@ -101,6 +116,7 @@ export const aiService = {
       systemJson: data.systemJson!,
       imageBase64: data.imageBase64,
       imageUrl: data.imageUrl,
+      generationRequestId: data.generationRequestId,
     };
   },
 
@@ -121,6 +137,7 @@ export const aiService = {
       vehicleJson: data.vehicleJson!,
       imageBase64: data.imageBase64,
       imageUrl: data.imageUrl,
+      generationRequestId: data.generationRequestId,
     };
   },
 
@@ -141,6 +158,7 @@ export const aiService = {
       npcJson: data.npcJson!,
       imageBase64: data.imageBase64,
       imageUrl: data.imageUrl,
+      generationRequestId: data.generationRequestId,
     };
   },
 
@@ -161,6 +179,7 @@ export const aiService = {
       enemyJson: data.enemyJson!,
       imageBase64: data.imageBase64,
       imageUrl: data.imageUrl,
+      generationRequestId: data.generationRequestId,
     };
   },
 
@@ -181,6 +200,7 @@ export const aiService = {
       missionJson: data.missionJson!,
       imageBase64: data.imageBase64,
       imageUrl: data.imageUrl,
+      generationRequestId: data.generationRequestId,
     };
   },
 
@@ -201,6 +221,7 @@ export const aiService = {
       encounterJson: data.encounterJson!,
       imageBase64: data.imageBase64,
       imageUrl: data.imageUrl,
+      generationRequestId: data.generationRequestId,
     };
   },
 };

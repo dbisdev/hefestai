@@ -73,6 +73,8 @@ export const MissionGeneratorPage: React.FC<MissionGeneratorPageProps> = ({ onBa
   const [isSaving, setIsSaving] = useState(false);
   const [generatedMission, setGeneratedMission] = useState<MissionData | null>(null);
   const [missionImage, setMissionImage] = useState<string>(MISSION_PLACEHOLDER_IMAGE);
+  /** Stores the generation request ID to link entity to generation history when saving */
+  const [generationRequestId, setGenerationRequestId] = useState<string | undefined>();
 
   const [form, setForm] = useState({
     missionType: '',
@@ -122,6 +124,7 @@ export const MissionGeneratorPage: React.FC<MissionGeneratorPageProps> = ({ onBa
 
       const missionData = parseJsonResponse<MissionData>(result.missionJson);
       setGeneratedMission(missionData);
+      setGenerationRequestId(result.generationRequestId);
       addLog(`MISION GENERADA: ${missionData.name.toUpperCase()}`);
 
       // Handle image based on selected mode
@@ -188,7 +191,8 @@ export const MissionGeneratorPage: React.FC<MissionGeneratorPageProps> = ({ onBa
         metadata: {
           generatedAt: new Date().toISOString(),
           generator: 'mission_briefing_v1'
-        }
+        },
+        generationRequestId
       });
       addLog('EXITO: MISION ARCHIVADA EN NUCLEO');
       setTimeout(onBack, 1000);

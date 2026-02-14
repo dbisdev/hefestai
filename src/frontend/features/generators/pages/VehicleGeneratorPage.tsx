@@ -42,6 +42,8 @@ export const VehicleGeneratorPage: React.FC<VehicleGeneratorPageProps> = ({ onBa
   const [isSaving, setIsSaving] = useState(false);
   const [generatedVehi, setGeneratedVehi] = useState<VehicleData | null>(null);
   const [vehicleImage, setVehicleImage] = useState<string>(VEHICLE_PLACEHOLDER_IMAGE);
+  /** Stores the generation request ID to link entity to generation history when saving */
+  const [generationRequestId, setGenerationRequestId] = useState<string | undefined>();
 
   const [form, setForm] = useState({
     type: 'starship',
@@ -79,6 +81,7 @@ export const VehicleGeneratorPage: React.FC<VehicleGeneratorPageProps> = ({ onBa
 
       const data = parseJsonResponse<VehicleData>(result.vehicleJson);
       setGeneratedVehi(data);
+      setGenerationRequestId(result.generationRequestId);
       addLog(`Assembly complete: ${data.name}`);
 
       // Handle image based on selected mode
@@ -133,7 +136,8 @@ export const VehicleGeneratorPage: React.FC<VehicleGeneratorPageProps> = ({ onBa
         metadata: {
           generatedAt: new Date().toISOString(),
           generator: 'vehicle_generator'
-        }
+        },
+        generationRequestId
       });
       addLog('Data committed to shipyard database.');
       setTimeout(onBack, 1500);

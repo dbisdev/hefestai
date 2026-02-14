@@ -56,6 +56,8 @@ export const CharacterGeneratorPage: React.FC<CharacterGeneratorPageProps> = ({ 
   const [isSaving, setIsSaving] = useState(false);
   const [generatedChar, setGeneratedChar] = useState<CharacterData | null>(null);
   const [charImage, setCharImage] = useState<string>(UNKNOWN_CHAR_IMAGE);
+  /** Stores the generation request ID to link entity to generation history when saving */
+  const [generationRequestId, setGenerationRequestId] = useState<string | undefined>();
 
   const [form, setForm] = useState({
     species: '',
@@ -105,6 +107,7 @@ export const CharacterGeneratorPage: React.FC<CharacterGeneratorPageProps> = ({ 
 
       const charData = parseJsonResponse<CharacterData>(result.characterJson);
       setGeneratedChar(charData);
+      setGenerationRequestId(result.generationRequestId);
       addLog(`DATA RECEIVED: ${charData.name.toUpperCase()}`);
 
       // Handle image based on selected mode
@@ -169,7 +172,8 @@ export const CharacterGeneratorPage: React.FC<CharacterGeneratorPageProps> = ({ 
         metadata: {
           generatedAt: new Date().toISOString(),
           generator: 'character_synth_v2'
-        }
+        },
+        generationRequestId
       });
       addLog('SUCCESS: DATA COMMITTED TO NUCLEUS');
       setTimeout(onBack, 1000);

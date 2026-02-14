@@ -74,6 +74,8 @@ export const NpcGeneratorPage: React.FC<NpcGeneratorPageProps> = ({ onBack, onNa
   const [isSaving, setIsSaving] = useState(false);
   const [generatedNpc, setGeneratedNpc] = useState<NpcData | null>(null);
   const [npcImage, setNpcImage] = useState<string>(UNKNOWN_NPC_IMAGE);
+  /** Stores the generation request ID to link entity to generation history when saving */
+  const [generationRequestId, setGenerationRequestId] = useState<string | undefined>();
 
   const [form, setForm] = useState({
     species: 'human',
@@ -123,6 +125,7 @@ export const NpcGeneratorPage: React.FC<NpcGeneratorPageProps> = ({ onBack, onNa
 
       const npcData = parseJsonResponse<NpcData>(result.npcJson);
       setGeneratedNpc(npcData);
+      setGenerationRequestId(result.generationRequestId);
       addLog(`ACTOR REGISTRADO: ${npcData.name.toUpperCase()}`);
 
       // Handle image based on selected mode
@@ -182,7 +185,8 @@ export const NpcGeneratorPage: React.FC<NpcGeneratorPageProps> = ({ onBack, onNa
         metadata: {
           generatedAt: new Date().toISOString(),
           generator: 'npc_generator'
-        }
+        },
+        generationRequestId
       });
       addLog('EXITO: ACTOR REGISTRADO EN NUCLEO');
       setTimeout(onBack, 1000);

@@ -54,6 +54,12 @@ public record GenerateEntityFieldsResult
     /// The entity type name.
     /// </summary>
     public string EntityTypeName { get; init; } = null!;
+    
+    /// <summary>
+    /// The generation request ID for linking to the entity when saved.
+    /// This ID is used to associate the saved entity with its generation history.
+    /// </summary>
+    public Guid? GenerationRequestId { get; init; }
 
     /// <summary>
     /// Creates a successful result.
@@ -66,7 +72,8 @@ public record GenerateEntityFieldsResult
         string? suggestedDescription = null,
         string? imageDataUrl = null,
         string? imageUrl = null,
-        IEnumerable<RagSourceInfo>? contextSources = null)
+        IEnumerable<RagSourceInfo>? contextSources = null,
+        Guid? generationRequestId = null)
     {
         return new GenerateEntityFieldsResult
         {
@@ -78,7 +85,8 @@ public record GenerateEntityFieldsResult
             SuggestedDescription = suggestedDescription,
             ImageDataUrl = imageDataUrl,
             ImageUrl = imageUrl,
-            ContextSources = contextSources?.ToList().AsReadOnly() ?? (IReadOnlyList<RagSourceInfo>)Array.Empty<RagSourceInfo>()
+            ContextSources = contextSources?.ToList().AsReadOnly() ?? (IReadOnlyList<RagSourceInfo>)Array.Empty<RagSourceInfo>(),
+            GenerationRequestId = generationRequestId
         };
     }
 

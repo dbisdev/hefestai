@@ -37,6 +37,8 @@ export const SolarSystemGeneratorPage: React.FC<SolarSystemGeneratorPageProps> =
   const [isSaving, setIsSaving] = useState(false);
   const [systemData, setSystemData] = useState<SystemData | null>(null);
   const [systemImage, setSystemImage] = useState<string>(SYSTEM_PLACEHOLDER_IMAGE);
+  /** Stores the generation request ID to link entity to generation history when saving */
+  const [generationRequestId, setGenerationRequestId] = useState<string | undefined>();
 
   /** Image source mode state */
   const [imageMode, setImageMode] = useState<ImageSourceMode>('generate');
@@ -59,6 +61,7 @@ export const SolarSystemGeneratorPage: React.FC<SolarSystemGeneratorPageProps> =
 
       const data = parseJsonResponse<SystemData>(result.systemJson);
       setSystemData(data);
+      setGenerationRequestId(result.generationRequestId);
 
       // Handle image based on selected mode
       if (imageMode === 'upload' && uploadedImageData) {
@@ -101,7 +104,8 @@ export const SolarSystemGeneratorPage: React.FC<SolarSystemGeneratorPageProps> =
         metadata: {
           generatedAt: new Date().toISOString(),
           generator: 'solar_generator_v1'
-        }
+        },
+        generationRequestId
       });
       setTimeout(onBack, 1000);
     } catch (e) {

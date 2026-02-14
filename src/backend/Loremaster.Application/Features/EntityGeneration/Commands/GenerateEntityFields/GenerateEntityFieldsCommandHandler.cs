@@ -1,3 +1,4 @@
+using System.Text.Json;
 using Loremaster.Application.Common.Interfaces;
 using Loremaster.Application.Features.EntityGeneration.DTOs;
 using Loremaster.Domain.Entities;
@@ -13,6 +14,7 @@ namespace Loremaster.Application.Features.EntityGeneration.Commands.GenerateEnti
 /// Handler for GenerateEntityFieldsCommand.
 /// Generates entity field values using RAG and confirmed templates.
 /// Core implementation of EPIC 4.5 - Entity Assisted Generation.
+/// Creates GenerationRequest and GenerationResult records for traceability.
 /// </summary>
 public class GenerateEntityFieldsCommandHandler 
     : IRequestHandler<GenerateEntityFieldsCommand, GenerateEntityFieldsResult>
@@ -21,27 +23,42 @@ public class GenerateEntityFieldsCommandHandler
     private readonly ICampaignMemberRepository _campaignMemberRepository;
     private readonly IEntityTemplateRepository _entityTemplateRepository;
     private readonly IEntityGenerationService _entityGenerationService;
+    private readonly IGenerationRequestRepository _generationRequestRepository;
+    private readonly IApplicationDbContext _dbContext;
     private readonly ICurrentUserService _currentUserService;
+    private readonly IUnitOfWork _unitOfWork;
     private readonly ILogger<GenerateEntityFieldsCommandHandler> _logger;
+
+    /// <summary>
+    /// Default model name for Gemini 2.0 Flash used in generation.
+    /// </summary>
+    private const string DefaultModelName = "gemini-2.0-flash";
 
     public GenerateEntityFieldsCommandHandler(
         ICampaignRepository campaignRepository,
         ICampaignMemberRepository campaignMemberRepository,
         IEntityTemplateRepository entityTemplateRepository,
         IEntityGenerationService entityGenerationService,
+        IGenerationRequestRepository generationRequestRepository,
+        IApplicationDbContext dbContext,
         ICurrentUserService currentUserService,
+        IUnitOfWork unitOfWork,
         ILogger<GenerateEntityFieldsCommandHandler> logger)
     {
         _campaignRepository = campaignRepository;
         _campaignMemberRepository = campaignMemberRepository;
         _entityTemplateRepository = entityTemplateRepository;
         _entityGenerationService = entityGenerationService;
+        _generationRequestRepository = generationRequestRepository;
+        _dbContext = dbContext;
         _currentUserService = currentUserService;
+        _unitOfWork = unitOfWork;
         _logger = logger;
     }
 
     /// <summary>
     /// Handles the generate entity fields command.
+    /// Creates GenerationRequest and GenerationResult records for traceability.
     /// </summary>
     public async Task<GenerateEntityFieldsResult> Handle(
         GenerateEntityFieldsCommand request, 
@@ -110,6 +127,18 @@ public class GenerateEntityFieldsCommandHandler
             includeImageGeneration: request.IncludeImageGeneration,
             imageStyle: request.ImageStyle);
 
+        // Create GenerationRequest for traceability
+        var inputParameters = BuildInputParameters(config, template.Id);
+        var generationRequest = GenerationRequest.Create(
+            userId: userId,
+            requestType: GenerationRequestType.EntityFieldGeneration,
+            targetEntityType: normalizedEntityType,
+            campaignId: request.CampaignId,
+            inputPrompt: request.UserPrompt,
+            inputParameters: inputParameters);
+
+        generationRequest.StartProcessing();
+
         try
         {
             // Generate entity fields using RAG
@@ -121,6 +150,10 @@ public class GenerateEntityFieldsCommandHandler
 
             if (!generationResult.Success)
             {
+                // Mark request as failed and persist
+                generationRequest.Fail(generationResult.ErrorMessage ?? "Generation failed");
+                await PersistGenerationRequestAsync(generationRequest, cancellationToken);
+
                 _logger.LogWarning(
                     "Entity field generation failed for type '{EntityType}': {Error}",
                     normalizedEntityType, generationResult.ErrorMessage);
@@ -177,10 +210,24 @@ public class GenerateEntityFieldsCommandHandler
                 }
             }
 
+            // Mark request as completed and create result record
+            generationRequest.Complete();
+            
+            // Create GenerationResult with all the generation data
+            var resultRecord = CreateGenerationResult(
+                generationRequest.Id,
+                generationResult,
+                config.Temperature,
+                imageDataUrl,
+                imageUrl);
+
+            // Persist GenerationRequest and GenerationResult
+            await PersistGenerationRequestWithResultAsync(generationRequest, resultRecord, cancellationToken);
+
             _logger.LogInformation(
                 "Entity field generation completed successfully for type '{EntityType}' " +
-                "with {FieldCount} fields generated",
-                normalizedEntityType, generationResult.GeneratedFields.Count);
+                "with {FieldCount} fields generated. GenerationRequestId: {GenerationRequestId}",
+                normalizedEntityType, generationResult.GeneratedFields.Count, generationRequest.Id);
 
             return GenerateEntityFieldsResult.Successful(
                 templateId: template.Id,
@@ -190,10 +237,15 @@ public class GenerateEntityFieldsCommandHandler
                 suggestedDescription: generationResult.SuggestedDescription,
                 imageDataUrl: imageDataUrl,
                 imageUrl: imageUrl,
-                contextSources: contextSources);
+                contextSources: contextSources,
+                generationRequestId: generationRequest.Id);
         }
         catch (Exception ex)
         {
+            // Mark request as failed and persist
+            generationRequest.Fail($"Unexpected error: {ex.Message}");
+            await PersistGenerationRequestAsync(generationRequest, cancellationToken);
+
             _logger.LogError(ex,
                 "Unexpected error during entity field generation for type '{EntityType}' in campaign {CampaignId}",
                 normalizedEntityType, request.CampaignId);
@@ -202,6 +254,129 @@ public class GenerateEntityFieldsCommandHandler
                 "An unexpected error occurred during generation. Please try again.",
                 template.Id,
                 normalizedEntityType);
+        }
+    }
+
+    /// <summary>
+    /// Builds input parameters JSON document for the generation request.
+    /// </summary>
+    private static JsonDocument BuildInputParameters(EntityGenerationConfig config, Guid templateId)
+    {
+        var parameters = new
+        {
+            templateId,
+            gameSystemId = config.GameSystemId,
+            entityTypeName = config.EntityTypeName,
+            temperature = config.Temperature,
+            includeImageGeneration = config.IncludeImageGeneration,
+            imageStyle = config.ImageStyle,
+            fieldsToGenerate = config.FieldsToGenerate.ToList(),
+            existingValuesCount = config.ExistingValues.Count
+        };
+
+        var json = JsonSerializer.Serialize(parameters);
+        return JsonDocument.Parse(json);
+    }
+
+    /// <summary>
+    /// Creates a GenerationResult record from the generation output.
+    /// </summary>
+    private static GenerationResult CreateGenerationResult(
+        Guid generationRequestId,
+        EntityGenerationResult result,
+        float temperature,
+        string? imageDataUrl,
+        string? imageUrl)
+    {
+        // Build structured output with all generated data
+        var structuredOutput = new
+        {
+            generatedFields = result.GeneratedFields,
+            suggestedName = result.SuggestedName,
+            suggestedDescription = result.SuggestedDescription,
+            contextChunksCount = result.ContextChunks.Count,
+            imageDataUrl,
+            imageUrl
+        };
+
+        var structuredJson = JsonDocument.Parse(JsonSerializer.Serialize(structuredOutput));
+
+        // Build model parameters
+        var modelParams = new
+        {
+            temperature,
+            model = DefaultModelName
+        };
+        var modelParamsJson = JsonDocument.Parse(JsonSerializer.Serialize(modelParams));
+
+        // Build token usage if available
+        JsonDocument? tokenUsageJson = null;
+        if (result.TokenUsage != null)
+        {
+            var tokenUsage = new
+            {
+                promptTokens = result.TokenUsage.PromptTokens,
+                completionTokens = result.TokenUsage.CompletionTokens,
+                totalTokens = result.TokenUsage.TotalTokens
+            };
+            tokenUsageJson = JsonDocument.Parse(JsonSerializer.Serialize(tokenUsage));
+        }
+
+        return GenerationResult.Create(
+            generationRequestId: generationRequestId,
+            resultType: "entity_fields",
+            sequenceOrder: 1,
+            rawOutput: null, // Raw output is large and not typically needed
+            structuredOutput: structuredJson,
+            modelName: DefaultModelName,
+            modelParameters: modelParamsJson,
+            tokenUsage: tokenUsageJson);
+    }
+
+    /// <summary>
+    /// Persists the GenerationRequest to the database.
+    /// </summary>
+    private async Task PersistGenerationRequestAsync(
+        GenerationRequest request,
+        CancellationToken cancellationToken)
+    {
+        try
+        {
+            await _generationRequestRepository.AddAsync(request, cancellationToken);
+            await _unitOfWork.SaveChangesAsync(cancellationToken);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Failed to persist GenerationRequest {RequestId}", request.Id);
+            // Don't throw - generation tracking failure shouldn't fail the main operation
+        }
+    }
+
+    /// <summary>
+    /// Persists the GenerationRequest and GenerationResult to the database.
+    /// </summary>
+    private async Task PersistGenerationRequestWithResultAsync(
+        GenerationRequest request,
+        GenerationResult result,
+        CancellationToken cancellationToken)
+    {
+        try
+        {
+            await _generationRequestRepository.AddAsync(request, cancellationToken);
+            // Add GenerationResult directly to DbContext
+            await _dbContext.GenerationResults.AddAsync(result, cancellationToken);
+            await _unitOfWork.SaveChangesAsync(cancellationToken);
+            
+            _logger.LogDebug(
+                "Persisted GenerationRequest {RequestId} with GenerationResult {ResultId}",
+                request.Id, result.Id);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, 
+                "Failed to persist GenerationRequest {RequestId} with result", 
+                request.Id);
+            // Don't throw - generation tracking failure shouldn't fail the main operation
         }
     }
 

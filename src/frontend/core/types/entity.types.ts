@@ -72,6 +72,11 @@ export interface CreateLoreEntityInput {
   imageUrl?: string;
   attributes?: Record<string, unknown>;
   metadata?: Record<string, unknown>;
+  /**
+   * Optional ID of the generation request that created this entity's content.
+   * Links the saved entity to its AI generation history for traceability.
+   */
+  generationRequestId?: string;
 }
 
 /**

@@ -1,5 +1,8 @@
 using System.Security.Claims;
+using System.Text.Json;
 using Loremaster.Application.Common.Interfaces;
+using Loremaster.Domain.Entities;
+using Loremaster.Domain.Enums;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 
@@ -8,6 +11,7 @@ namespace Loremaster.Api.Controllers;
 /// <summary>
 /// AI Controller for generating campaign entities using RAG-enhanced AI generation.
 /// Leverages game system manuals for lore-accurate content generation.
+/// Creates GenerationRequest/GenerationResult records for full traceability.
 /// </summary>
 [ApiController]
 [Route("api/[controller]")]
@@ -17,17 +21,31 @@ public class AiController : ControllerBase
     private readonly IAiService _aiService;
     private readonly IRagContextProvider _ragContextProvider;
     private readonly IEmbeddingService _embeddingService;
+    private readonly IGenerationRequestRepository _generationRequestRepository;
+    private readonly IApplicationDbContext _dbContext;
+    private readonly IUnitOfWork _unitOfWork;
     private readonly ILogger<AiController> _logger;
+
+    /// <summary>
+    /// Default model name for Gemini used in generation.
+    /// </summary>
+    private const string DefaultModelName = "gemini-2.0-flash";
 
     public AiController(
         IAiService aiService,
         IRagContextProvider ragContextProvider,
         IEmbeddingService embeddingService,
+        IGenerationRequestRepository generationRequestRepository,
+        IApplicationDbContext dbContext,
+        IUnitOfWork unitOfWork,
         ILogger<AiController> logger)
     {
         _aiService = aiService;
         _ragContextProvider = ragContextProvider;
         _embeddingService = embeddingService;
+        _generationRequestRepository = generationRequestRepository;
+        _dbContext = dbContext;
+        _unitOfWork = unitOfWork;
         _logger = logger;
     }
 
@@ -61,8 +79,8 @@ public class AiController : ControllerBase
     /// <param name="fallbackPrompt">Fallback prompt if no RAG context available.</param>
     /// <param name="fallbackSystemPrompt">Fallback system prompt.</param>
     /// <param name="cancellationToken">Cancellation token.</param>
-    /// <returns>Tuple of (generated JSON, RAG context chunks used).</returns>
-    private async Task<(string Json, IReadOnlyList<RagContextChunk> RagContext)> GenerateWithRagAsync(
+    /// <returns>Tuple of (generated JSON, RAG context chunks used, full prompt sent to LLM).</returns>
+    private async Task<(string Json, IReadOnlyList<RagContextChunk> RagContext, string FullPrompt)> GenerateWithRagAsync(
         Guid? gameSystemId,
         Guid userId,
         string entityType,
@@ -95,6 +113,7 @@ public class AiController : ControllerBase
 
         // Step 2: Generate using RAG context or fallback
         string resultJson;
+        string fullPrompt;
 
         if (ragContext.Any())
         {
@@ -102,6 +121,9 @@ public class AiController : ControllerBase
             var contextTexts = ragContext.Select(c => c.Content).ToList();
             
             _logger.LogDebug("Using RAG-enhanced generation with {ContextCount} context chunks", contextTexts.Count);
+            
+            // Build full prompt for traceability
+            fullPrompt = $"[SYSTEM]\n{systemPrompt}\n\n[USER]\n{userQuery}\n\n[RAG CONTEXT]\n{string.Join("\n---\n", contextTexts)}";
             
             var ragResult = await _embeddingService.GenerateWithContextAsync(
                 query: userQuery,
@@ -118,6 +140,9 @@ public class AiController : ControllerBase
             // Fallback: Basic generation without RAG context
             _logger.LogDebug("No RAG context available for {EntityType}, using basic generation", entityType);
             
+            // Build full prompt for traceability
+            fullPrompt = $"[SYSTEM]\n{fallbackSystemPrompt}\n\n[USER]\n{fallbackPrompt}";
+            
             var textResult = await _aiService.GenerateJsonAsync(
                 fallbackPrompt,
                 fallbackSystemPrompt,
@@ -128,7 +153,143 @@ public class AiController : ControllerBase
             resultJson = textResult.Json;
         }
 
-        return (resultJson, ragContext);
+        return (resultJson, ragContext, fullPrompt);
+    }
+
+    /// <summary>
+    /// Creates a GenerationRequest for tracking AI generation.
+    /// </summary>
+    /// <param name="userId">The user initiating the generation.</param>
+    /// <param name="entityType">Type of entity being generated (e.g., "character", "npc").</param>
+    /// <param name="inputPrompt">The user's input prompt or generation parameters.</param>
+    /// <param name="inputParameters">Optional structured input parameters.</param>
+    /// <returns>A new GenerationRequest in Processing status.</returns>
+    private GenerationRequest CreateGenerationRequest(
+        Guid userId,
+        string entityType,
+        string inputPrompt,
+        JsonDocument? inputParameters = null)
+    {
+        var request = GenerationRequest.Create(
+            userId: userId,
+            requestType: GenerationRequestType.AiNarrative,
+            targetEntityType: entityType,
+            campaignId: null, // AiController is not campaign-scoped
+            inputPrompt: inputPrompt,
+            inputParameters: inputParameters);
+
+        request.StartProcessing();
+        return request;
+    }
+
+    /// <summary>
+    /// Creates a GenerationResult record from the generation output.
+    /// </summary>
+    /// <param name="generationRequestId">ID of the parent GenerationRequest.</param>
+    /// <param name="resultJson">The generated JSON content.</param>
+    /// <param name="ragContextUsed">Whether RAG context was used.</param>
+    /// <param name="ragSourceCount">Number of RAG sources used.</param>
+    /// <param name="hasImage">Whether an image was generated.</param>
+    /// <returns>A new GenerationResult.</returns>
+    private static GenerationResult CreateGenerationResult(
+        Guid generationRequestId,
+        string resultJson,
+        bool ragContextUsed,
+        int ragSourceCount,
+        bool hasImage)
+    {
+        // Build structured output
+        var structuredOutput = new
+        {
+            content = resultJson,
+            ragContextUsed,
+            ragSourceCount,
+            hasImage
+        };
+
+        var structuredJson = JsonDocument.Parse(JsonSerializer.Serialize(structuredOutput));
+
+        // Build model parameters
+        var modelParams = new
+        {
+            temperature = 0.8f,
+            maxTokens = 512,
+            model = DefaultModelName
+        };
+        var modelParamsJson = JsonDocument.Parse(JsonSerializer.Serialize(modelParams));
+
+        return GenerationResult.Create(
+            generationRequestId: generationRequestId,
+            resultType: "ai_narrative",
+            sequenceOrder: 1,
+            rawOutput: null,
+            structuredOutput: structuredJson,
+            modelName: DefaultModelName,
+            modelParameters: modelParamsJson,
+            tokenUsage: null);
+    }
+
+    /// <summary>
+    /// Persists the GenerationRequest to the database.
+    /// Non-blocking: failures are logged but don't stop the main operation.
+    /// </summary>
+    private async Task PersistGenerationRequestAsync(
+        GenerationRequest request,
+        CancellationToken cancellationToken)
+    {
+        try
+        {
+            await _generationRequestRepository.AddAsync(request, cancellationToken);
+            await _unitOfWork.SaveChangesAsync(cancellationToken);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Failed to persist GenerationRequest {RequestId}", request.Id);
+            // Don't throw - generation tracking failure shouldn't fail the main operation
+        }
+    }
+
+    /// <summary>
+    /// Persists the GenerationRequest and GenerationResult to the database.
+    /// TEMPORARY: Re-throws exceptions for debugging. Normally logs errors but does not stop the main operation.
+    /// </summary>
+    private async Task PersistGenerationRequestWithResultAsync(
+        GenerationRequest request,
+        GenerationResult result,
+        CancellationToken cancellationToken)
+    {
+        try
+        {
+            _logger.LogWarning(
+                "[DEBUG] Starting persist for GenerationRequest {RequestId} (UserId: {UserId}, Type: {Type})",
+                request.Id, request.UserId, request.TargetEntityType);
+
+            _logger.LogWarning("[DEBUG] Adding GenerationRequest to repository...");
+            await _generationRequestRepository.AddAsync(request, cancellationToken);
+            
+            _logger.LogWarning("[DEBUG] Adding GenerationResult to DbContext...");
+            await _dbContext.GenerationResults.AddAsync(result, cancellationToken);
+            
+            _logger.LogWarning("[DEBUG] Calling SaveChangesAsync...");
+            var changes = await _unitOfWork.SaveChangesAsync(cancellationToken);
+            
+            _logger.LogWarning(
+                "[DEBUG] SaveChangesAsync completed. Changes saved: {Changes}",
+                changes);
+
+            _logger.LogInformation(
+                "Successfully persisted GenerationRequest {RequestId} with GenerationResult {ResultId}",
+                request.Id, result.Id);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex,
+                "Failed to persist GenerationRequest {RequestId} (UserId: {UserId}, Type: {Type}). Error: {ErrorMessage}. InnerException: {InnerException}",
+                request.Id, request.UserId, request.TargetEntityType, ex.Message, ex.InnerException?.Message ?? "none");
+            
+            // TEMPORARY: Re-throw to surface the actual error during debugging
+            throw;
+        }
     }
 
     /// <summary>
@@ -176,6 +337,7 @@ public class AiController : ControllerBase
 
             // Step 3: Generate character using RAG context or fallback to basic generation
             string characterJson;
+            string fullPrompt; // Store the full prompt sent to LLM
 
             if (ragContext.Any())
             {
@@ -215,6 +377,9 @@ Example format:
     ""GEAR"": ""Medkit, Surgical kit, Four doses of Naproleve"",
     ""CASH"": 1000}}}}";
 
+                // Capture full prompt for traceability
+                fullPrompt = $"[SYSTEM]\n{systemPrompt}\n\n[USER]\n{userQuery}\n\n[RAG CONTEXT]\n{string.Join("\n---\n", contextTexts)}";
+
                 _logger.LogDebug("Using RAG-enhanced generation with {ContextCount} context chunks", contextTexts.Count);
                 
                 var ragResult = await _embeddingService.GenerateWithContextAsync(
@@ -234,6 +399,7 @@ Example format:
                 // Fallback: Basic generation without RAG context
                 _logger.LogDebug("No RAG context available, using basic generation");
                 
+                var fallbackSystemPrompt = "You are a sci-fi character generator. Respond only with valid JSON.";
                 var prompt = $@"Generate a sci-fi character based on:
 Species: {request.Species}
 Role: {request.Role}
@@ -248,9 +414,12 @@ Respond with a JSON object containing:
 Example format:
 {{""name"":""Zephyr-9"",""bio"":""A rogue android..."",""stats"":{{""STR"":75,""INT"":90,""DEX"":85}}}}";
 
+                // Capture full prompt for traceability
+                fullPrompt = $"[SYSTEM]\n{fallbackSystemPrompt}\n\n[USER]\n{prompt}";
+
                 var textResult = await _aiService.GenerateJsonAsync(
                     prompt,
-                    "You are a sci-fi character generator. Respond only with valid JSON.",
+                    fallbackSystemPrompt,
                     0.8f,
                     512,
                     cancellationToken);
@@ -287,6 +456,23 @@ Example format:
                 imageUrl = imageResult.ImageUrl;
             }
 
+            // Step 5: Create and persist generation tracking records
+            var generationRequest = CreateGenerationRequest(userId, "character", fullPrompt);
+            generationRequest.Complete();
+
+            var generationResult = CreateGenerationResult(
+                generationRequest.Id,
+                characterJson,
+                ragContext.Any(),
+                ragContext.Count,
+                imageBase64 != null || imageUrl != null);
+
+            await PersistGenerationRequestWithResultAsync(generationRequest, generationResult, cancellationToken);
+
+            _logger.LogInformation(
+                "Character generation completed. GenerationRequestId: {GenerationRequestId}",
+                generationRequest.Id);
+
             return Ok(new CharacterGenerationResponse
             {
                 Success = true,
@@ -294,7 +480,8 @@ Example format:
                 ImageBase64 = imageBase64,
                 ImageUrl = imageUrl,
                 RagContextUsed = ragContext.Any(),
-                RagSourceCount = ragContext.Count
+                RagSourceCount = ragContext.Count,
+                GenerationRequestId = generationRequest.Id
             });
         }
         catch (UnauthorizedAccessException)
@@ -373,7 +560,7 @@ Example format:
             var fallbackSystemPrompt = "You are a sci-fi world builder. Respond only with valid JSON.";
 
             // Generate with RAG
-            var (systemJson, ragContext) = await GenerateWithRagAsync(
+            var (systemJson, ragContext, fullPrompt) = await GenerateWithRagAsync(
                 request.GameSystemId,
                 userId,
                 entityType: "solar-system",
@@ -413,6 +600,23 @@ Example format:
                 imageUrl = imageResult.ImageUrl;
             }
 
+            // Create and persist generation tracking records
+            var generationRequest = CreateGenerationRequest(userId, "solar-system", fullPrompt);
+            generationRequest.Complete();
+
+            var generationResult = CreateGenerationResult(
+                generationRequest.Id,
+                systemJson,
+                ragContext.Any(),
+                ragContext.Count,
+                imageBase64 != null || imageUrl != null);
+
+            await PersistGenerationRequestWithResultAsync(generationRequest, generationResult, cancellationToken);
+
+            _logger.LogInformation(
+                "Solar system generation completed. GenerationRequestId: {GenerationRequestId}",
+                generationRequest.Id);
+
             return Ok(new SolarSystemGenerationResponse
             {
                 Success = true,
@@ -420,7 +624,8 @@ Example format:
                 ImageBase64 = imageBase64,
                 ImageUrl = imageUrl,
                 RagContextUsed = ragContext.Any(),
-                RagSourceCount = ragContext.Count
+                RagSourceCount = ragContext.Count,
+                GenerationRequestId = generationRequest.Id
             });
         }
         catch (UnauthorizedAccessException)
@@ -502,7 +707,7 @@ Example format:
             var fallbackSystemPrompt = "You are a sci-fi vehicle designer. Respond only with valid JSON.";
 
             // Generate with RAG
-            var (vehicleJson, ragContext) = await GenerateWithRagAsync(
+            var (vehicleJson, ragContext, fullPrompt) = await GenerateWithRagAsync(
                 request.GameSystemId,
                 userId,
                 entityType: "vehicle",
@@ -542,6 +747,23 @@ Example format:
                 imageUrl = imageResult.ImageUrl;
             }
 
+            // Create and persist generation tracking records
+            var generationRequest = CreateGenerationRequest(userId, "vehicle", fullPrompt);
+            generationRequest.Complete();
+
+            var generationResult = CreateGenerationResult(
+                generationRequest.Id,
+                vehicleJson,
+                ragContext.Any(),
+                ragContext.Count,
+                imageBase64 != null || imageUrl != null);
+
+            await PersistGenerationRequestWithResultAsync(generationRequest, generationResult, cancellationToken);
+
+            _logger.LogInformation(
+                "Vehicle generation completed. GenerationRequestId: {GenerationRequestId}",
+                generationRequest.Id);
+
             return Ok(new VehicleGenerationResponse
             {
                 Success = true,
@@ -549,7 +771,8 @@ Example format:
                 ImageBase64 = imageBase64,
                 ImageUrl = imageUrl,
                 RagContextUsed = ragContext.Any(),
-                RagSourceCount = ragContext.Count
+                RagSourceCount = ragContext.Count,
+                GenerationRequestId = generationRequest.Id
             });
         }
         catch (UnauthorizedAccessException)
@@ -637,7 +860,7 @@ Example format:
             var fallbackSystemPrompt = "You are a sci-fi RPG character creator. Create interesting NPCs with depth. Respond only with valid JSON.";
 
             // Generate with RAG
-            var (npcJson, ragContext) = await GenerateWithRagAsync(
+            var (npcJson, ragContext, fullPrompt) = await GenerateWithRagAsync(
                 request.GameSystemId,
                 userId,
                 entityType: "npc",
@@ -677,6 +900,23 @@ Example format:
                 imageUrl = imageResult.ImageUrl;
             }
 
+            // Create and persist generation tracking records
+            var generationRequest = CreateGenerationRequest(userId, "npc", fullPrompt);
+            generationRequest.Complete();
+
+            var generationResult = CreateGenerationResult(
+                generationRequest.Id,
+                npcJson,
+                ragContext.Any(),
+                ragContext.Count,
+                imageBase64 != null || imageUrl != null);
+
+            await PersistGenerationRequestWithResultAsync(generationRequest, generationResult, cancellationToken);
+
+            _logger.LogInformation(
+                "NPC generation completed. GenerationRequestId: {GenerationRequestId}",
+                generationRequest.Id);
+
             return Ok(new NpcGenerationResponse
             {
                 Success = true,
@@ -684,7 +924,8 @@ Example format:
                 ImageBase64 = imageBase64,
                 ImageUrl = imageUrl,
                 RagContextUsed = ragContext.Any(),
-                RagSourceCount = ragContext.Count
+                RagSourceCount = ragContext.Count,
+                GenerationRequestId = generationRequest.Id
             });
         }
         catch (UnauthorizedAccessException)
@@ -774,7 +1015,7 @@ Example format:
             var fallbackSystemPrompt = "You are a sci-fi monster designer. Create terrifying but balanced enemies. Respond only with valid JSON.";
 
             // Generate with RAG
-            var (enemyJson, ragContext) = await GenerateWithRagAsync(
+            var (enemyJson, ragContext, fullPrompt) = await GenerateWithRagAsync(
                 request.GameSystemId,
                 userId,
                 entityType: "enemy",
@@ -814,6 +1055,23 @@ Example format:
                 imageUrl = imageResult.ImageUrl;
             }
 
+            // Create and persist generation tracking records
+            var generationRequest = CreateGenerationRequest(userId, "enemy", fullPrompt);
+            generationRequest.Complete();
+
+            var generationResult = CreateGenerationResult(
+                generationRequest.Id,
+                enemyJson,
+                ragContext.Any(),
+                ragContext.Count,
+                imageBase64 != null || imageUrl != null);
+
+            await PersistGenerationRequestWithResultAsync(generationRequest, generationResult, cancellationToken);
+
+            _logger.LogInformation(
+                "Enemy generation completed. GenerationRequestId: {GenerationRequestId}",
+                generationRequest.Id);
+
             return Ok(new EnemyGenerationResponse
             {
                 Success = true,
@@ -821,7 +1079,8 @@ Example format:
                 ImageBase64 = imageBase64,
                 ImageUrl = imageUrl,
                 RagContextUsed = ragContext.Any(),
-                RagSourceCount = ragContext.Count
+                RagSourceCount = ragContext.Count,
+                GenerationRequestId = generationRequest.Id
             });
         }
         catch (UnauthorizedAccessException)
@@ -911,7 +1170,7 @@ Example format:
             var fallbackSystemPrompt = "You are a sci-fi mission designer. Create engaging quests with clear objectives. Respond only with valid JSON.";
 
             // Generate with RAG
-            var (missionJson, ragContext) = await GenerateWithRagAsync(
+            var (missionJson, ragContext, fullPrompt) = await GenerateWithRagAsync(
                 request.GameSystemId,
                 userId,
                 entityType: "mission",
@@ -951,6 +1210,23 @@ Example format:
                 imageUrl = imageResult.ImageUrl;
             }
 
+            // Create and persist generation tracking records
+            var generationRequest = CreateGenerationRequest(userId, "mission", fullPrompt);
+            generationRequest.Complete();
+
+            var generationResult = CreateGenerationResult(
+                generationRequest.Id,
+                missionJson,
+                ragContext.Any(),
+                ragContext.Count,
+                imageBase64 != null || imageUrl != null);
+
+            await PersistGenerationRequestWithResultAsync(generationRequest, generationResult, cancellationToken);
+
+            _logger.LogInformation(
+                "Mission generation completed. GenerationRequestId: {GenerationRequestId}",
+                generationRequest.Id);
+
             return Ok(new MissionGenerationResponse
             {
                 Success = true,
@@ -958,7 +1234,8 @@ Example format:
                 ImageBase64 = imageBase64,
                 ImageUrl = imageUrl,
                 RagContextUsed = ragContext.Any(),
-                RagSourceCount = ragContext.Count
+                RagSourceCount = ragContext.Count,
+                GenerationRequestId = generationRequest.Id
             });
         }
         catch (UnauthorizedAccessException)
@@ -1048,7 +1325,7 @@ Example format:
             var fallbackSystemPrompt = "You are a sci-fi encounter designer. Create tactical and exciting combat scenarios. Respond only with valid JSON.";
 
             // Generate with RAG
-            var (encounterJson, ragContext) = await GenerateWithRagAsync(
+            var (encounterJson, ragContext, fullPrompt) = await GenerateWithRagAsync(
                 request.GameSystemId,
                 userId,
                 entityType: "encounter",
@@ -1088,6 +1365,23 @@ Example format:
                 imageUrl = imageResult.ImageUrl;
             }
 
+            // Create and persist generation tracking records
+            var generationRequest = CreateGenerationRequest(userId, "encounter", fullPrompt);
+            generationRequest.Complete();
+
+            var generationResult = CreateGenerationResult(
+                generationRequest.Id,
+                encounterJson,
+                ragContext.Any(),
+                ragContext.Count,
+                imageBase64 != null || imageUrl != null);
+
+            await PersistGenerationRequestWithResultAsync(generationRequest, generationResult, cancellationToken);
+
+            _logger.LogInformation(
+                "Encounter generation completed. GenerationRequestId: {GenerationRequestId}",
+                generationRequest.Id);
+
             return Ok(new EncounterGenerationResponse
             {
                 Success = true,
@@ -1095,7 +1389,8 @@ Example format:
                 ImageBase64 = imageBase64,
                 ImageUrl = imageUrl,
                 RagContextUsed = ragContext.Any(),
-                RagSourceCount = ragContext.Count
+                RagSourceCount = ragContext.Count,
+                GenerationRequestId = generationRequest.Id
             });
         }
         catch (UnauthorizedAccessException)
@@ -1254,6 +1549,12 @@ public record CharacterGenerationResponse
     /// Number of RAG context chunks used (0 if none).
     /// </summary>
     public int RagSourceCount { get; init; }
+
+    /// <summary>
+    /// Unique identifier for this generation request. 
+    /// Use this when saving the entity to link it to its generation history.
+    /// </summary>
+    public Guid? GenerationRequestId { get; init; }
 }
 
 /// <summary>
@@ -1302,6 +1603,12 @@ public record SolarSystemGenerationResponse
     /// Number of RAG context chunks used (0 if none).
     /// </summary>
     public int RagSourceCount { get; init; }
+
+    /// <summary>
+    /// Unique identifier for this generation request. 
+    /// Use this when saving the entity to link it to its generation history.
+    /// </summary>
+    public Guid? GenerationRequestId { get; init; }
 }
 
 /// <summary>
@@ -1355,6 +1662,12 @@ public record VehicleGenerationResponse
     /// Number of RAG context chunks used (0 if none).
     /// </summary>
     public int RagSourceCount { get; init; }
+
+    /// <summary>
+    /// Unique identifier for this generation request. 
+    /// Use this when saving the entity to link it to its generation history.
+    /// </summary>
+    public Guid? GenerationRequestId { get; init; }
 }
 
 public record TestAiRequest
@@ -1443,6 +1756,12 @@ public record NpcGenerationResponse
     /// Number of RAG context chunks used (0 if none).
     /// </summary>
     public int RagSourceCount { get; init; }
+
+    /// <summary>
+    /// Unique identifier for this generation request. 
+    /// Use this when saving the entity to link it to its generation history.
+    /// </summary>
+    public Guid? GenerationRequestId { get; init; }
 }
 
 /// <summary>
@@ -1501,6 +1820,12 @@ public record EnemyGenerationResponse
     /// Number of RAG context chunks used (0 if none).
     /// </summary>
     public int RagSourceCount { get; init; }
+
+    /// <summary>
+    /// Unique identifier for this generation request. 
+    /// Use this when saving the entity to link it to its generation history.
+    /// </summary>
+    public Guid? GenerationRequestId { get; init; }
 }
 
 /// <summary>
@@ -1559,6 +1884,12 @@ public record MissionGenerationResponse
     /// Number of RAG context chunks used (0 if none).
     /// </summary>
     public int RagSourceCount { get; init; }
+
+    /// <summary>
+    /// Unique identifier for this generation request. 
+    /// Use this when saving the entity to link it to its generation history.
+    /// </summary>
+    public Guid? GenerationRequestId { get; init; }
 }
 
 /// <summary>
@@ -1617,4 +1948,10 @@ public record EncounterGenerationResponse
     /// Number of RAG context chunks used (0 if none).
     /// </summary>
     public int RagSourceCount { get; init; }
+
+    /// <summary>
+    /// Unique identifier for this generation request. 
+    /// Use this when saving the entity to link it to its generation history.
+    /// </summary>
+    public Guid? GenerationRequestId { get; init; }
 }

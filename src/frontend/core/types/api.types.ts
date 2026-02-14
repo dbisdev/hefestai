@@ -45,6 +45,8 @@ export interface CharacterGenerationResponse {
   ragContextUsed?: boolean;
   /** Number of RAG context chunks used (0 if none) */
   ragSourceCount?: number;
+  /** Unique identifier for this generation request. Use when saving to link entity to generation history. */
+  generationRequestId?: string;
 }
 
 /**
@@ -72,6 +74,8 @@ export interface SolarSystemGenerationResponse {
   ragContextUsed?: boolean;
   /** Number of RAG context chunks used (0 if none) */
   ragSourceCount?: number;
+  /** Unique identifier for this generation request. Use when saving to link entity to generation history. */
+  generationRequestId?: string;
 }
 
 /**
@@ -100,6 +104,8 @@ export interface VehicleGenerationResponse {
   ragContextUsed?: boolean;
   /** Number of RAG context chunks used (0 if none) */
   ragSourceCount?: number;
+  /** Unique identifier for this generation request. Use when saving to link entity to generation history. */
+  generationRequestId?: string;
 }
 
 /**
@@ -129,6 +135,8 @@ export interface NpcGenerationResponse {
   ragContextUsed?: boolean;
   /** Number of RAG context chunks used (0 if none) */
   ragSourceCount?: number;
+  /** Unique identifier for this generation request. Use when saving to link entity to generation history. */
+  generationRequestId?: string;
 }
 
 /**
@@ -158,6 +166,8 @@ export interface EnemyGenerationResponse {
   ragContextUsed?: boolean;
   /** Number of RAG context chunks used (0 if none) */
   ragSourceCount?: number;
+  /** Unique identifier for this generation request. Use when saving to link entity to generation history. */
+  generationRequestId?: string;
 }
 
 /**
@@ -187,6 +197,8 @@ export interface MissionGenerationResponse {
   ragContextUsed?: boolean;
   /** Number of RAG context chunks used (0 if none) */
   ragSourceCount?: number;
+  /** Unique identifier for this generation request. Use when saving to link entity to generation history. */
+  generationRequestId?: string;
 }
 
 /**
@@ -216,6 +228,8 @@ export interface EncounterGenerationResponse {
   ragContextUsed?: boolean;
   /** Number of RAG context chunks used (0 if none) */
   ragSourceCount?: number;
+  /** Unique identifier for this generation request. Use when saving to link entity to generation history. */
+  generationRequestId?: string;
 }
 
 // HTTP client types

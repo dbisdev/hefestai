@@ -81,6 +81,8 @@ export const EncounterGeneratorPage: React.FC<EncounterGeneratorPageProps> = ({ 
   const [isSaving, setIsSaving] = useState(false);
   const [generatedEncounter, setGeneratedEncounter] = useState<EncounterData | null>(null);
   const [encounterImage, setEncounterImage] = useState<string>(ENCOUNTER_PLACEHOLDER_IMAGE);
+  /** Stores the generation request ID to link entity to generation history when saving */
+  const [generationRequestId, setGenerationRequestId] = useState<string | undefined>();
 
   const [form, setForm] = useState({
     encounterType: '',
@@ -130,6 +132,7 @@ export const EncounterGeneratorPage: React.FC<EncounterGeneratorPageProps> = ({ 
 
       const encounterData = parseJsonResponse<EncounterData>(result.encounterJson);
       setGeneratedEncounter(encounterData);
+      setGenerationRequestId(result.generationRequestId);
       addLog(`ENCUENTRO GENERADO: ${encounterData.name.toUpperCase()}`);
 
       // Handle image based on selected mode
@@ -190,7 +193,8 @@ export const EncounterGeneratorPage: React.FC<EncounterGeneratorPageProps> = ({ 
         metadata: {
           generatedAt: new Date().toISOString(),
           generator: 'encounter_generator'
-        }
+        },
+        generationRequestId
       });
       addLog('EXITO: ENCUENTRO ARCHIVADO EN NUCLEO');
       setTimeout(onBack, 1000);

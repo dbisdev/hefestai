@@ -72,6 +72,8 @@ export const EnemyGeneratorPage: React.FC<EnemyGeneratorPageProps> = ({ onBack, 
   const [isSaving, setIsSaving] = useState(false);
   const [generatedEnemy, setGeneratedEnemy] = useState<EnemyData | null>(null);
   const [enemyImage, setEnemyImage] = useState<string>(UNKNOWN_ENEMY_IMAGE);
+  /** Stores the generation request ID to link entity to generation history when saving */
+  const [generationRequestId, setGenerationRequestId] = useState<string | undefined>();
 
   const [form, setForm] = useState({
     species: '',
@@ -121,6 +123,7 @@ export const EnemyGeneratorPage: React.FC<EnemyGeneratorPageProps> = ({ onBack, 
 
       const enemyData = parseJsonResponse<EnemyData>(result.enemyJson);
       setGeneratedEnemy(enemyData);
+      setGenerationRequestId(result.generationRequestId);
       addLog(`AMENAZA IDENTIFICADA: ${enemyData.name.toUpperCase()}`);
 
       // Handle image based on selected mode
@@ -181,7 +184,8 @@ export const EnemyGeneratorPage: React.FC<EnemyGeneratorPageProps> = ({ onBack, 
         metadata: {
           generatedAt: new Date().toISOString(),
           generator: 'enemy_generator'
-        }
+        },
+        generationRequestId
       });
       addLog('EXITO: AMENAZA ARCHIVADA EN NUCLEO');
       setTimeout(onBack, 1000);

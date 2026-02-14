@@ -106,7 +106,8 @@ public class EntitiesController : ControllerBase
             IsTemplate: request.IsTemplate,
             ImageUrl: request.ImageUrl,
             Attributes: request.Attributes,
-            Metadata: request.Metadata
+            Metadata: request.Metadata,
+            GenerationRequestId: request.GenerationRequestId
         );
         
         var result = await _mediator.Send(command, cancellationToken);
@@ -231,6 +232,12 @@ public record CreateLoreEntityRequest
     public string? ImageUrl { get; init; }
     public Dictionary<string, object>? Attributes { get; init; }
     public Dictionary<string, object>? Metadata { get; init; }
+    
+    /// <summary>
+    /// Optional ID of the generation request that created this entity's content.
+    /// Links the saved entity to its AI generation history for traceability.
+    /// </summary>
+    public Guid? GenerationRequestId { get; init; }
 }
 
 /// <summary>
