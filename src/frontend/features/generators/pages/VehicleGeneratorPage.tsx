@@ -4,14 +4,14 @@
  * Uses campaign context for entity creation
  */
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { TerminalLayout } from '@shared/components/layout';
 import { Button, ImageSourceSelector, DynamicStatsPanel } from '@shared/components/ui';
 import type { ImageSourceMode } from '@shared/components/ui';
-import { aiService, entityService } from '@core/services/api';
+import { aiService, entityService, entityTemplateService } from '@core/services/api';
 import { useCampaign } from '@core/context';
 import { parseJsonResponse } from '@core/utils';
-import type { VehicleData } from '@core/types';
+import type { VehicleData, FieldDefinition } from '@core/types';
 import { Screen } from '@core/types';
 
 /** Placeholder image for vehicles without generated images */
@@ -44,6 +44,8 @@ export const VehicleGeneratorPage: React.FC<VehicleGeneratorPageProps> = ({ onBa
   const [vehicleImage, setVehicleImage] = useState<string>(VEHICLE_PLACEHOLDER_IMAGE);
   /** Stores the generation request ID to link entity to generation history when saving */
   const [generationRequestId, setGenerationRequestId] = useState<string | undefined>();
+  /** Template field definitions for display name mapping */
+  const [fieldDefinitions, setFieldDefinitions] = useState<FieldDefinition[]>([]);
 
   const [form, setForm] = useState({
     type: 'starship',
@@ -55,6 +57,32 @@ export const VehicleGeneratorPage: React.FC<VehicleGeneratorPageProps> = ({ onBa
   const [imageMode, setImageMode] = useState<ImageSourceMode>('generate');
   /** Uploaded image data (base64) */
   const [uploadedImageData, setUploadedImageData] = useState<string | null>(null);
+
+  /**
+   * Fetch template field definitions when game system changes.
+   * Used to map field identifiers to display names in stats panel.
+   */
+  useEffect(() => {
+    const fetchTemplateFields = async () => {
+      if (!activeCampaign?.gameSystemId) {
+        setFieldDefinitions([]);
+        return;
+      }
+      
+      try {
+        const fields = await entityTemplateService.getFieldDefinitions(
+          activeCampaign.gameSystemId,
+          'vehicle'
+        );
+        setFieldDefinitions(fields);
+      } catch (error) {
+        console.error('Failed to fetch template fields:', error);
+        setFieldDefinitions([]);
+      }
+    };
+    
+    fetchTemplateFields();
+  }, [activeCampaign?.gameSystemId]);
 
   const addLog = (msg: string) => {
     setLogs(prev => [...prev, `> ${msg}`].slice(-6));
@@ -257,6 +285,7 @@ export const VehicleGeneratorPage: React.FC<VehicleGeneratorPageProps> = ({ onBa
             maxColumns={3}
             showProgressBar={true}
             maxProgressValue={100}
+            fieldDefinitions={fieldDefinitions}
           />
         </div>
       </div>

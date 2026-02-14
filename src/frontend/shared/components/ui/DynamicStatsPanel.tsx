@@ -2,10 +2,18 @@
  * DynamicStatsPanel Component
  * Renders dynamic stats from AI-generated entities.
  * Handles nested objects (like SKILLS), strings, and numbers.
+ * Supports label mapping from template field definitions.
  */
 
 import React from 'react';
 import type { DynamicStats } from '@core/types';
+import type { FieldDefinition } from '@core/types/template.types';
+
+/**
+ * Map of field identifier (name) to display name.
+ * Used to show human-readable labels instead of raw keys.
+ */
+export type LabelMap = Record<string, string>;
 
 export interface DynamicStatsPanelProps {
   /** Stats object with dynamic keys and values */
@@ -18,6 +26,10 @@ export interface DynamicStatsPanelProps {
   showProgressBar?: boolean;
   /** Maximum value for progress bar calculation (default: 100) */
   maxProgressValue?: number;
+  /** Optional label map to convert field identifiers to display names */
+  labelMap?: LabelMap;
+  /** Optional field definitions from template (alternative to labelMap) */
+  fieldDefinitions?: FieldDefinition[];
 }
 
 /**
@@ -25,6 +37,51 @@ export interface DynamicStatsPanelProps {
  */
 const isNestedObject = (value: unknown): value is Record<string, unknown> => {
   return typeof value === 'object' && value !== null && !Array.isArray(value);
+};
+
+/**
+ * Builds a label map from field definitions.
+ * Maps field.name (identifier) -> field.displayName
+ */
+export const buildLabelMapFromFields = (fields: FieldDefinition[]): LabelMap => {
+  const map: LabelMap = {};
+  fields.forEach(field => {
+    map[field.name] = field.displayName;
+    // Also map case variations for flexibility
+    map[field.name.toLowerCase()] = field.displayName;
+    map[field.name.toUpperCase()] = field.displayName;
+  });
+  return map;
+};
+
+/**
+ * Gets the display label for a field key.
+ * Falls back to formatting the raw key if not found in map.
+ * @param key - The field identifier (e.g., "ATTRIBUTES_STRENGTH")
+ * @param labelMap - Optional map of identifiers to display names
+ * @returns Human-readable label
+ */
+const getDisplayLabel = (key: string, labelMap?: LabelMap): string => {
+  // First check exact match in label map
+  if (labelMap?.[key]) {
+    return labelMap[key];
+  }
+  
+  // Check case-insensitive match
+  if (labelMap) {
+    const lowerKey = key.toLowerCase();
+    const upperKey = key.toUpperCase();
+    if (labelMap[lowerKey]) return labelMap[lowerKey];
+    if (labelMap[upperKey]) return labelMap[upperKey];
+  }
+  
+  // Fallback: Format the raw key to be more readable
+  // "ATTRIBUTES_STRENGTH" -> "Attributes Strength"
+  // "gear_items" -> "Gear Items"
+  return key
+    .replace(/_/g, ' ')
+    .toLowerCase()
+    .replace(/\b\w/g, c => c.toUpperCase());
 };
 
 /**
@@ -84,12 +141,13 @@ const getGridClass = (maxColumns: DynamicStatsPanelProps['maxColumns']) => {
  * StatCard - Individual stat display
  */
 const StatCard: React.FC<{
+  fieldKey: string;
   label: string;
   value: unknown;
   colors: ReturnType<typeof getVariantColors>;
   showProgressBar: boolean;
   maxProgressValue: number;
-}> = ({ label, value, colors, showProgressBar, maxProgressValue }) => {
+}> = ({ fieldKey, label, value, colors, showProgressBar, maxProgressValue }) => {
   const displayValue = formatStatValue(value);
   const isNumeric = typeof value === 'number';
   const progressWidth = isNumeric && showProgressBar 
@@ -98,7 +156,7 @@ const StatCard: React.FC<{
 
   return (
     <div className={`bg-surface-dark border ${colors.border} p-2 text-center relative overflow-hidden`}>
-      <p className={`text-[9px] ${colors.textMuted} uppercase mb-1 truncate`} title={label}>
+      <p className={`text-[9px] ${colors.textMuted} uppercase mb-1 truncate`} title={`${label} (${fieldKey})`}>
         {label}
       </p>
       <p className={`text-lg font-bold ${colors.text} font-mono truncate`} title={displayValue}>
@@ -118,27 +176,33 @@ const StatCard: React.FC<{
  * NestedStatsSection - Renders nested objects like SKILLS
  */
 const NestedStatsSection: React.FC<{
+  fieldKey: string;
   label: string;
   data: Record<string, unknown>;
   colors: ReturnType<typeof getVariantColors>;
-}> = ({ label, data, colors }) => {
+  labelMap?: LabelMap;
+}> = ({ fieldKey, label, data, colors, labelMap }) => {
   const entries = Object.entries(data);
   
   return (
     <div className={`bg-surface-dark/50 border ${colors.border} p-3 mt-2`}>
-      <p className={`text-[8px] ${colors.textMuted} uppercase tracking-widest mb-2 flex items-center gap-1`}>
+      <p className={`text-[8px] ${colors.textMuted} uppercase tracking-widest mb-2 flex items-center gap-1`} title={fieldKey}>
         <span className="material-icons text-xs">folder_open</span>
         {label}
       </p>
       <div className="flex flex-wrap gap-2">
-        {entries.map(([key, val]) => (
-          <span 
-            key={key} 
-            className={`px-2 py-1 bg-black/40 border ${colors.border} text-[9px] ${colors.text}`}
-          >
-            <span className="opacity-60">{key}:</span> {formatStatValue(val)}
-          </span>
-        ))}
+        {entries.map(([key, val]) => {
+          const nestedLabel = getDisplayLabel(key, labelMap);
+          return (
+            <span 
+              key={key} 
+              className={`px-2 py-1 bg-black/40 border ${colors.border} text-[9px] ${colors.text}`}
+              title={key}
+            >
+              <span className="opacity-60">{nestedLabel}:</span> {formatStatValue(val)}
+            </span>
+          );
+        })}
       </div>
     </div>
   );
@@ -148,12 +212,13 @@ const NestedStatsSection: React.FC<{
  * TextStatSection - Renders string stats (like TALENT, GEAR)
  */
 const TextStatSection: React.FC<{
+  fieldKey: string;
   label: string;
   value: string;
   colors: ReturnType<typeof getVariantColors>;
-}> = ({ label, value, colors }) => (
+}> = ({ fieldKey, label, value, colors }) => (
   <div className={`bg-surface-dark/50 border ${colors.border} p-3 mt-2`}>
-    <p className={`text-[8px] ${colors.textMuted} uppercase tracking-widest mb-1`}>
+    <p className={`text-[8px] ${colors.textMuted} uppercase tracking-widest mb-1`} title={fieldKey}>
       {label}
     </p>
     <p className={`text-[10px] ${colors.text}`}>{value}</p>
@@ -173,6 +238,8 @@ export const DynamicStatsPanel: React.FC<DynamicStatsPanelProps> = ({
   maxColumns = 3,
   showProgressBar = true,
   maxProgressValue = 10,
+  labelMap: externalLabelMap,
+  fieldDefinitions,
 }) => {
   if (!stats || Object.keys(stats).length === 0) {
     return (
@@ -182,21 +249,25 @@ export const DynamicStatsPanel: React.FC<DynamicStatsPanelProps> = ({
     );
   }
 
+  // Build label map: prefer external labelMap, fallback to building from fieldDefinitions
+  const labelMap = externalLabelMap ?? (fieldDefinitions ? buildLabelMapFromFields(fieldDefinitions) : undefined);
+
   const colors = getVariantColors(variant);
   const gridClass = getGridClass(maxColumns);
 
   // Separate stats by type for proper rendering
-  const numericStats: [string, number][] = [];
-  const stringStats: [string, string][] = [];
-  const nestedStats: [string, Record<string, unknown>][] = [];
+  const numericStats: [string, string, number][] = [];  // [key, displayLabel, value]
+  const stringStats: [string, string, string][] = [];   // [key, displayLabel, value]
+  const nestedStats: [string, string, Record<string, unknown>][] = [];  // [key, displayLabel, value]
 
   Object.entries(stats).forEach(([key, value]) => {
+    const displayLabel = getDisplayLabel(key, labelMap);
     if (typeof value === 'number') {
-      numericStats.push([key, value]);
+      numericStats.push([key, displayLabel, value]);
     } else if (typeof value === 'string') {
-      stringStats.push([key, value]);
+      stringStats.push([key, displayLabel, value]);
     } else if (isNestedObject(value)) {
-      nestedStats.push([key, value]);
+      nestedStats.push([key, displayLabel, value]);
     }
   });
 
@@ -205,9 +276,10 @@ export const DynamicStatsPanel: React.FC<DynamicStatsPanelProps> = ({
       {/* Numeric stats grid */}
       {numericStats.length > 0 && (
         <div className={`grid ${gridClass} gap-2`}>
-          {numericStats.map(([label, value]) => (
+          {numericStats.map(([key, label, value]) => (
             <StatCard
-              key={label}
+              key={key}
+              fieldKey={key}
               label={label}
               value={value}
               colors={colors}
@@ -219,9 +291,10 @@ export const DynamicStatsPanel: React.FC<DynamicStatsPanelProps> = ({
       )}
 
       {/* String stats (TALENT, GEAR, etc.) */}
-      {stringStats.map(([label, value]) => (
+      {stringStats.map(([key, label, value]) => (
         <TextStatSection
-          key={label}
+          key={key}
+          fieldKey={key}
           label={label}
           value={value}
           colors={colors}
@@ -229,12 +302,14 @@ export const DynamicStatsPanel: React.FC<DynamicStatsPanelProps> = ({
       ))}
 
       {/* Nested stats (SKILLS, etc.) */}
-      {nestedStats.map(([label, value]) => (
+      {nestedStats.map(([key, label, value]) => (
         <NestedStatsSection
-          key={label}
+          key={key}
+          fieldKey={key}
           label={label}
           data={value}
           colors={colors}
+          labelMap={labelMap}
         />
       ))}
     </div>

@@ -16,5 +16,5 @@ export { LoadingSpinner, InlineLoader, ProgressLoader } from './LoadingSpinner';
 export { ImageSourceSelector } from './ImageSourceSelector';
 export type { ImageSourceMode, ImageSourceSelectorProps } from './ImageSourceSelector';
 
-export { DynamicStatsPanel } from './DynamicStatsPanel';
-export type { DynamicStatsPanelProps } from './DynamicStatsPanel';
+export { DynamicStatsPanel, buildLabelMapFromFields } from './DynamicStatsPanel';
+export type { DynamicStatsPanelProps, LabelMap } from './DynamicStatsPanel';

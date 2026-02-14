@@ -16,6 +16,7 @@ import type {
   UpdateTemplateRequest,
   UpdateTemplateResult,
   DeleteTemplateResult,
+  FieldDefinition,
 } from '../../types';
 import { TemplateStatus } from '../../types';
 
@@ -57,6 +58,56 @@ export const entityTemplateService = {
    */
   async getById(gameSystemId: string, templateId: string): Promise<EntityTemplate> {
     return httpClient.get<EntityTemplate>(`/game-systems/${gameSystemId}/templates/${templateId}`);
+  },
+
+  /**
+   * Get the confirmed template for a specific entity type.
+   * Useful for getting field definitions to display entity data.
+   * @param gameSystemId - The game system ID
+   * @param entityTypeName - The entity type name (e.g., "character", "npc")
+   * @returns The confirmed template or null if not found
+   */
+  async getConfirmedByEntityType(
+    gameSystemId: string,
+    entityTypeName: string
+  ): Promise<EntityTemplate | null> {
+    try {
+      // Get all confirmed templates
+      const result = await this.getByGameSystem(gameSystemId, undefined, true);
+      
+      // Normalize the entity type name for comparison
+      const normalizedName = entityTypeName.toLowerCase().replace(/\s+/g, '_');
+      
+      // Find the matching template by entity type name
+      const templateSummary = result.templates.find(
+        t => t.entityTypeName.toLowerCase() === normalizedName
+      );
+      
+      if (!templateSummary) {
+        return null;
+      }
+      
+      // Fetch full template with field definitions
+      return await this.getById(gameSystemId, templateSummary.id);
+    } catch (error) {
+      console.error(`Failed to get template for ${entityTypeName}:`, error);
+      return null;
+    }
+  },
+
+  /**
+   * Get field definitions for a specific entity type.
+   * Convenience method that returns just the fields array.
+   * @param gameSystemId - The game system ID
+   * @param entityTypeName - The entity type name (e.g., "character", "npc")
+   * @returns Array of field definitions or empty array if not found
+   */
+  async getFieldDefinitions(
+    gameSystemId: string,
+    entityTypeName: string
+  ): Promise<FieldDefinition[]> {
+    const template = await this.getConfirmedByEntityType(gameSystemId, entityTypeName);
+    return template?.fields ?? [];
   },
 
   /**

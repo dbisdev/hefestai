@@ -1032,44 +1032,42 @@ export const TemplatesPage: React.FC<TemplatesPageProps> = ({ onNavigate, onBack
                     Definición de Campos ({isEditingFields ? editedFields.length : selectedTemplate.fields.length})
                   </span>
                   
-                  {/* Edit mode controls */}
-                  {selectedTemplate.status !== TemplateStatus.Confirmed && (
-                    <div className="flex items-center gap-2">
-                      {isEditingFields ? (
-                        <>
-                          <button
-                            onClick={handleAddField}
-                            disabled={isSavingFields}
-                            className="text-[10px] px-2 py-1 border border-green-500/40 text-green-400 hover:bg-green-500/20 transition-colors disabled:opacity-50 flex items-center gap-1"
-                          >
-                            <span className="material-icons text-xs">add</span>
-                            AÑADIR
-                          </button>
-                          <button
-                            onClick={handleCancelEditFields}
-                            disabled={isSavingFields}
-                            className="text-[10px] px-2 py-1 border border-red-500/40 text-red-400 hover:bg-red-500/20 transition-colors disabled:opacity-50"
-                          >
-                            CANCELAR
-                          </button>
-                          <button
-                            onClick={handleSaveFields}
-                            disabled={isSavingFields}
-                            className="text-[10px] px-2 py-1 border border-cyan-500/40 text-cyan-400 hover:bg-cyan-500/20 transition-colors disabled:opacity-50"
-                          >
-                            {isSavingFields ? 'GUARDANDO...' : 'GUARDAR'}
-                          </button>
-                        </>
-                      ) : (
+                  {/* Edit mode controls - enabled for all templates including confirmed */}
+                  <div className="flex items-center gap-2">
+                    {isEditingFields ? (
+                      <>
                         <button
-                          onClick={handleStartEditFields}
-                          className="text-[10px] px-2 py-1 border border-cyan-500/40 text-cyan-400 hover:bg-cyan-500/20 transition-colors"
+                          onClick={handleAddField}
+                          disabled={isSavingFields}
+                          className="text-[10px] px-2 py-1 border border-green-500/40 text-green-400 hover:bg-green-500/20 transition-colors disabled:opacity-50 flex items-center gap-1"
                         >
-                          EDITAR CAMPOS
+                          <span className="material-icons text-xs">add</span>
+                          AÑADIR
                         </button>
-                      )}
-                    </div>
-                  )}
+                        <button
+                          onClick={handleCancelEditFields}
+                          disabled={isSavingFields}
+                          className="text-[10px] px-2 py-1 border border-red-500/40 text-red-400 hover:bg-red-500/20 transition-colors disabled:opacity-50"
+                        >
+                          CANCELAR
+                        </button>
+                        <button
+                          onClick={handleSaveFields}
+                          disabled={isSavingFields}
+                          className="text-[10px] px-2 py-1 border border-cyan-500/40 text-cyan-400 hover:bg-cyan-500/20 transition-colors disabled:opacity-50"
+                        >
+                          {isSavingFields ? 'GUARDANDO...' : 'GUARDAR'}
+                        </button>
+                      </>
+                    ) : (
+                      <button
+                        onClick={handleStartEditFields}
+                        className="text-[10px] px-2 py-1 border border-cyan-500/40 text-cyan-400 hover:bg-cyan-500/20 transition-colors"
+                      >
+                        EDITAR CAMPOS
+                      </button>
+                    )}
+                  </div>
                 </div>
                 
                 <div className="flex-1 overflow-y-auto p-4">
@@ -1306,6 +1304,19 @@ export const TemplatesPage: React.FC<TemplatesPageProps> = ({ onNavigate, onBack
                     </h3>
                     
                     <div className="space-y-4">
+                      {/* Field Name (identifier) */}
+                      <div>
+                        <label className="block text-xs text-primary/60 uppercase mb-1">Identificador (name)</label>
+                        <input
+                          type="text"
+                          value={editingField.name}
+                          onChange={(e) => setEditingField({ ...editingField, name: e.target.value })}
+                          placeholder="ej: gear_items, health_points"
+                          className="w-full bg-black/40 border border-primary/30 text-primary p-2 text-sm font-mono focus:border-cyan-500 focus:outline-none"
+                        />
+                        <p className="text-[10px] text-primary/40 mt-1">Nombre interno usado en el JSON (snake_case recomendado)</p>
+                      </div>
+                      
                       {/* Display Name */}
                       <div>
                         <label className="block text-xs text-primary/60 uppercase mb-1">Nombre Visible</label>

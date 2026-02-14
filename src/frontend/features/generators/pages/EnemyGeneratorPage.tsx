@@ -4,14 +4,14 @@
  * Creates hostile creatures, aliens, or antagonists for combat encounters
  */
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { TerminalLayout } from '@shared/components/layout';
 import { Button, ImageSourceSelector, DynamicStatsPanel } from '@shared/components/ui';
 import type { ImageSourceMode } from '@shared/components/ui';
-import { aiService, entityService } from '@core/services/api';
+import { aiService, entityService, entityTemplateService } from '@core/services/api';
 import { useCampaign } from '@core/context';
 import { parseJsonResponse } from '@core/utils';
-import type { EnemyData } from '@core/types';
+import type { EnemyData, FieldDefinition } from '@core/types';
 import { Screen } from '@core/types';
 
 interface EnemyGeneratorPageProps {
@@ -74,6 +74,8 @@ export const EnemyGeneratorPage: React.FC<EnemyGeneratorPageProps> = ({ onBack, 
   const [enemyImage, setEnemyImage] = useState<string>(UNKNOWN_ENEMY_IMAGE);
   /** Stores the generation request ID to link entity to generation history when saving */
   const [generationRequestId, setGenerationRequestId] = useState<string | undefined>();
+  /** Template field definitions for display name mapping */
+  const [fieldDefinitions, setFieldDefinitions] = useState<FieldDefinition[]>([]);
 
   const [form, setForm] = useState({
     species: '',
@@ -86,6 +88,32 @@ export const EnemyGeneratorPage: React.FC<EnemyGeneratorPageProps> = ({ onBack, 
   const [imageMode, setImageMode] = useState<ImageSourceMode>('generate');
   /** Uploaded image data (base64) */
   const [uploadedImageData, setUploadedImageData] = useState<string | null>(null);
+
+  /**
+   * Fetch template field definitions when game system changes.
+   * Used to map field identifiers to display names in stats panel.
+   */
+  useEffect(() => {
+    const fetchTemplateFields = async () => {
+      if (!activeCampaign?.gameSystemId) {
+        setFieldDefinitions([]);
+        return;
+      }
+      
+      try {
+        const fields = await entityTemplateService.getFieldDefinitions(
+          activeCampaign.gameSystemId,
+          'enemy'
+        );
+        setFieldDefinitions(fields);
+      } catch (error) {
+        console.error('Failed to fetch template fields:', error);
+        setFieldDefinitions([]);
+      }
+    };
+    
+    fetchTemplateFields();
+  }, [activeCampaign?.gameSystemId]);
 
   /**
    * Adds a log entry to the terminal display
@@ -365,6 +393,7 @@ export const EnemyGeneratorPage: React.FC<EnemyGeneratorPageProps> = ({ onBack, 
             maxColumns={4}
             showProgressBar={true}
             maxProgressValue={100}
+            fieldDefinitions={fieldDefinitions}
           />
 
           {/* Weakness Display */}

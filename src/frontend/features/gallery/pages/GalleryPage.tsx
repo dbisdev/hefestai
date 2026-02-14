@@ -151,6 +151,9 @@ export const GalleryPage: React.FC<GalleryPageProps> = ({ user, onNavigate, onLo
   const [confirmedTemplates, setConfirmedTemplates] = useState<EntityTemplateSummary[]>([]);
   const [isLoadingTemplates, setIsLoadingTemplates] = useState(false);
   
+  // Field definitions for the selected entity's type (for display name mapping)
+  const [selectedEntityFields, setSelectedEntityFields] = useState<import('@core/types').FieldDefinition[]>([]);
+  
   // Accessibility: Screen reader announcement state
   const [announcement, setAnnouncement] = useState<string>('');
   
@@ -238,6 +241,32 @@ export const GalleryPage: React.FC<GalleryPageProps> = ({ user, onNavigate, onLo
     
     loadTemplates();
   }, [activeCampaign?.gameSystemId]);
+
+  /**
+   * Fetch template field definitions when an entity is selected.
+   * Used to map field identifiers to display names in the detail panel.
+   */
+  useEffect(() => {
+    const fetchEntityFields = async () => {
+      if (!selectedEntity || !activeCampaign?.gameSystemId) {
+        setSelectedEntityFields([]);
+        return;
+      }
+      
+      try {
+        const fields = await entityTemplateService.getFieldDefinitions(
+          activeCampaign.gameSystemId,
+          selectedEntity.entityType
+        );
+        setSelectedEntityFields(fields);
+      } catch (error) {
+        console.error('Failed to fetch entity template fields:', error);
+        setSelectedEntityFields([]);
+      }
+    };
+    
+    fetchEntityFields();
+  }, [selectedEntity?.entityType, activeCampaign?.gameSystemId]);
 
   /**
    * Handle category tab change with transition effect
@@ -1114,6 +1143,7 @@ export const GalleryPage: React.FC<GalleryPageProps> = ({ user, onNavigate, onLo
             onDelete={handleDelete}
             onVisibilityChange={handleVisibilityChange}
             onEdit={handleEditEntity}
+            fieldDefinitions={selectedEntityFields}
           />
         )}
       </div>
@@ -1250,6 +1280,8 @@ interface EntityDetailPanelProps {
   onDelete: (id: string) => void;
   onVisibilityChange: (entityId: string, visibility: VisibilityLevel) => void;
   onEdit: () => void;
+  /** Field definitions for display name mapping */
+  fieldDefinitions?: import('@core/types').FieldDefinition[];
 }
 
 /**
@@ -1259,7 +1291,7 @@ interface EntityDetailPanelProps {
  * Includes PDF export functionality for character sheets
  */
 const EntityDetailPanel = forwardRef<HTMLElement, EntityDetailPanelProps>(
-  ({ entity, isMaster, onClose, onDelete, onVisibilityChange, onEdit }, ref) => {
+  ({ entity, isMaster, onClose, onDelete, onVisibilityChange, onEdit, fieldDefinitions }, ref) => {
     // Fallback image if none provided
     const imageUrl = entity.imageUrl || 'https://images.unsplash.com/photo-1518020382113-a7e8fc38eac9?q=80&w=400&auto=format&fit=crop';
     
@@ -1268,6 +1300,30 @@ const EntityDetailPanel = forwardRef<HTMLElement, EntityDetailPanelProps>(
     
     // Visibility dropdown state
     const [isVisibilityOpen, setIsVisibilityOpen] = useState(false);
+    
+    // Build label map from field definitions for display name mapping
+    const labelMap = React.useMemo(() => {
+      if (!fieldDefinitions || fieldDefinitions.length === 0) return undefined;
+      const map: Record<string, string> = {};
+      fieldDefinitions.forEach(field => {
+        map[field.name] = field.displayName;
+        map[field.name.toLowerCase()] = field.displayName;
+        map[field.name.toUpperCase()] = field.displayName;
+      });
+      return map;
+    }, [fieldDefinitions]);
+    
+    /**
+     * Get display label for an attribute key.
+     * Uses template field definitions if available, otherwise formats the key.
+     */
+    const getDisplayLabel = (key: string): string => {
+      if (labelMap?.[key]) return labelMap[key];
+      if (labelMap?.[key.toLowerCase()]) return labelMap[key.toLowerCase()];
+      if (labelMap?.[key.toUpperCase()]) return labelMap[key.toUpperCase()];
+      // Fallback: format the key (e.g., "ATTRIBUTES_STRENGTH" -> "Attributes Strength")
+      return key.replace(/_/g, ' ').toLowerCase().replace(/\b\w/g, c => c.toUpperCase());
+    };
     
     /**
      * Visibility options for the dropdown
@@ -1406,8 +1462,8 @@ const EntityDetailPanel = forwardRef<HTMLElement, EntityDetailPanelProps>(
                 <p className="text-[9px] text-primary/40 uppercase tracking-[0.2em] font-bold">// ATRIBUTOS</p>
                 <div className="grid grid-cols-3 gap-2">
                   {Object.entries(entity.attributes).slice(0, 6).map(([key, value]) => (
-                    <div key={key} className="bg-surface-dark border border-primary/20 p-2 text-center">
-                      <p className="text-[8px] text-primary/40 uppercase mb-1">{key}</p>
+                    <div key={key} className="bg-surface-dark border border-primary/20 p-2 text-center" title={key}>
+                      <p className="text-[8px] text-primary/40 uppercase mb-1 truncate">{getDisplayLabel(key)}</p>
                       <p className="text-sm font-bold text-primary">{String(value)}</p>
                     </div>
                   ))}

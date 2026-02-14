@@ -3,6 +3,7 @@ using System.Text.Json;
 using Loremaster.Application.Common.Interfaces;
 using Loremaster.Domain.Entities;
 using Loremaster.Domain.Enums;
+using Loremaster.Domain.ValueObjects;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 
@@ -22,6 +23,7 @@ public class AiController : ControllerBase
     private readonly IRagContextProvider _ragContextProvider;
     private readonly IEmbeddingService _embeddingService;
     private readonly IGenerationRequestRepository _generationRequestRepository;
+    private readonly IEntityTemplateRepository _entityTemplateRepository;
     private readonly IApplicationDbContext _dbContext;
     private readonly IUnitOfWork _unitOfWork;
     private readonly ILogger<AiController> _logger;
@@ -36,6 +38,7 @@ public class AiController : ControllerBase
         IRagContextProvider ragContextProvider,
         IEmbeddingService embeddingService,
         IGenerationRequestRepository generationRequestRepository,
+        IEntityTemplateRepository entityTemplateRepository,
         IApplicationDbContext dbContext,
         IUnitOfWork unitOfWork,
         ILogger<AiController> logger)
@@ -44,6 +47,7 @@ public class AiController : ControllerBase
         _ragContextProvider = ragContextProvider;
         _embeddingService = embeddingService;
         _generationRequestRepository = generationRequestRepository;
+        _entityTemplateRepository = entityTemplateRepository;
         _dbContext = dbContext;
         _unitOfWork = unitOfWork;
         _logger = logger;
@@ -65,6 +69,219 @@ public class AiController : ControllerBase
         }
 
         return userId;
+    }
+
+    /// <summary>
+    /// Retrieves a confirmed template for the given entity type and game system.
+    /// Returns null if no confirmed template exists.
+    /// </summary>
+    /// <param name="gameSystemId">The game system ID.</param>
+    /// <param name="userId">The user ID (owner).</param>
+    /// <param name="entityTypeName">The entity type name (e.g., "character", "npc").</param>
+    /// <param name="cancellationToken">Cancellation token.</param>
+    /// <returns>The confirmed template or null if not found.</returns>
+    private async Task<EntityTemplate?> GetConfirmedTemplateAsync(
+        Guid? gameSystemId,
+        Guid userId,
+        string entityTypeName,
+        CancellationToken cancellationToken)
+    {
+        if (!gameSystemId.HasValue)
+            return null;
+
+        var template = await _entityTemplateRepository.GetConfirmedTemplateForEntityTypeAsync(
+            gameSystemId.Value,
+            userId,
+            entityTypeName,
+            cancellationToken);
+
+        if (template != null)
+        {
+            _logger.LogDebug(
+                "Found confirmed template {TemplateId} for entity type '{EntityType}' in game system {GameSystemId}",
+                template.Id, entityTypeName, gameSystemId);
+        }
+
+        return template;
+    }
+
+    /// <summary>
+    /// Builds an example JSON format string from template field definitions.
+    /// Used to guide LLM generation with the correct schema.
+    /// </summary>
+    /// <param name="fields">The field definitions from the template.</param>
+    /// <returns>A JSON example string formatted for the LLM prompt.</returns>
+    private static string BuildExampleJsonFromTemplate(IReadOnlyList<FieldDefinition> fields)
+    {
+        var orderedFields = fields.OrderBy(f => f.Order).ToList();
+        var exampleObject = new Dictionary<string, object>();
+
+        foreach (var field in orderedFields)
+        {
+            var exampleValue = GenerateExampleValue(field);
+            exampleObject[field.Name] = exampleValue;
+        }
+
+        // Serialize with indentation for readability
+        var options = new JsonSerializerOptions
+        {
+            WriteIndented = true
+        };
+
+        return JsonSerializer.Serialize(exampleObject, options);
+    }
+
+    /// <summary>
+    /// Generates an example value for a field based on its type and constraints.
+    /// </summary>
+    /// <param name="field">The field definition.</param>
+    /// <returns>An example value appropriate for the field type.</returns>
+    private static object GenerateExampleValue(FieldDefinition field)
+    {
+        return field.FieldType switch
+        {
+            FieldType.Text => GenerateTextExample(field),
+            FieldType.TextArea => GenerateTextAreaExample(field),
+            FieldType.Number => GenerateNumberExample(field),
+            FieldType.Boolean => false,
+            FieldType.Select => GenerateSelectExample(field),
+            FieldType.MultiSelect => GenerateMultiSelectExample(field),
+            FieldType.Date => DateTime.UtcNow.ToString("yyyy-MM-dd"),
+            FieldType.Url => "https://example.com/image.png",
+            FieldType.Json => GenerateJsonExample(field),
+            _ => $"<{field.DisplayName}>"
+        };
+    }
+
+    /// <summary>
+    /// Generates a text example based on field properties.
+    /// </summary>
+    private static string GenerateTextExample(FieldDefinition field)
+    {
+        // Use description as hint for what kind of value is expected
+        if (!string.IsNullOrEmpty(field.Description))
+            return $"<{field.Description}>";
+        
+        return $"<{field.DisplayName}>";
+    }
+
+    /// <summary>
+    /// Generates a textarea example (typically longer text).
+    /// </summary>
+    private static string GenerateTextAreaExample(FieldDefinition field)
+    {
+        if (!string.IsNullOrEmpty(field.Description))
+            return $"<{field.Description} - 2-3 paragraphs>";
+        
+        return $"<{field.DisplayName} - detailed description>";
+    }
+
+    /// <summary>
+    /// Generates a number example based on min/max constraints.
+    /// </summary>
+    private static object GenerateNumberExample(FieldDefinition field)
+    {
+        if (field.MinValue.HasValue && field.MaxValue.HasValue)
+        {
+            // Return middle value
+            var mid = (field.MinValue.Value + field.MaxValue.Value) / 2;
+            return Math.Round(mid);
+        }
+        
+        if (field.MinValue.HasValue)
+            return field.MinValue.Value;
+        
+        if (field.MaxValue.HasValue)
+            return field.MaxValue.Value / 2;
+        
+        return 50; // Default example number
+    }
+
+    /// <summary>
+    /// Generates a select example from available options.
+    /// </summary>
+    private static string GenerateSelectExample(FieldDefinition field)
+    {
+        var options = field.GetOptions();
+        return options.FirstOrDefault() ?? $"<{field.DisplayName} option>";
+    }
+
+    /// <summary>
+    /// Generates a multi-select example from available options.
+    /// </summary>
+    private static object GenerateMultiSelectExample(FieldDefinition field)
+    {
+        var options = field.GetOptions();
+        // Return first two options as example
+        return options.Take(2).ToList();
+    }
+
+    /// <summary>
+    /// Generates a JSON example (nested object placeholder).
+    /// </summary>
+    private static object GenerateJsonExample(FieldDefinition field)
+    {
+        // Return a placeholder object structure
+        return new Dictionary<string, object>
+        {
+            ["key"] = "value",
+            ["nested"] = new Dictionary<string, object>
+            {
+                ["property"] = $"<{field.DisplayName} content>"
+            }
+        };
+    }
+
+    /// <summary>
+    /// Builds a field description list from template fields for the LLM prompt.
+    /// </summary>
+    /// <param name="fields">The field definitions from the template.</param>
+    /// <returns>A formatted string describing each field.</returns>
+    private static string BuildFieldDescriptions(IReadOnlyList<FieldDefinition> fields)
+    {
+        var orderedFields = fields.OrderBy(f => f.Order).ToList();
+        var descriptions = new List<string>();
+
+        foreach (var field in orderedFields)
+        {
+            var desc = $"- {field.Name}: {GetFieldTypeDescription(field)}";
+            
+            if (!string.IsNullOrEmpty(field.Description))
+                desc += $" ({field.Description})";
+            
+            if (field.IsRequired)
+                desc += " [REQUIRED]";
+            
+            descriptions.Add(desc);
+        }
+
+        return string.Join("\n", descriptions);
+    }
+
+    /// <summary>
+    /// Gets a human-readable description of the field type and constraints.
+    /// </summary>
+    private static string GetFieldTypeDescription(FieldDefinition field)
+    {
+        return field.FieldType switch
+        {
+            FieldType.Text => "Short text",
+            FieldType.TextArea => "Long text/description",
+            FieldType.Number when field.MinValue.HasValue && field.MaxValue.HasValue 
+                => $"Number ({field.MinValue}-{field.MaxValue})",
+            FieldType.Number when field.MinValue.HasValue 
+                => $"Number (min: {field.MinValue})",
+            FieldType.Number when field.MaxValue.HasValue 
+                => $"Number (max: {field.MaxValue})",
+            FieldType.Number => "Number",
+            FieldType.Boolean => "Boolean (true/false)",
+            FieldType.Select => $"One of: [{string.Join(", ", field.GetOptions())}]",
+            FieldType.MultiSelect => $"Array of: [{string.Join(", ", field.GetOptions())}]",
+            FieldType.Date => "Date (YYYY-MM-DD)",
+            FieldType.Url => "URL string",
+            FieldType.Json => "Nested JSON object",
+            _ => "Value"
+        };
     }
 
     /// <summary>
@@ -130,7 +347,7 @@ public class AiController : ControllerBase
                 context: contextTexts,
                 systemPrompt: systemPrompt,
                 temperature: 0.8f,
-                maxTokens: 512,
+                maxTokens: 2048,
                 cancellationToken: cancellationToken);
 
             resultJson = ragResult.Answer;
@@ -147,7 +364,7 @@ public class AiController : ControllerBase
                 fallbackPrompt,
                 fallbackSystemPrompt,
                 0.8f,
-                512,
+                2048,
                 cancellationToken);
 
             resultJson = textResult.Json;
@@ -213,7 +430,7 @@ public class AiController : ControllerBase
         var modelParams = new
         {
             temperature = 0.8f,
-            maxTokens = 512,
+            maxTokens = 2048,
             model = DefaultModelName
         };
         var modelParamsJson = JsonDocument.Parse(JsonSerializer.Serialize(modelParams));
@@ -251,7 +468,7 @@ public class AiController : ControllerBase
 
     /// <summary>
     /// Persists the GenerationRequest and GenerationResult to the database.
-    /// TEMPORARY: Re-throws exceptions for debugging. Normally logs errors but does not stop the main operation.
+    /// Non-blocking: failures are logged but don't stop the main operation.
     /// </summary>
     private async Task PersistGenerationRequestWithResultAsync(
         GenerationRequest request,
@@ -260,22 +477,9 @@ public class AiController : ControllerBase
     {
         try
         {
-            _logger.LogWarning(
-                "[DEBUG] Starting persist for GenerationRequest {RequestId} (UserId: {UserId}, Type: {Type})",
-                request.Id, request.UserId, request.TargetEntityType);
-
-            _logger.LogWarning("[DEBUG] Adding GenerationRequest to repository...");
             await _generationRequestRepository.AddAsync(request, cancellationToken);
-            
-            _logger.LogWarning("[DEBUG] Adding GenerationResult to DbContext...");
             await _dbContext.GenerationResults.AddAsync(result, cancellationToken);
-            
-            _logger.LogWarning("[DEBUG] Calling SaveChangesAsync...");
-            var changes = await _unitOfWork.SaveChangesAsync(cancellationToken);
-            
-            _logger.LogWarning(
-                "[DEBUG] SaveChangesAsync completed. Changes saved: {Changes}",
-                changes);
+            await _unitOfWork.SaveChangesAsync(cancellationToken);
 
             _logger.LogInformation(
                 "Successfully persisted GenerationRequest {RequestId} with GenerationResult {ResultId}",
@@ -284,17 +488,16 @@ public class AiController : ControllerBase
         catch (Exception ex)
         {
             _logger.LogError(ex,
-                "Failed to persist GenerationRequest {RequestId} (UserId: {UserId}, Type: {Type}). Error: {ErrorMessage}. InnerException: {InnerException}",
-                request.Id, request.UserId, request.TargetEntityType, ex.Message, ex.InnerException?.Message ?? "none");
-            
-            // TEMPORARY: Re-throw to surface the actual error during debugging
-            throw;
+                "Failed to persist GenerationRequest {RequestId} (UserId: {UserId}, Type: {Type})",
+                request.Id, request.UserId, request.TargetEntityType);
+            // Don't throw - generation tracking failure shouldn't fail the main operation
         }
     }
 
     /// <summary>
     /// Generate a character with stats and description using RAG-enhanced AI.
     /// Retrieves relevant lore from game system manuals to ensure lore-accurate generation.
+    /// Uses confirmed template field definitions for JSON schema when available.
     /// </summary>
     /// <param name="request">Character generation parameters including game system context.</param>
     /// <param name="cancellationToken">Cancellation token.</param>
@@ -314,10 +517,54 @@ public class AiController : ControllerBase
                 "Generating character: Species={Species}, Role={Role}, GameSystemId={GameSystemId}", 
                 request.Species, request.Role, request.GameSystemId);
 
-            // Step 1: Build additional context from request parameters
+            // Step 1: Check for confirmed template to use its field definitions
+            var template = await GetConfirmedTemplateAsync(
+                request.GameSystemId,
+                userId,
+                "character",
+                cancellationToken);
+
+            string exampleJson;
+            string fieldDescriptions;
+
+            if (template != null)
+            {
+                var fields = template.GetFieldDefinitions();
+                var statsJson = BuildExampleJsonFromTemplate(fields);
+                // Wrap template fields inside the standard structure
+                exampleJson = $@"{{""name"":""<Character Name>"",""bio"":""<2-3 paragraph backstory>"",""stats"":{statsJson}}}";
+                fieldDescriptions = $@"- name: A unique character name fitting the setting
+- bio: A 2-3 paragraphs backstory based on the lore
+- stats: An object containing the following template fields:
+{BuildFieldDescriptions(fields)}";
+                _logger.LogDebug("Using template {TemplateId} with {FieldCount} fields for character generation", 
+                    template.Id, fields.Count);
+            }
+            else
+            {
+                // Fallback example when no template exists
+                exampleJson = @"{""name"":""Zephyr-9"",""bio"":""A rogue android..."",""stats"":{
+    ""STRENGTH"": 3,
+    ""AGILITY"": 4,
+    ""WITS"": 4,
+    ""EMPATHY"": 5,
+    ""SKILLS"": {
+      ""MOBILITY"": 2,
+      ""OBSERVATION"": 4,
+      ""MEDICAL AID"": 4
+    },
+    ""TALENT"": ""Field Medic"",
+    ""GEAR"": ""Medkit, Surgical kit, Four doses of Naproleve"",
+    ""CASH"": 1000}}";
+                fieldDescriptions = @"- name: A unique character name fitting the setting
+- bio: A 2-3 paragraphs backstory based on the lore
+- stats: An object with the attributes required by the character creation rules";
+            }
+
+            // Step 2: Build additional context from request parameters
             var additionalContext = $"Species: {request.Species}, Role: {request.Role}, Morphology: {request.Morphology}, Style: {request.Attire}";
 
-            // Step 2: Retrieve RAG context from game system manuals (if gameSystemId provided)
+            // Step 3: Retrieve RAG context from game system manuals (if gameSystemId provided)
             IReadOnlyList<RagContextChunk> ragContext = Array.Empty<RagContextChunk>();
             
             if (request.GameSystemId.HasValue)
@@ -329,13 +576,13 @@ public class AiController : ControllerBase
                     userId,
                     entityTypeName: "character",
                     additionalContext: additionalContext,
-                    maxChunks: 5,
+                    maxChunks: 7,
                     cancellationToken: cancellationToken);
 
                 _logger.LogDebug("Retrieved {ChunkCount} RAG context chunks for character generation", ragContext.Count);
             }
 
-            // Step 3: Generate character using RAG context or fallback to basic generation
+            // Step 4: Generate character using RAG context or fallback to basic generation
             string characterJson;
             string fullPrompt; // Store the full prompt sent to LLM
 
@@ -355,27 +602,13 @@ Role: {request.Role}
 Morphology: {request.Morphology}
 Style: {request.Attire}
 
-Generate a JSON object with:
-- name: A unique character name fitting the setting
-- bio: A 2-3 paragraphs backstory based on the lore
-- stats: An object with the attributes required by the character creation rules
+Generate a JSON object with the following fields:
+{fieldDescriptions}
 
 The character should reflect the game world's themes, factions, and available character options from the lore.
 
 Example format:
-{{""name"":""Zephyr-9"",""bio"":""A rogue android..."",""stats"":{{
-    ""STRENGTH"": 3,
-    ""AGILITY"": 4,
-    ""WITS"": 4,
-    ""EMPATHY"": 5,
-    ""SKILLS"": {{
-      ""MOBILITY"": 2,
-      ""OBSERVATION"": 4,
-      ""MEDICAL AID"": 4
-    }},
-    ""TALENT"": ""Field Medic"",
-    ""GEAR"": ""Medkit, Surgical kit, Four doses of Naproleve"",
-    ""CASH"": 1000}}}}";
+{exampleJson}";
 
                 // Capture full prompt for traceability
                 fullPrompt = $"[SYSTEM]\n{systemPrompt}\n\n[USER]\n{userQuery}\n\n[RAG CONTEXT]\n{string.Join("\n---\n", contextTexts)}";
@@ -387,7 +620,7 @@ Example format:
                     context: contextTexts,
                     systemPrompt: systemPrompt,
                     temperature: 0.8f,
-                    maxTokens: 512,
+                    maxTokens: 2048,
                     cancellationToken: cancellationToken);
 
                 characterJson = ragResult.Answer;
@@ -406,13 +639,11 @@ Role: {request.Role}
 Morphology: {request.Morphology}
 Style: {request.Attire}
 
-Respond with a JSON object containing:
-- name: A unique sci-fi character name
-- bio: A 2-3 sentence backstory
-- stats: An object with STR (1-100), INT (1-100), DEX (1-100)
+Respond with a JSON object containing the following fields:
+{fieldDescriptions}
 
 Example format:
-{{""name"":""Zephyr-9"",""bio"":""A rogue android..."",""stats"":{{""STR"":75,""INT"":90,""DEX"":85}}}}";
+{exampleJson}";
 
                 // Capture full prompt for traceability
                 fullPrompt = $"[SYSTEM]\n{fallbackSystemPrompt}\n\n[USER]\n{prompt}";
@@ -421,13 +652,13 @@ Example format:
                     prompt,
                     fallbackSystemPrompt,
                     0.8f,
-                    512,
+                    2048,
                     cancellationToken);
 
                 characterJson = textResult.Json;
             }
 
-            // Step 4: Conditionally generate image based on request parameter
+            // Step 5: Conditionally generate image based on request parameter
             string? imageBase64 = null;
             string? imageUrl = null;
             
@@ -456,7 +687,7 @@ Example format:
                 imageUrl = imageResult.ImageUrl;
             }
 
-            // Step 5: Create and persist generation tracking records
+            // Step 6: Create and persist generation tracking records
             var generationRequest = CreateGenerationRequest(userId, "character", fullPrompt);
             generationRequest.Complete();
 
@@ -502,6 +733,7 @@ Example format:
     /// <summary>
     /// Generate a solar system with planets using RAG-enhanced AI.
     /// Retrieves relevant lore from game system manuals to ensure lore-accurate generation.
+    /// Uses confirmed template field definitions for JSON schema when available.
     /// </summary>
     /// <param name="request">Solar system generation parameters including game system context.</param>
     /// <param name="cancellationToken">Cancellation token.</param>
@@ -521,6 +753,36 @@ Example format:
                 "Generating solar system: SpectralClass={SpectralClass}, Planets={PlanetCount}, GameSystemId={GameSystemId}", 
                 request.SpectralClass, request.PlanetCount, request.GameSystemId);
 
+            // Check for confirmed template to use its field definitions
+            var template = await GetConfirmedTemplateAsync(
+                request.GameSystemId,
+                userId,
+                "solar_system",
+                cancellationToken);
+
+            string exampleJson;
+            string fieldDescriptions;
+
+            if (template != null)
+            {
+                var fields = template.GetFieldDefinitions();
+                var statsJson = BuildExampleJsonFromTemplate(fields);
+                // Wrap template fields inside the standard structure
+                exampleJson = $@"{{""name"":""<System Name>"",""description"":""<2-3 sentence description>"",""stats"":{statsJson}}}";
+                fieldDescriptions = $@"- name: A unique star system name fitting the setting
+- description: A 2-3 sentence description
+- stats: An object containing the following template fields:
+{BuildFieldDescriptions(fields)}";
+                _logger.LogDebug("Using template {TemplateId} for solar-system generation", template.Id);
+            }
+            else
+            {
+                exampleJson = @"{""name"":""Nexus Prime"",""description"":""A binary system..."",""stats"":{""planets"":[""Arkon"",""Vela"",""Theron""]}}";
+                fieldDescriptions = @"- name: A unique star system name fitting the setting
+- description: A 2-3 sentence description
+- stats: An object with planets array and other system data";
+            }
+
             // Build context for RAG query
             var additionalContext = $"Star spectral class: {request.SpectralClass}, Planet count: {request.PlanetCount}";
 
@@ -535,27 +797,23 @@ Respond only with valid JSON.";
 Star Spectral Class: {request.SpectralClass}
 Number of Planets: {request.PlanetCount}
 
-Generate a JSON object with:
-- name: A unique star system name fitting the setting
-- description: A 2-3 sentence description
-- planets: An array of {request.PlanetCount} planet names
+Generate a JSON object with the following fields:
+{fieldDescriptions}
 
 The system should reflect the game world's cosmic themes and known regions from the lore.
 
 Example format:
-{{""name"":""Nexus Prime"",""description"":""A binary system..."",""planets"":[""Arkon"",""Vela"",""Theron""]}}";
+{exampleJson}";
 
             // Fallback prompts
             var fallbackPrompt = $@"Create a futuristic solar system with {request.PlanetCount} planets orbiting a {request.SpectralClass} class star.
 Provide a unique sci-fi name, a brief overview of the system, and a name for each planet.
 
-Respond with a JSON object containing:
-- name: A unique star system name
-- description: A 2-3 sentence description
-- planets: An array of {request.PlanetCount} planet names
+Respond with a JSON object containing the following fields:
+{fieldDescriptions}
 
 Example format:
-{{""name"":""Nexus Prime"",""description"":""A binary system..."",""planets"":[""Arkon"",""Vela"",""Theron""]}}";
+{exampleJson}";
 
             var fallbackSystemPrompt = "You are a sci-fi world builder. Respond only with valid JSON.";
 
@@ -646,6 +904,7 @@ Example format:
     /// <summary>
     /// Generate a vehicle with stats using RAG-enhanced AI.
     /// Retrieves relevant lore from game system manuals to ensure lore-accurate generation.
+    /// Uses confirmed template field definitions for JSON schema when available.
     /// </summary>
     /// <param name="request">Vehicle generation parameters including game system context.</param>
     /// <param name="cancellationToken">Cancellation token.</param>
@@ -665,6 +924,36 @@ Example format:
                 "Generating vehicle: Type={Type}, Class={Class}, GameSystemId={GameSystemId}", 
                 request.Type, request.Class, request.GameSystemId);
 
+            // Check for confirmed template to use its field definitions
+            var template = await GetConfirmedTemplateAsync(
+                request.GameSystemId,
+                userId,
+                "vehicle",
+                cancellationToken);
+
+            string exampleJson;
+            string fieldDescriptions;
+
+            if (template != null)
+            {
+                var fields = template.GetFieldDefinitions();
+                var statsJson = BuildExampleJsonFromTemplate(fields);
+                // Wrap template fields inside the standard structure
+                exampleJson = $@"{{""name"":""<Vehicle Name>"",""description"":""<2-3 sentence description>"",""stats"":{statsJson}}}";
+                fieldDescriptions = $@"- name: A unique vehicle designation/name fitting the setting
+- description: A 2-3 sentence description of capabilities
+- stats: An object containing the following template fields:
+{BuildFieldDescriptions(fields)}";
+                _logger.LogDebug("Using template {TemplateId} for vehicle generation", template.Id);
+            }
+            else
+            {
+                exampleJson = @"{""name"":""Phantom-X7"",""description"":""A stealth interceptor..."",""stats"":{""SPEED"":95,""ARMOR"":40,""CARGO"":20}}";
+                fieldDescriptions = @"- name: A unique vehicle designation/name fitting the setting
+- description: A 2-3 sentence description of capabilities
+- stats: An object with SPEED (1-100), ARMOR (1-100), CARGO (1-100)";
+            }
+
             // Build context for RAG query
             var additionalContext = $"Vehicle type: {request.Type}, Class: {request.Class}, Engine: {request.Engine}";
 
@@ -680,15 +969,13 @@ Type: {request.Type}
 Class: {request.Class}
 Engine: {request.Engine}
 
-Generate a JSON object with:
-- name: A unique vehicle designation/name fitting the setting
-- specs: A 2-3 sentence description of capabilities
-- stats: An object with SPEED (1-100), ARMOR (1-100), CARGO (1-100)
+Generate a JSON object with the following fields:
+{fieldDescriptions}
 
 The vehicle should reflect the game world's technology and design aesthetics from the lore.
 
 Example format:
-{{""name"":""Phantom-X7"",""specs"":""A stealth interceptor..."",""stats"":{{""SPEED"":95,""ARMOR"":40,""CARGO"":20}}}}";
+{exampleJson}";
 
             // Fallback prompts
             var fallbackPrompt = $@"Create a futuristic vehicle:
@@ -696,13 +983,11 @@ Type: {request.Type}
 Class: {request.Class}
 Engine: {request.Engine}
 
-Respond with a JSON object containing:
-- name: A unique vehicle designation/name
-- specs: A 2-3 sentence description of capabilities
-- stats: An object with SPEED (1-100), ARMOR (1-100), CARGO (1-100)
+Respond with a JSON object containing the following fields:
+{fieldDescriptions}
 
 Example format:
-{{""name"":""Phantom-X7"",""specs"":""A stealth interceptor..."",""stats"":{{""SPEED"":95,""ARMOR"":40,""CARGO"":20}}}}";
+{exampleJson}";
 
             var fallbackSystemPrompt = "You are a sci-fi vehicle designer. Respond only with valid JSON.";
 
@@ -793,6 +1078,7 @@ Example format:
     /// <summary>
     /// Generate an NPC (Non-Player Character) with personality and background using RAG-enhanced AI.
     /// Retrieves relevant lore from game system manuals to ensure lore-accurate generation.
+    /// Uses confirmed template field definitions for JSON schema when available.
     /// </summary>
     /// <param name="request">NPC generation parameters including game system context.</param>
     /// <param name="cancellationToken">Cancellation token.</param>
@@ -812,6 +1098,36 @@ Example format:
                 "Generating NPC: Species={Species}, Occupation={Occupation}, GameSystemId={GameSystemId}", 
                 request.Species, request.Occupation, request.GameSystemId);
 
+            // Check for confirmed template to use its field definitions
+            var template = await GetConfirmedTemplateAsync(
+                request.GameSystemId,
+                userId,
+                "npc",
+                cancellationToken);
+
+            string exampleJson;
+            string fieldDescriptions;
+
+            if (template != null)
+            {
+                var fields = template.GetFieldDefinitions();
+                var statsJson = BuildExampleJsonFromTemplate(fields);
+                // Wrap template fields inside the standard structure
+                exampleJson = $@"{{""name"":""<NPC Name>"",""description"":""<2-3 sentence background>"",""stats"":{statsJson}}}";
+                fieldDescriptions = $@"- name: A unique sci-fi name fitting their species and the setting's naming conventions
+- description: A 2-3 sentence backstory explaining who they are and their motivations
+- stats: An object containing the following template fields:
+{BuildFieldDescriptions(fields)}";
+                _logger.LogDebug("Using template {TemplateId} for NPC generation", template.Id);
+            }
+            else
+            {
+                exampleJson = @"{""name"":""Vex Morrow"",""description"":""Former corporate spy turned information broker..."",""stats"":{""occupation"":""Information Broker"",""personality"":""Cunning but fair"",""CHA"":85,""INT"":75,""WIS"":60}}";
+                fieldDescriptions = @"- name: A unique sci-fi name fitting their species and the setting's naming conventions
+- description: A 2-3 sentence backstory explaining who they are and their motivations
+- stats: An object with occupation, personality, and attributes (CHA, INT, WIS from 1-100)";
+            }
+
             // Build context for RAG query
             var additionalContext = $"Species: {request.Species}, Occupation: {request.Occupation}, Personality: {request.Personality}, Setting: {request.Setting}";
 
@@ -828,17 +1144,13 @@ Occupation: {request.Occupation}
 Personality: {request.Personality}
 Setting: {request.Setting}
 
-Generate a JSON object with:
-- name: A unique sci-fi name fitting their species and the setting's naming conventions
-- occupation: Their job/role description
-- personality: A brief personality summary
-- background: A 2-3 sentence backstory explaining who they are and their motivations
-- stats: An object with CHA (charisma, 1-100), INT (intelligence, 1-100), WIS (wisdom, 1-100)
+Generate a JSON object with the following fields:
+{fieldDescriptions}
 
 The NPC should reflect the game world's factions, cultures, and social dynamics from the lore.
 
 Example format:
-{{""name"":""Vex Morrow"",""occupation"":""Information Broker"",""personality"":""Cunning but fair"",""background"":""Former corporate spy..."",""stats"":{{""CHA"":85,""INT"":75,""WIS"":60}}}}";
+{exampleJson}";
 
             // Fallback prompts
             var fallbackPrompt = $@"Create a sci-fi NPC (non-player character) for a tabletop RPG:
@@ -847,15 +1159,11 @@ Occupation: {request.Occupation}
 Personality: {request.Personality}
 Setting: {request.Setting}
 
-Respond with a JSON object containing:
-- name: A unique sci-fi name fitting their species
-- occupation: Their job/role description
-- personality: A brief personality summary
-- background: A 2-3 sentence backstory explaining who they are and their motivations
-- stats: An object with CHA (charisma, 1-100), INT (intelligence, 1-100), WIS (wisdom, 1-100)
+Respond with a JSON object containing the following fields:
+{fieldDescriptions}
 
 Example format:
-{{""name"":""Vex Morrow"",""occupation"":""Information Broker"",""personality"":""Cunning but fair"",""background"":""Former corporate spy..."",""stats"":{{""CHA"":85,""INT"":75,""WIS"":60}}}}";
+{exampleJson}";
 
             var fallbackSystemPrompt = "You are a sci-fi RPG character creator. Create interesting NPCs with depth. Respond only with valid JSON.";
 
@@ -965,6 +1273,36 @@ Example format:
                 "Generating enemy: Species={Species}, ThreatLevel={ThreatLevel}, GameSystemId={GameSystemId}", 
                 request.Species, request.ThreatLevel, request.GameSystemId);
 
+            // Check for confirmed template to use its field definitions
+            var template = await GetConfirmedTemplateAsync(
+                request.GameSystemId,
+                userId,
+                "enemy",
+                cancellationToken);
+
+            string exampleJson;
+            string fieldDescriptions;
+
+            if (template != null)
+            {
+                var fields = template.GetFieldDefinitions();
+                var statsJson = BuildExampleJsonFromTemplate(fields);
+                // Wrap template fields inside the standard structure
+                exampleJson = $@"{{""name"":""<Enemy Name>"",""description"":""<2-3 sentence description>"",""stats"":{statsJson}}}";
+                fieldDescriptions = $@"- name: A threatening designation or creature name fitting the setting
+- description: A 2-3 sentence description of the creature and its abilities
+- stats: An object containing the following template fields:
+{BuildFieldDescriptions(fields)}";
+                _logger.LogDebug("Using template {TemplateId} for enemy generation", template.Id);
+            }
+            else
+            {
+                exampleJson = @"{""name"":""Void Stalker"",""description"":""An alien predator with cloaking abilities..."",""stats"":{""species"":""Alien Predator"",""threatLevel"":""dangerous"",""abilities"":""Cloaking field, venomous claws"",""weakness"":""Sensitive to bright light"",""HP"":150,""ATK"":75,""DEF"":40,""SPD"":90}}";
+                fieldDescriptions = @"- name: A threatening designation or creature name fitting the setting
+- description: A 2-3 sentence description of the creature and its abilities
+- stats: An object with species, threatLevel, abilities, weakness, HP (50-500), ATK (1-100), DEF (1-100), SPD (1-100)";
+            }
+
             // Build context for RAG query
             var additionalContext = $"Species type: {request.Species}, Threat level: {request.ThreatLevel}, Behavior: {request.Behavior}, Environment: {request.Environment}";
 
@@ -981,18 +1319,13 @@ Threat Level: {request.ThreatLevel}
 Behavior Pattern: {request.Behavior}
 Environment: {request.Environment}
 
-Generate a JSON object with:
-- name: A threatening designation or creature name fitting the setting
-- species: The creature type/classification
-- threatLevel: The danger level ({request.ThreatLevel})
-- abilities: A description of 2-3 special abilities or attacks
-- weakness: One exploitable vulnerability
-- stats: An object with HP (health, 50-500 based on threat), ATK (attack power, 1-100), DEF (defense, 1-100), SPD (speed, 1-100)
+Generate a JSON object with the following fields:
+{fieldDescriptions}
 
 The enemy should reflect the game world's creatures, factions, and known threats from the lore.
 
 Example format:
-{{""name"":""Void Stalker"",""species"":""Alien Predator"",""threatLevel"":""dangerous"",""abilities"":""Cloaking field, venomous claws..."",""weakness"":""Sensitive to bright light"",""stats"":{{""HP"":150,""ATK"":75,""DEF"":40,""SPD"":90}}}}";
+{exampleJson}";
 
             // Fallback prompts
             var fallbackPrompt = $@"Create a hostile sci-fi creature/enemy for a tabletop RPG:
@@ -1001,16 +1334,11 @@ Threat Level: {request.ThreatLevel}
 Behavior Pattern: {request.Behavior}
 Environment: {request.Environment}
 
-Respond with a JSON object containing:
-- name: A threatening designation or creature name
-- species: The creature type/classification
-- threatLevel: The danger level ({request.ThreatLevel})
-- abilities: A description of 2-3 special abilities or attacks
-- weakness: One exploitable vulnerability
-- stats: An object with HP (health, 50-500 based on threat), ATK (attack power, 1-100), DEF (defense, 1-100), SPD (speed, 1-100)
+Respond with a JSON object containing the following fields:
+{fieldDescriptions}
 
 Example format:
-{{""name"":""Void Stalker"",""species"":""Alien Predator"",""threatLevel"":""dangerous"",""abilities"":""Cloaking field, venomous claws..."",""weakness"":""Sensitive to bright light"",""stats"":{{""HP"":150,""ATK"":75,""DEF"":40,""SPD"":90}}}}";
+{exampleJson}";
 
             var fallbackSystemPrompt = "You are a sci-fi monster designer. Create terrifying but balanced enemies. Respond only with valid JSON.";
 
@@ -1120,6 +1448,36 @@ Example format:
                 "Generating mission: Type={MissionType}, Difficulty={Difficulty}, GameSystemId={GameSystemId}", 
                 request.MissionType, request.Difficulty, request.GameSystemId);
 
+            // Check for confirmed template to use its field definitions
+            var template = await GetConfirmedTemplateAsync(
+                request.GameSystemId,
+                userId,
+                "mission",
+                cancellationToken);
+
+            string exampleJson;
+            string fieldDescriptions;
+
+            if (template != null)
+            {
+                var fields = template.GetFieldDefinitions();
+                var statsJson = BuildExampleJsonFromTemplate(fields);
+                // Wrap template fields inside the standard structure
+                exampleJson = $@"{{""name"":""<Mission Name>"",""description"":""<2-3 sentence briefing>"",""stats"":{statsJson}}}";
+                fieldDescriptions = $@"- name: A code name or operation title (e.g., ""Operation Silent Dawn"") fitting the setting
+- description: A 2-3 sentence mission briefing explaining the situation
+- stats: An object containing the following template fields:
+{BuildFieldDescriptions(fields)}";
+                _logger.LogDebug("Using template {TemplateId} for mission generation", template.Id);
+            }
+            else
+            {
+                exampleJson = @"{""name"":""Operation Blackout"",""description"":""Corporate forces have seized the research facility..."",""stats"":{""objective"":""Infiltrate the facility and retrieve the data core"",""rewards"":""5000 credits + reputation boost"",""difficulty"":""HARD"",""estimatedDuration"":""3-4 hours""}}";
+                fieldDescriptions = @"- name: A code name or operation title (e.g., ""Operation Silent Dawn"") fitting the setting
+- description: A 2-3 sentence mission briefing explaining the situation
+- stats: An object with objective, rewards, difficulty, and estimatedDuration";
+            }
+
             // Build context for RAG query
             var additionalContext = $"Mission type: {request.MissionType}, Difficulty: {request.Difficulty}, Environment: {request.Environment}, Faction: {request.FactionInvolved}";
 
@@ -1136,18 +1494,13 @@ Difficulty: {request.Difficulty}
 Environment: {request.Environment}
 Faction Involved: {request.FactionInvolved}
 
-Generate a JSON object with:
-- name: A code name or operation title (e.g., ""Operation Silent Dawn"") fitting the setting
-- briefing: A 2-3 sentence mission briefing explaining the situation
-- objective: The primary goal in one clear sentence
-- rewards: Expected compensation/rewards for completion
-- difficulty: The difficulty level ({request.Difficulty})
-- estimatedDuration: Approximate time to complete (e.g., ""2-3 hours"")
+Generate a JSON object with the following fields:
+{fieldDescriptions}
 
 The mission should reflect the game world's factions, conflicts, and narrative themes from the lore.
 
 Example format:
-{{""name"":""Operation Blackout"",""briefing"":""Corporate forces have seized..."",""objective"":""Infiltrate the facility and retrieve the data core"",""rewards"":""5000 credits + reputation boost"",""difficulty"":""HARD"",""estimatedDuration"":""3-4 hours""}}";
+{exampleJson}";
 
             // Fallback prompts
             var fallbackPrompt = $@"Create a sci-fi RPG mission/quest:
@@ -1156,16 +1509,11 @@ Difficulty: {request.Difficulty}
 Environment: {request.Environment}
 Faction Involved: {request.FactionInvolved}
 
-Respond with a JSON object containing:
-- name: A code name or operation title (e.g., ""Operation Silent Dawn"")
-- briefing: A 2-3 sentence mission briefing explaining the situation
-- objective: The primary goal in one clear sentence
-- rewards: Expected compensation/rewards for completion
-- difficulty: The difficulty level ({request.Difficulty})
-- estimatedDuration: Approximate time to complete (e.g., ""2-3 hours"")
+Respond with a JSON object containing the following fields:
+{fieldDescriptions}
 
 Example format:
-{{""name"":""Operation Blackout"",""briefing"":""Corporate forces have seized..."",""objective"":""Infiltrate the facility and retrieve the data core"",""rewards"":""5000 credits + reputation boost"",""difficulty"":""HARD"",""estimatedDuration"":""3-4 hours""}}";
+{exampleJson}";
 
             var fallbackSystemPrompt = "You are a sci-fi mission designer. Create engaging quests with clear objectives. Respond only with valid JSON.";
 
@@ -1275,6 +1623,36 @@ Example format:
                 "Generating encounter: Type={EncounterType}, Difficulty={Difficulty}, GameSystemId={GameSystemId}", 
                 request.EncounterType, request.Difficulty, request.GameSystemId);
 
+            // Check for confirmed template to use its field definitions
+            var template = await GetConfirmedTemplateAsync(
+                request.GameSystemId,
+                userId,
+                "encounter",
+                cancellationToken);
+
+            string exampleJson;
+            string fieldDescriptions;
+
+            if (template != null)
+            {
+                var fields = template.GetFieldDefinitions();
+                var statsJson = BuildExampleJsonFromTemplate(fields);
+                // Wrap template fields inside the standard structure
+                exampleJson = $@"{{""name"":""<Encounter Name>"",""description"":""<2-3 sentence description>"",""stats"":{statsJson}}}";
+                fieldDescriptions = $@"- name: An evocative encounter name (e.g., ""Ambush at Sector 7"") fitting the setting
+- description: A 2-3 sentence description of the situation and how the encounter begins
+- stats: An object containing the following template fields:
+{BuildFieldDescriptions(fields)}";
+                _logger.LogDebug("Using template {TemplateId} for encounter generation", template.Id);
+            }
+            else
+            {
+                exampleJson = @"{""name"":""Cargo Bay Showdown"",""description"":""The party enters the cargo bay to find hostile forces..."",""stats"":{""environment"":""Large open space with shipping containers providing cover"",""participants"":[""Security Droid x2"",""Corporate Enforcer""],""difficulty"":""MEDIUM"",""loot"":""Prototype weapon, 1200 credits""}}";
+                fieldDescriptions = @"- name: An evocative encounter name (e.g., ""Ambush at Sector 7"") fitting the setting
+- description: A 2-3 sentence description of the situation and how the encounter begins
+- stats: An object with environment, participants array, difficulty, and loot";
+            }
+
             // Build context for RAG query
             var additionalContext = $"Encounter type: {request.EncounterType}, Difficulty: {request.Difficulty}, Environment: {request.Environment}, Enemy count: {request.EnemyCount}";
 
@@ -1291,18 +1669,13 @@ Difficulty: {request.Difficulty}
 Environment: {request.Environment}
 Enemy Count: {request.EnemyCount}
 
-Generate a JSON object with:
-- name: An evocative encounter name (e.g., ""Ambush at Sector 7"") fitting the setting
-- description: A 2-3 sentence description of the situation and how the encounter begins
-- environment: Detailed description of the tactical environment and any hazards
-- participants: An array of enemy types/names involved in this encounter
-- difficulty: The challenge level ({request.Difficulty})
-- loot: Potential rewards if the encounter is won
+Generate a JSON object with the following fields:
+{fieldDescriptions}
 
 The encounter should reflect the game world's enemies, factions, and combat scenarios from the lore.
 
 Example format:
-{{""name"":""Cargo Bay Showdown"",""description"":""The party enters the cargo bay to find..."",""environment"":""Large open space with shipping containers providing cover"",""participants"":[""Security Droid x2"",""Corporate Enforcer""],""difficulty"":""MEDIUM"",""loot"":""Prototype weapon, 1200 credits""}}";
+{exampleJson}";
 
             // Fallback prompts
             var fallbackPrompt = $@"Create a sci-fi RPG combat/tactical encounter:
@@ -1311,16 +1684,11 @@ Difficulty: {request.Difficulty}
 Environment: {request.Environment}
 Enemy Count: {request.EnemyCount}
 
-Respond with a JSON object containing:
-- name: An evocative encounter name (e.g., ""Ambush at Sector 7"")
-- description: A 2-3 sentence description of the situation and how the encounter begins
-- environment: Detailed description of the tactical environment and any hazards
-- participants: An array of enemy types/names involved in this encounter
-- difficulty: The challenge level ({request.Difficulty})
-- loot: Potential rewards if the encounter is won
+Respond with a JSON object containing the following fields:
+{fieldDescriptions}
 
 Example format:
-{{""name"":""Cargo Bay Showdown"",""description"":""The party enters the cargo bay to find..."",""environment"":""Large open space with shipping containers providing cover"",""participants"":[""Security Droid x2"",""Corporate Enforcer""],""difficulty"":""MEDIUM"",""loot"":""Prototype weapon, 1200 credits""}}";
+{exampleJson}";
 
             var fallbackSystemPrompt = "You are a sci-fi encounter designer. Create tactical and exciting combat scenarios. Respond only with valid JSON.";
 

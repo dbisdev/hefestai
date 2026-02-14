@@ -31,8 +31,25 @@ public class GetTemplateByIdQueryHandler : IRequestHandler<GetTemplateByIdQuery,
             "Getting template {TemplateId} for owner {OwnerId}",
             request.TemplateId, request.OwnerId);
 
+        // First try to get template owned by the requesting user
         var template = await _templateRepository.GetByIdAsync(
             request.TemplateId, request.OwnerId, cancellationToken);
+
+        // If not found, check if it's a confirmed template (can be read by any authenticated user)
+        // This allows Masters to view confirmed templates from Admin users
+        if (template == null)
+        {
+            var anyTemplate = await _templateRepository.GetByIdAsync(
+                request.TemplateId, cancellationToken);
+            
+            if (anyTemplate?.Status == Domain.Enums.TemplateStatus.Confirmed)
+            {
+                template = anyTemplate;
+                _logger.LogInformation(
+                    "Template {TemplateId} found as confirmed template from different owner",
+                    request.TemplateId);
+            }
+        }
 
         if (template == null)
         {

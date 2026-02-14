@@ -77,9 +77,9 @@ export const EmbeddingsResponseSchema = z.object({
 // RAG Generation schemas
 // =============================================================================
 export const RagGenerateRequestSchema = z.object({
-  query: z.string().min(1).max(2000),
+  query: z.string().min(1).max(8000),
   context: z.array(z.string()).min(1).max(10),
-  systemPrompt: z.string().max(2000).optional(),
+  systemPrompt: z.string().max(4000).optional(),
   temperature: z.number().min(0).max(2).optional().default(0.3),
   maxTokens: z.number().min(1).max(8192).optional().default(2048),
 });
