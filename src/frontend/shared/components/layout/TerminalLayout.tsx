@@ -136,7 +136,7 @@ export const TerminalLayout: React.FC<TerminalLayoutProps> = ({
             <div className="flex items-center gap-2 flex-wrap">
               {/* Subtitle with username */}
               <p className="text-[10px] md:text-xs text-primary/60 uppercase tracking-wider">
-                . {/* USER: {user?.username || 'Usuario'} */}
+                <span className="animate-pulse">_</span> {/* USER: {user?.username || 'Usuario'} */}
               </p>
               
               {/* Campaign Selector Button */}
@@ -211,7 +211,7 @@ export const TerminalLayout: React.FC<TerminalLayoutProps> = ({
           {onLogout && (
             <button 
               onClick={onLogout}
-              className="border border-red-500/60 px-2 md:px-4 py-1.5 text-xs uppercase hover:bg-red-500 hover:text-black transition-colors text-red-500 font-bold"
+              className="border border-red-500/60 px-2 md:px-4 md:py-1.5 py-1 text-xs uppercase hover:bg-red-500 hover:text-black transition-colors text-red-500 font-bold"
               aria-label="Cerrar sesión"
             >
               <span className="material-icons text-sm md:hidden">logout</span>

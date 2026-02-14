@@ -35,11 +35,11 @@ const Home: React.FC<HomeProps> = ({ onLogin, onSignup }) => {
       <header className="fixed top-0 left-0 right-0 z-50 bg-background-dark/80 backdrop-blur-md border-b border-primary/20 p-4 md:px-8 flex justify-between items-center">
         <div className="flex items-center gap-2">
           <span className="material-icons text-primary animate-pulse">terminal</span>
-          <span className="text-lg font-display font-bold tracking-[0.3em] text-glow">HEFESTAI_OS</span>
+          <span className="text-lg font-display font-bold tracking-[0.3em] text-glow">HEFESTAI</span>
         </div>
         <button 
           onClick={onLogin}
-          className="group flex items-center gap-3 border border-primary/40 px-4 py-1.5 hover:bg-primary hover:text-black transition-all clip-tech-br"
+          className="group flex items-center gap-3 border border-primary/40 md:px-4 px-2 py-1.5 hover:bg-primary hover:text-black transition-all clip-tech-br"
         >
           <span className="text-[10px] font-bold uppercase tracking-widest">Acceso al Sistema</span>
           <span className="material-icons text-sm group-hover:scale-125 transition-transform">login</span>
@@ -52,7 +52,7 @@ const Home: React.FC<HomeProps> = ({ onLogin, onSignup }) => {
           <div className="absolute -top-10 left-1/2 -translate-x-1/2 text-[8px] opacity-30 tracking-[1em] uppercase">INICIALIZANDO SECUENCIA_DE_ARRANQUE</div>
           <h1 className="text-6xl md:text-8xl font-display font-black mb-6 text-glow-primary animate-glitch-in uppercase leading-none">
             Forja tu <br/>
-            <span className="bg-primary text-black px-4 ml-[-8px]">Leyenda</span> Galáctica
+            <span className="bg-primary text-black px-4 ml-[-8px]">Historia</span>
           </h1>
           <p className="max-w-2xl mx-auto text-primary/60 text-lg md:text-xl leading-relaxed font-mono">
             La interfaz retro-futurista definitiva para Maestros de Juego y Operativos. 
@@ -77,12 +77,14 @@ const Home: React.FC<HomeProps> = ({ onLogin, onSignup }) => {
 
         {/* 3-Column Features Section */}
         <section className="grid grid-cols-1 md:grid-cols-3 gap-8 mb-24">
-          {/* Column 1 - Genesis Node */}
+          {/* Column 1 */}
           <div className="bg-surface-dark/40 border border-primary/10 p-8 flex flex-col gap-4 group hover:border-primary/40 transition-all clip-tech-br backdrop-blur-sm">
-            <div className="w-12 h-12 border border-primary/20 flex items-center justify-center bg-primary/5 mb-4 group-hover:bg-primary/20 transition-all shrink-0">
-              <span className="material-icons text-3xl leading-none">hub</span>
+            <div className="flex items-center gap-4">
+              <div className="w-12 h-12 border border-primary/20 flex items-center justify-center bg-primary/5 group-hover:bg-primary/20 transition-all shrink-0">
+                <span className="material-icons text-3xl leading-none">hub</span>
+              </div>
+              <h3 className="text-xl font-display font-bold uppercase tracking-widest text-glow transition-colors duration-500">Nodo Génesis</h3>
             </div>
-            <h3 className="text-xl font-display font-bold uppercase tracking-widest text-glow">Nodo Génesis</h3>
             <p className="text-sm text-primary/50 leading-relaxed font-mono">
               Despliega sistemas estelares de alta fidelidad y entidades biométricas. Nuestro enlace neural GenAI sintetiza órbitas planetarias únicas, rasgos de especies y perfiles operativos en tiempo real.
             </p>
@@ -91,12 +93,14 @@ const Home: React.FC<HomeProps> = ({ onLogin, onSignup }) => {
             </div>
           </div>
 
-          {/* Column 2 - Archive Core */}
+          {/* Column 2 */}
           <div className="bg-surface-dark/40 border border-primary/10 p-8 flex flex-col gap-4 group hover:border-primary/40 transition-all clip-tech-br backdrop-blur-sm">
-            <div className="w-12 h-12 border border-primary/20 flex items-center justify-center bg-primary/5 mb-4 group-hover:bg-primary/20 transition-all shrink-0">
-              <span className="material-icons text-3xl leading-none">auto_awesome_motion</span>
+            <div className="flex items-center gap-4">
+              <div className="w-12 h-12 border border-primary/20 flex items-center justify-center bg-primary/5 group-hover:bg-primary/20 transition-all shrink-0">
+                <span className="material-icons text-3xl leading-none">auto_awesome_motion</span>
+              </div>
+              <h3 className="text-xl font-display font-bold uppercase tracking-widest text-glow transition-colors duration-500">Núcleo de Archivo</h3>
             </div>
-            <h3 className="text-xl font-display font-bold uppercase tracking-widest text-glow">Núcleo de Archivo</h3>
             <p className="text-sm text-primary/50 leading-relaxed font-mono">
               Repositorio centralizado para todos los activos operativos. Accede a la galería galáctica con fallas sincronizadas de CRT para una experiencia de recuperación de datos inmersiva.
             </p>
@@ -105,12 +109,14 @@ const Home: React.FC<HomeProps> = ({ onLogin, onSignup }) => {
             </div>
           </div>
 
-          {/* Column 3 - Tactical Layer */}
+          {/* Column 3 */}
           <div className="bg-surface-dark/40 border border-primary/10 p-8 flex flex-col gap-4 group hover:border-primary/40 transition-all clip-tech-br backdrop-blur-sm">
-            <div className="w-12 h-12 border border-primary/20 flex items-center justify-center bg-primary/5 mb-4 group-hover:bg-primary/20 transition-all shrink-0">
-              <span className="material-icons text-3xl leading-none">front_hand</span>
+            <div className="flex items-center gap-4">
+              <div className="w-12 h-12 border border-primary/20 flex items-center justify-center bg-primary/5 group-hover:bg-primary/20 transition-all shrink-0">
+                <span className="material-icons text-3xl leading-none">front_hand</span>
+              </div>
+              <h3 className="text-xl font-display font-bold uppercase tracking-widest text-glow transition-colors duration-500">Capa Táctica</h3>
             </div>
-            <h3 className="text-xl font-display font-bold uppercase tracking-widest text-glow">Capa Táctica</h3>
             <p className="text-sm text-primary/50 leading-relaxed font-mono">
               Interactúa con nuestro lanzador de dados integrado basado en física. Simulado en un entorno de vacío 3D para asegurar cero interferencia gravitacional en los resultados de probabilidad.
             </p>
@@ -121,7 +127,7 @@ const Home: React.FC<HomeProps> = ({ onLogin, onSignup }) => {
         </section>
 
         {/* Additional Terminal Decoration */}
-        <section className="border-t border-primary/10 py-12 flex flex-col md:flex-row justify-between gap-8 opacity-40">
+        <section className="py-12 flex flex-col md:flex-row justify-between gap-8 opacity-40">
            <div className="font-mono text-[10px] space-y-1">
               <p>&gt; TIEMPO_ACTIVIDAD: 99.999%</p>
               <p>&gt; LATENCIA: 12ms [SERVIDOR_NEBULA_01]</p>
