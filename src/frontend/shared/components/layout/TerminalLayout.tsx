@@ -211,10 +211,10 @@ export const TerminalLayout: React.FC<TerminalLayoutProps> = ({
           {onLogout && (
             <button 
               onClick={onLogout}
-              className="border border-red-500/60 px-2 md:px-4 md:py-1.5 py-1 text-xs uppercase hover:bg-red-500 hover:text-black transition-colors text-red-500 font-bold"
+              className="flex items-center gap-2 border border-red-500/60 px-2 md:px-3 py-1 text-xs uppercase hover:bg-red-500 hover:text-black transition-colors text-red-500 font-bold"
               aria-label="Cerrar sesión"
             >
-              <span className="material-icons text-sm md:hidden">logout</span>
+              <span className="material-icons text-sm">logout</span>
               <span className="hidden md:inline">LOGOUT</span>
             </button>
           )}

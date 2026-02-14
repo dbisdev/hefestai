@@ -20,5 +20,8 @@
     "docker:down": "docker-compose down",
     "docker:build": "docker-compose build",
     "install:all": "npm install && cd src/backend && dotnet restore"
+  },
+  "devDependencies": {
+    "@tailwindcss/postcss": "^4.1.18"
   }
 }

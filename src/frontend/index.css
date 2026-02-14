@@ -1,0 +1,169 @@
+/**
+ * HefestAI - Main stylesheet
+ * Tailwind CSS v4 with custom CRT/terminal effects
+ */
+
+@import "tailwindcss";
+
+/* ============================================
+   Theme Configuration (Tailwind v4)
+   ============================================ */
+@theme {
+    /* Colors */
+    --color-primary: #25f46a;
+    --color-primary-dim: #1a853d;
+    --color-background-dark: #050a06;
+    --color-surface-dark: #0d1a10;
+    --color-danger: #ef4444;
+
+    /* Fonts */
+    --font-display: 'VT323', monospace;
+    --font-mono: 'Share Tech Mono', monospace;
+    --font-sans: 'Space Grotesk', sans-serif;
+
+    /* Animations */
+    --animate-glitch-out: glitch-out 0.4s forwards ease-in;
+    --animate-glitch-in: glitch-in 0.5s forwards ease-out;
+}
+
+/* ============================================
+   Keyframe Animations
+   ============================================ */
+@keyframes flicker {
+    0% { opacity: 0.97; }
+    5% { opacity: 0.95; }
+    10% { opacity: 0.9; }
+    15% { opacity: 0.95; }
+    20% { opacity: 0.99; }
+    25% { opacity: 0.95; }
+    30% { opacity: 0.9; }
+    35% { opacity: 0.96; }
+    40% { opacity: 0.98; }
+    45% { opacity: 0.95; }
+    50% { opacity: 0.99; }
+    55% { opacity: 0.93; }
+    60% { opacity: 0.9; }
+    65% { opacity: 0.96; }
+    70% { opacity: 1; }
+    75% { opacity: 0.97; }
+    80% { opacity: 0.95; }
+    85% { opacity: 0.92; }
+    90% { opacity: 0.96; }
+    95% { opacity: 0.99; }
+    100% { opacity: 0.94; }
+}
+
+@keyframes glitch-out {
+    0% { transform: scale(1); opacity: 1; filter: brightness(1) contrast(1); }
+    20% { transform: scale(1.05, 0.95) skewX(5deg); filter: brightness(2) contrast(1.5); }
+    40% { transform: scale(0.95, 1.1) skewX(-5deg); opacity: 0.8; }
+    100% { transform: scale(1, 0); opacity: 0; filter: brightness(5) contrast(2); }
+}
+
+@keyframes glitch-in {
+    0% { transform: scale(1.2, 0); opacity: 0; filter: brightness(5); }
+    50% { transform: scale(0.98, 1.05); opacity: 0.7; filter: brightness(2); }
+    70% { transform: scale(1.02, 0.98); opacity: 0.9; }
+    100% { transform: scale(1); opacity: 1; filter: brightness(1); }
+}
+
+@keyframes scan {
+    0% { transform: translateY(-100%); }
+    100% { transform: translateY(100vh); }
+}
+
+/* ============================================
+   CRT Flicker Effect
+   ============================================ */
+.crt-flicker {
+    animation: flicker 0.15s infinite;
+}
+
+/* ============================================
+   Scanline Effects
+   ============================================ */
+.scanlines {
+    background: linear-gradient(
+        to bottom,
+        rgba(255, 255, 255, 0),
+        rgba(255, 255, 255, 0) 50%,
+        rgba(0, 0, 0, 0.2) 50%,
+        rgba(0, 0, 0, 0.2)
+    );
+    background-size: 100% 4px;
+    pointer-events: none;
+}
+
+.scanline-bar {
+    height: 2px;
+    background: rgba(37, 244, 106, 0.2);
+    position: fixed;
+    width: 100%;
+    z-index: 60;
+    animation: scan 8s linear infinite;
+}
+
+/* ============================================
+   Text Glow Effects
+   ============================================ */
+.text-glow {
+    text-shadow: 0 0 5px rgba(37, 244, 106, 0.7);
+}
+
+.text-glow-danger {
+    text-shadow: 0 0 5px rgba(239, 68, 68, 0.7);
+}
+
+/* ============================================
+   Tech Clip Paths
+   ============================================ */
+.clip-tech-tl {
+    clip-path: polygon(10px 0, 100% 0, 100% 100%, 0 100%, 0 10px);
+}
+
+.clip-tech-br {
+    clip-path: polygon(0 0, 100% 0, 100% calc(100% - 10px), calc(100% - 10px) 100%, 0 100%);
+}
+
+/* ============================================
+   Section Transition Animations
+   ============================================ */
+.section-transition-out {
+    animation: glitch-out 0.4s forwards ease-in;
+}
+
+.section-transition-in {
+    animation: glitch-in 0.5s forwards ease-out;
+}
+
+/* ============================================
+   Custom Scrollbar
+   ============================================ */
+::-webkit-scrollbar {
+    width: 8px;
+}
+
+::-webkit-scrollbar-track {
+    background: #020402;
+}
+
+::-webkit-scrollbar-thumb {
+    background: #25f46a;
+}
+
+/* Firefox scrollbar */
+* {
+    scrollbar-width: thin;
+    scrollbar-color: #25f46a #020402;
+}
+
+/* ============================================
+   Material Icons Fix
+   Material Icons default to 24px, but Tailwind v4
+   preflight resets font-size. This ensures icons
+   use inherited font-size from Tailwind classes.
+   ============================================ */
+.material-icons {
+    font-size: inherit;
+    line-height: inherit;
+}

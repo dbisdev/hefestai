@@ -9,134 +9,7 @@
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Share+Tech+Mono&family=VT323&family=Space+Grotesk:wght@300;400;500;700&display=swap" rel="stylesheet">
     <link href="https://fonts.googleapis.com/icon?family=Material+Icons" rel="stylesheet">
-    <script src="https://cdn.tailwindcss.com?plugins=forms,typography"></script>
-    <script>
-        tailwind.config = {
-            darkMode: "class",
-            theme: {
-                extend: {
-                    colors: {
-                        primary: "#25f46a",
-                        "primary-dim": "#1a853d",
-                        "background-dark": "#050a06",
-                        "surface-dark": "#0d1a10",
-                        danger: "#ef4444",
-                    },
-                    fontFamily: {
-                        display: ["'VT323'", "monospace"],
-                        mono: ["'Share Tech Mono'", "monospace"],
-                        sans: ["'Space Grotesk'", "sans-serif"],
-                    },
-                    animation: {
-                        'glitch-out': 'glitch-out 0.4s forwards ease-in',
-                        'glitch-in': 'glitch-in 0.5s forwards ease-out',
-                    }
-                },
-            },
-        };
-    </script>
-    <style>
-        @keyframes flicker {
-            0% { opacity: 0.97; }
-            5% { opacity: 0.95; }
-            10% { opacity: 0.9; }
-            15% { opacity: 0.95; }
-            20% { opacity: 0.99; }
-            25% { opacity: 0.95; }
-            30% { opacity: 0.9; }
-            35% { opacity: 0.96; }
-            40% { opacity: 0.98; }
-            45% { opacity: 0.95; }
-            50% { opacity: 0.99; }
-            55% { opacity: 0.93; }
-            60% { opacity: 0.9; }
-            65% { opacity: 0.96; }
-            70% { opacity: 1; }
-            75% { opacity: 0.97; }
-            80% { opacity: 0.95; }
-            85% { opacity: 0.92; }
-            90% { opacity: 0.96; }
-            95% { opacity: 0.99; }
-            100% { opacity: 0.94; }
-        }
-
-        @keyframes glitch-out {
-          0% { transform: scale(1); opacity: 1; filter: brightness(1) contrast(1); }
-          20% { transform: scale(1.05, 0.95) skewX(5deg); filter: brightness(2) contrast(1.5); }
-          40% { transform: scale(0.95, 1.1) skewX(-5deg); opacity: 0.8; }
-          100% { transform: scale(1, 0); opacity: 0; filter: brightness(5) contrast(2); }
-        }
-
-        @keyframes glitch-in {
-          0% { transform: scale(1.2, 0); opacity: 0; filter: brightness(5); }
-          50% { transform: scale(0.98, 1.05); opacity: 0.7; filter: brightness(2); }
-          70% { transform: scale(1.02, 0.98); opacity: 0.9; }
-          100% { transform: scale(1); opacity: 1; filter: brightness(1); }
-        }
-
-        .crt-flicker {
-            animation: flicker 0.15s infinite;
-        }
-
-        .scanlines {
-            background: linear-gradient(
-                to bottom,
-                rgba(255, 255, 255, 0),
-                rgba(255, 255, 255, 0) 50%,
-                rgba(0, 0, 0, 0.2) 50%,
-                rgba(0, 0, 0, 0.2)
-            );
-            background-size: 100% 4px;
-            pointer-events: none;
-        }
-
-        .text-glow {
-            text-shadow: 0 0 5px rgba(37, 244, 106, 0.7);
-        }
-
-        .text-glow-danger {
-            text-shadow: 0 0 5px rgba(239, 68, 68, 0.7);
-        }
-
-        .clip-tech-tl {
-            clip-path: polygon(10px 0, 100% 0, 100% 100%, 0 100%, 0 10px);
-        }
-
-        .clip-tech-br {
-            clip-path: polygon(0 0, 100% 0, 100% calc(100% - 10px), calc(100% - 10px) 100%, 0 100%);
-        }
-
-        ::-webkit-scrollbar {
-            width: 8px;
-        }
-        ::-webkit-scrollbar-track {
-            background: #020402; 
-        }
-        ::-webkit-scrollbar-thumb {
-            background: #25f46a; 
-        }
-
-        @keyframes scan {
-            0% { transform: translateY(-100%); }
-            100% { transform: translateY(100vh); }
-        }
-        .scanline-bar {
-            height: 2px;
-            background: rgba(37, 244, 106, 0.2);
-            position: fixed;
-            width: 100%;
-            z-index: 60;
-            animation: scan 8s linear infinite;
-        }
-
-        .section-transition-out {
-            animation: glitch-out 0.4s forwards ease-in;
-        }
-
-        .section-transition-in {
-            animation: glitch-in 0.5s forwards ease-out;
-        }
-    </style>
+    <link rel="stylesheet" href="/index.css">
 <script type="importmap">
 {
   "imports": {
@@ -149,7 +22,7 @@
   }
 }
 </script>
-<!-- <link rel="stylesheet" href="/index.css"> -->
+
 </head>
 <body class="bg-background-dark text-white selection:bg-primary selection:text-black overflow-hidden">
     <div id="root"></div>
