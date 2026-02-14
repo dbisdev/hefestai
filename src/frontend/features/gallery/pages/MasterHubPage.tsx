@@ -110,7 +110,7 @@ export const MasterHubPage: React.FC<MasterHubPageProps> = ({ onNavigate, onLogo
           </div>
 
           {/* Navigation Panels Grid */}
-          <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-6 w-full max-w-7xl mb-12">
+          <div className="grid grid-cols-1 md:grid-cols-4 gap-6 w-full max-w-7xl mb-12">
             {HUB_PANELS.map((panel) => (
               <button
                 key={panel.id}
