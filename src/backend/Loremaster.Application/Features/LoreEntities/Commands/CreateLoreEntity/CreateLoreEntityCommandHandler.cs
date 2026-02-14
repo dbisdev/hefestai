@@ -76,7 +76,7 @@ public class CreateLoreEntityCommandHandler : IRequestHandler<CreateLoreEntityCo
         }
 
         // Validate entity type against confirmed templates
-        // Templates are owned by the campaign's Master (OwnerId)
+        // Templates are either owned by the campaign's Master (OwnerId) or by an Admin (shared globally)
         var normalizedEntityType = EntityTemplate.NormalizeEntityTypeName(request.EntityType);
         var template = await _entityTemplateRepository.GetConfirmedTemplateForEntityTypeAsync(
             campaign.GameSystemId,

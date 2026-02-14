@@ -37,6 +37,7 @@ public class SemanticSearchQueryHandler : IRequestHandler<SemanticSearchQuery, S
             request.Threshold,
             request.GameSystemId,
             skipOwnerFilter: false,
+            includeAdminDocs: request.IncludeAdminDocs,
             cancellationToken);
 
         // Map to DTOs

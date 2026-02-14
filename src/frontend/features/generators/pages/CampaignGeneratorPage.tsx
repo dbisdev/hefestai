@@ -7,7 +7,7 @@
 import React, { useState, useEffect } from 'react';
 import { TerminalLayout } from '@shared/components/layout';
 import { Button } from '@shared/components/ui';
-import { useCampaign } from '@core/context';
+import { useAuth, useCampaign } from '@core/context';
 import { gameSystemService } from '@core/services/api';
 import type { GameSystem } from '@core/types';
 import { Screen } from '@core/types';
@@ -23,6 +23,7 @@ interface CampaignGeneratorPageProps {
  * Provides UI for creating new campaigns or joining existing ones via invite code
  */
 export const CampaignGeneratorPage: React.FC<CampaignGeneratorPageProps> = ({ onBack, onNavigate, onLogout }) => {
+  const { isMaster } = useAuth();
   const { createCampaign, joinCampaign, isLoading } = useCampaign();
   
   const [logs, setLogs] = useState([
@@ -32,7 +33,8 @@ export const CampaignGeneratorPage: React.FC<CampaignGeneratorPageProps> = ({ on
   ]);
   const [isCreating, setIsCreating] = useState(false);
   const [isJoining, setIsJoining] = useState(false);
-  const [activeTab, setActiveTab] = useState<'create' | 'join'>('create');
+  // Players can only join campaigns, so default to 'join' tab for them
+  const [activeTab, setActiveTab] = useState<'create' | 'join'>(isMaster ? 'create' : 'join');
 
   // Game systems state
   const [gameSystems, setGameSystems] = useState<GameSystem[]>([]);
@@ -174,20 +176,22 @@ export const CampaignGeneratorPage: React.FC<CampaignGeneratorPageProps> = ({ on
       <div className="flex flex-col lg:flex-row gap-8 h-full font-mono">
         {/* Form Panel */}
         <div className="flex-1 flex flex-col gap-6 overflow-y-auto pr-2">
-          {/* Tab Selector */}
+          {/* Tab Selector - Only show Create tab for Masters */}
           <div className="flex border border-primary/30">
-            <button
-              onClick={() => setActiveTab('create')}
-              disabled={isProcessing}
-              className={`flex-1 py-3 text-[10px] uppercase tracking-widest transition-all flex items-center justify-center gap-2 ${
-                activeTab === 'create'
-                  ? 'bg-primary text-black font-bold'
-                  : 'text-primary/60 hover:text-primary hover:bg-primary/5'
-              }`}
-            >
-              <span className="material-icons text-sm">add_circle</span>
-              Crear Campaña
-            </button>
+            {isMaster && (
+              <button
+                onClick={() => setActiveTab('create')}
+                disabled={isProcessing}
+                className={`flex-1 py-3 text-[10px] uppercase tracking-widest transition-all flex items-center justify-center gap-2 ${
+                  activeTab === 'create'
+                    ? 'bg-primary text-black font-bold'
+                    : 'text-primary/60 hover:text-primary hover:bg-primary/5'
+                }`}
+              >
+                <span className="material-icons text-sm">add_circle</span>
+                Crear Campaña
+              </button>
+            )}
             <button
               onClick={() => setActiveTab('join')}
               disabled={isProcessing}
@@ -202,8 +206,8 @@ export const CampaignGeneratorPage: React.FC<CampaignGeneratorPageProps> = ({ on
             </button>
           </div>
 
-          {/* Create Campaign Form */}
-          {activeTab === 'create' && (
+          {/* Create Campaign Form - Only for Masters */}
+          {activeTab === 'create' && isMaster && (
             <div className="space-y-6 animate-fadeIn">
               <div className="border border-primary/20 bg-surface-dark/30 p-4">
                 <div className="flex items-center gap-2 mb-4">

@@ -269,7 +269,7 @@ Include ALL attributes, skills, derived stats, identity fields, gear from the ru
         // Convert fields first (we might need them even if template exists)
         var extractedFields = ConvertToFieldDefinitions(extractedType.Fields);
         
-        // Check if confirmed template already exists
+        // Check if confirmed template already exists (owned by this owner or by an Admin)
         var existingTemplate = await _templateRepository.GetConfirmedTemplateForEntityTypeAsync(
             gameSystemId, ownerId, normalizedName, cancellationToken);
 

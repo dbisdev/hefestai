@@ -14,14 +14,14 @@
 
 import React, { useState, useRef, useEffect, useCallback, KeyboardEvent } from 'react';
 import { documentService, gameSystemService } from '../core/services/api';
-import type { DocumentSearchResult, SemanticSearchResult, ManualSummaryDto } from '../core/services/api';
+import type { DocumentSearchResult, SemanticSearchResult } from '../core/services/api';
 import type { GameSystem } from '../core/types';
 
 /**
  * Game system with document availability info
  */
 interface GameSystemWithDocs extends GameSystem {
-  documentCount: number;
+  hasDocuments: boolean;
 }
 
 interface RuleQueryProps {
@@ -31,6 +31,8 @@ interface RuleQueryProps {
   gameSystemId?: string;
   /** Optional game system name for display (unused, kept for compatibility) */
   gameSystemName?: string;
+  /** Optional campaign owner (Master) ID - used for Players to see Master's documents */
+  campaignOwnerId?: string;
 }
 
 /**
@@ -40,7 +42,7 @@ interface RuleQueryProps {
  * Results include relevant document excerpts and optionally an AI-generated answer.
  * Shows a GameSystem selector with only systems that have documents loaded.
  */
-const RuleQuery: React.FC<RuleQueryProps> = ({ onClose, gameSystemId: propGameSystemId }) => {
+const RuleQuery: React.FC<RuleQueryProps> = ({ onClose, gameSystemId: propGameSystemId, campaignOwnerId }) => {
   // Normalize empty string to undefined for consistent falsy checks
   const initialGameSystemId = propGameSystemId || undefined;
   
@@ -66,10 +68,9 @@ const RuleQuery: React.FC<RuleQueryProps> = ({ onClose, gameSystemId: propGameSy
   // Accessibility announcement
   const [announcement, setAnnouncement] = useState('');
 
-  // Computed: get current selected system's document count
+  // Computed: get current selected system's document availability
   const selectedSystem = gameSystemsWithDocs.find(gs => gs.id === selectedGameSystemId);
-  const hasDocuments = selectedSystem ? selectedSystem.documentCount > 0 : false;
-  const documentCount = selectedSystem?.documentCount ?? 0;
+  const hasDocuments = selectedSystem?.hasDocuments ?? false;
 
   /**
    * Announce to screen readers
@@ -96,7 +97,10 @@ const RuleQuery: React.FC<RuleQueryProps> = ({ onClose, gameSystemId: propGameSy
   }, []);
 
   /**
-   * Load all game systems and their document counts on mount.
+   * Load all game systems and check document availability on mount.
+   * Uses the Player-accessible /available endpoint that returns Admin-shared docs for Players,
+   * and Admin + own docs for Masters.
+   * When campaignOwnerId is provided, also includes documents from the campaign's Master.
    * Pre-selects the campaign's game system if available, otherwise first with documents.
    */
   useEffect(() => {
@@ -106,29 +110,29 @@ const RuleQuery: React.FC<RuleQueryProps> = ({ onClose, gameSystemId: propGameSy
         // Load all game systems
         const systems = await gameSystemService.getAll();
         
-        // Load document counts for each system in parallel
-        const systemsWithCounts = await Promise.all(
+        // Check document availability for each system in parallel
+        // Pass campaignOwnerId so Players can see their Master's documents
+        const systemsWithAvailability = await Promise.all(
           systems.map(async (system): Promise<GameSystemWithDocs> => {
             try {
-              const manuals = await documentService.getManualsByGameSystem(system.id);
-              const totalChunks = manuals.reduce((sum, m) => sum + m.chunkCount, 0);
-              return { ...system, documentCount: totalChunks };
+              const availability = await documentService.checkDocumentAvailability(system.id, campaignOwnerId);
+              return { ...system, hasDocuments: availability.hasDocuments };
             } catch {
-              return { ...system, documentCount: 0 };
+              return { ...system, hasDocuments: false };
             }
           })
         );
         
-        setGameSystemsWithDocs(systemsWithCounts);
+        setGameSystemsWithDocs(systemsWithAvailability);
         
         // Pre-select: campaign's system if provided, otherwise first with documents
-        if (systemsWithCounts.length > 0) {
-          if (initialGameSystemId && systemsWithCounts.some(s => s.id === initialGameSystemId)) {
+        if (systemsWithAvailability.length > 0) {
+          if (initialGameSystemId && systemsWithAvailability.some(s => s.id === initialGameSystemId)) {
             setSelectedGameSystemId(initialGameSystemId);
           } else {
             // Select first system with documents, or first system if none have docs
-            const firstWithDocs = systemsWithCounts.find(s => s.documentCount > 0);
-            setSelectedGameSystemId(firstWithDocs?.id || systemsWithCounts[0].id);
+            const firstWithDocs = systemsWithAvailability.find(s => s.hasDocuments);
+            setSelectedGameSystemId(firstWithDocs?.id || systemsWithAvailability[0].id);
           }
         }
       } catch (err) {
@@ -139,7 +143,7 @@ const RuleQuery: React.FC<RuleQueryProps> = ({ onClose, gameSystemId: propGameSy
     };
     
     loadGameSystemsWithDocs();
-  }, [initialGameSystemId]);
+  }, [initialGameSystemId, campaignOwnerId]);
 
   /**
    * Perform semantic search
@@ -171,6 +175,7 @@ const RuleQuery: React.FC<RuleQueryProps> = ({ onClose, gameSystemId: propGameSy
         generateAnswer,
         limit: resultLimit,
         threshold,
+        masterId: campaignOwnerId, // Include campaign Master's documents for Players
       });
 
       setResults(searchResult);
@@ -279,7 +284,7 @@ const RuleQuery: React.FC<RuleQueryProps> = ({ onClose, gameSystemId: propGameSy
                   {hasDocuments ? (
                     <span className="text-xs text-green-400 flex items-center gap-1">
                       <span className="material-icons text-xs">check_circle</span>
-                      {documentCount} fragmentos
+                      Manuales disponibles
                     </span>
                   ) : (
                     <span className="text-xs text-red-400 flex items-center gap-1">

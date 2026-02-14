@@ -1,5 +1,6 @@
 using Loremaster.Application.Common.Interfaces;
 using Loremaster.Domain.Entities;
+using Loremaster.Domain.Enums;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
 using Npgsql;
@@ -56,7 +57,8 @@ public class DocumentRepository : IDocumentRepository
     /// <param name="limit">Maximum number of results to return.</param>
     /// <param name="threshold">Minimum similarity threshold (0.0 to 1.0).</param>
     /// <param name="gameSystemId">Optional game system ID to filter documents (for RAG on manuals).</param>
-    /// <param name="skipOwnerFilter">When true, skips owner filtering (for admin operations).</param>
+    /// <param name="skipOwnerFilter">When true, skips owner filtering entirely (for admin operations).</param>
+    /// <param name="includeAdminDocs">When true, includes documents owned by Admin users in addition to ownerId's docs.</param>
     /// <param name="cancellationToken">Cancellation token.</param>
     /// <returns>List of documents with similarity scores.</returns>
     public async Task<IReadOnlyList<DocumentSearchResult>> SemanticSearchAsync(
@@ -66,6 +68,7 @@ public class DocumentRepository : IDocumentRepository
         float threshold = 0.7f,
         Guid? gameSystemId = null,
         bool skipOwnerFilter = false,
+        bool includeAdminDocs = false,
         CancellationToken cancellationToken = default)
     {
         // When NpgsqlDataSource is not available (e.g., in tests with InMemory DB),
@@ -92,16 +95,38 @@ public class DocumentRepository : IDocumentRepository
         // Note: cosine distance = 1 - cosine similarity, so we subtract from 1
         // IMPORTANT: We cast to vector(3072) explicitly to match the column definition (gemini-embedding-001)
         // Note: Table/column names use snake_case to match migration
+        // Join with users table when we need to filter by Admin role
         var sql = @"
             SELECT d.*, (1 - (d.embedding <=> @embedding::vector(3072))) as similarity
-            FROM public.documents d
+            FROM public.documents d";
+        
+        // Add join with users table if we need to check for Admin role
+        if (includeAdminDocs && !skipOwnerFilter)
+        {
+            sql += @"
+            INNER JOIN public.""user"" u ON d.owner_id = u.id";
+        }
+        
+        sql += @"
             WHERE d.embedding IS NOT NULL
             AND (1 - (d.embedding <=> @embedding::vector(3072))) >= @threshold";
         
-        // Add owner filter unless skipped (for admin operations)
+        // Add owner filter based on mode:
+        // - skipOwnerFilter: no owner filter (admin operations)
+        // - includeAdminDocs: owner's docs OR Admin-owned docs (for Players/Masters using shared docs)
+        // - neither: only owner's docs (original behavior)
         if (!skipOwnerFilter)
         {
-            sql += @" AND d.owner_id = @ownerId";
+            if (includeAdminDocs)
+            {
+                // Include documents owned by the specified owner OR by Admin users
+                // The role column uses PostgreSQL enum type 'user_role' with value 'admin'
+                sql += @" AND (d.owner_id = @ownerId OR u.role = 'admin'::user_role)";
+            }
+            else
+            {
+                sql += @" AND d.owner_id = @ownerId";
+            }
         }
         
         if (gameSystemId.HasValue)
@@ -124,6 +149,7 @@ public class DocumentRepository : IDocumentRepository
         if (!skipOwnerFilter)
         {
             parameters.Add(new NpgsqlParameter("ownerId", ownerId));
+            // Note: Admin role check uses inline string 'admin'::user_role in SQL
         }
 
         if (gameSystemId.HasValue)
@@ -158,17 +184,19 @@ public class DocumentRepository : IDocumentRepository
             }
 
             _logger.LogInformation(
-                "Semantic search found {Count} documents{OwnerInfo}{GameSystemInfo}", 
+                "Semantic search found {Count} documents{OwnerInfo}{AdminInfo}{GameSystemInfo}", 
                 results.Count,
                 skipOwnerFilter ? " (admin mode - all owners)" : $" for owner {ownerId}",
+                includeAdminDocs ? " (including Admin docs)" : "",
                 gameSystemId.HasValue ? $" for game system {gameSystemId}" : "");
 
             return results;
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, "Semantic search failed{OwnerInfo}", 
-                skipOwnerFilter ? " (admin mode)" : $" for owner {ownerId}");
+            _logger.LogError(ex, "Semantic search failed{OwnerInfo}{AdminInfo}", 
+                skipOwnerFilter ? " (admin mode)" : $" for owner {ownerId}",
+                includeAdminDocs ? " (including Admin docs)" : "");
             throw;
         }
     }
@@ -281,5 +309,110 @@ public class DocumentRepository : IDocumentRepository
         return manuals
             .Select(m => new ManualWithChunkCount(m, chunkCounts.GetValueOrDefault(m.Id, 0)))
             .ToList();
+    }
+
+    /// <summary>
+    /// Get all parent documents (manuals) for a game system with chunk counts,
+    /// filtering by documents owned by Admin users OR the specified owner.
+    /// Used for Players who can only see Admin-shared documents, and Masters who see their own + Admin docs.
+    /// </summary>
+    public async Task<IReadOnlyList<ManualWithChunkCount>> GetAccessibleManualsByGameSystemIdAsync(
+        Guid gameSystemId,
+        Guid? ownerId,
+        bool includeAdminDocs = true,
+        CancellationToken cancellationToken = default)
+    {
+        // Build query for parent documents (manuals) for the game system
+        var query = _context.Documents
+            .Include(d => d.GameSystem)
+            .Include(d => d.Owner)
+            .Where(d => 
+                d.GameSystemId == gameSystemId && 
+                d.ParentDocumentId == null); // Only parent documents
+
+        // Apply ownership filter:
+        // - If includeAdminDocs: include Admin-owned docs + owner's docs (if ownerId provided)
+        // - If not includeAdminDocs: only owner's docs
+        if (includeAdminDocs && ownerId.HasValue)
+        {
+            // Masters see Admin docs + their own docs
+            query = query.Where(d => d.Owner.Role == UserRole.Admin || d.OwnerId == ownerId.Value);
+        }
+        else if (includeAdminDocs)
+        {
+            // Players only see Admin-shared docs
+            query = query.Where(d => d.Owner.Role == UserRole.Admin);
+        }
+        else if (ownerId.HasValue)
+        {
+            // Only owner's docs (no Admin docs)
+            query = query.Where(d => d.OwnerId == ownerId.Value);
+        }
+        // If neither includeAdminDocs nor ownerId provided, returns all (admin mode)
+
+        var manuals = await query
+            .OrderByDescending(d => d.CreatedAt)
+            .ToListAsync(cancellationToken);
+
+        // Get chunk counts for each manual
+        var manualIds = manuals.Select(m => m.Id).ToList();
+        var chunkCounts = await _context.Documents
+            .Where(d => d.ParentDocumentId.HasValue && manualIds.Contains(d.ParentDocumentId.Value))
+            .GroupBy(d => d.ParentDocumentId!.Value)
+            .Select(g => new { ManualId = g.Key, Count = g.Count() })
+            .ToDictionaryAsync(x => x.ManualId, x => x.Count, cancellationToken);
+
+        _logger.LogInformation(
+            "GetAccessibleManualsByGameSystemIdAsync: Found {Count} manuals for game system {GameSystemId}, " +
+            "ownerId: {OwnerId}, includeAdminDocs: {IncludeAdminDocs}",
+            manuals.Count, gameSystemId, ownerId, includeAdminDocs);
+
+        return manuals
+            .Select(m => new ManualWithChunkCount(m, chunkCounts.GetValueOrDefault(m.Id, 0)))
+            .ToList();
+    }
+
+    /// <summary>
+    /// Checks if a game system has any documents available for RAG search.
+    /// Considers documents owned by Admin users (shared) OR the specified owner.
+    /// </summary>
+    public async Task<bool> HasDocumentsForGameSystemAsync(
+        Guid gameSystemId,
+        Guid? ownerId,
+        bool includeAdminDocs = true,
+        CancellationToken cancellationToken = default)
+    {
+        // Build query for documents with embeddings for the game system
+        var query = _context.Documents
+            .Include(d => d.Owner)
+            .Where(d => 
+                d.GameSystemId == gameSystemId && 
+                d.Embedding != null); // Only documents with embeddings (ready for search)
+
+        // Apply same ownership filter as GetAccessibleManualsByGameSystemIdAsync
+        if (includeAdminDocs && ownerId.HasValue)
+        {
+            // Masters: Admin docs + their own docs
+            query = query.Where(d => d.Owner.Role == UserRole.Admin || d.OwnerId == ownerId.Value);
+        }
+        else if (includeAdminDocs)
+        {
+            // Players: only Admin-shared docs
+            query = query.Where(d => d.Owner.Role == UserRole.Admin);
+        }
+        else if (ownerId.HasValue)
+        {
+            // Only owner's docs
+            query = query.Where(d => d.OwnerId == ownerId.Value);
+        }
+
+        var hasDocuments = await query.AnyAsync(cancellationToken);
+
+        _logger.LogInformation(
+            "HasDocumentsForGameSystemAsync: GameSystem {GameSystemId} has documents: {HasDocuments}, " +
+            "ownerId: {OwnerId}, includeAdminDocs: {IncludeAdminDocs}",
+            gameSystemId, hasDocuments, ownerId, includeAdminDocs);
+
+        return hasDocuments;
     }
 }

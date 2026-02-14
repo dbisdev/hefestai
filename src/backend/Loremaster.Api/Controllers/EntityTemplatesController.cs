@@ -18,10 +18,14 @@ namespace Loremaster.Api.Controllers;
 /// Controller for managing entity templates.
 /// Templates define the schema (fields) for creating entities of specific types.
 /// Templates must be confirmed before they can be used for entity creation.
+/// 
+/// Authorization:
+/// - GET endpoints: Require Player role (Players need templates to view entities)
+/// - Write endpoints (POST/PUT/DELETE): Require Master role
 /// </summary>
 [ApiController]
 [Route("api/game-systems/{gameSystemId:guid}/templates")]
-[Authorize(Policy = "RequireMasterRole")]
+[Authorize] // Base authorization - must be authenticated
 public class EntityTemplatesController : ControllerBase
 {
     private readonly IMediator _mediator;
@@ -33,12 +37,14 @@ public class EntityTemplatesController : ControllerBase
 
     /// <summary>
     /// Get all templates for a game system.
+    /// Accessible by Players to view templates when looking at entities.
     /// </summary>
     /// <param name="gameSystemId">The game system ID.</param>
     /// <param name="status">Optional status filter.</param>
     /// <param name="confirmedOnly">If true, only return confirmed templates.</param>
     /// <param name="cancellationToken">Cancellation token.</param>
     [HttpGet]
+    [Authorize(Policy = "RequirePlayerRole")]
     [ProducesResponseType(typeof(GetTemplatesByGameSystemResult), StatusCodes.Status200OK)]
     [ProducesResponseType(StatusCodes.Status401Unauthorized)]
     public async Task<ActionResult<GetTemplatesByGameSystemResult>> GetTemplates(
@@ -61,11 +67,13 @@ public class EntityTemplatesController : ControllerBase
 
     /// <summary>
     /// Get a specific template by ID.
+    /// Accessible by Players to view template details.
     /// </summary>
     /// <param name="gameSystemId">The game system ID.</param>
     /// <param name="templateId">The template ID.</param>
     /// <param name="cancellationToken">Cancellation token.</param>
     [HttpGet("{templateId:guid}")]
+    [Authorize(Policy = "RequirePlayerRole")]
     [ProducesResponseType(typeof(EntityTemplateDto), StatusCodes.Status200OK)]
     [ProducesResponseType(StatusCodes.Status404NotFound)]
     [ProducesResponseType(StatusCodes.Status401Unauthorized)]
@@ -101,6 +109,7 @@ public class EntityTemplatesController : ControllerBase
     /// <param name="request">Optional extraction parameters.</param>
     /// <param name="cancellationToken">Cancellation token.</param>
     [HttpPost("extract")]
+    [Authorize(Policy = "RequireMasterRole")]
     [ProducesResponseType(typeof(ExtractTemplatesResult), StatusCodes.Status200OK)]
     [ProducesResponseType(StatusCodes.Status400BadRequest)]
     [ProducesResponseType(StatusCodes.Status401Unauthorized)]
@@ -137,6 +146,7 @@ public class EntityTemplatesController : ControllerBase
     /// <param name="request">The update request.</param>
     /// <param name="cancellationToken">Cancellation token.</param>
     [HttpPut("{templateId:guid}")]
+    [Authorize(Policy = "RequireMasterRole")]
     [ProducesResponseType(typeof(UpdateTemplateResult), StatusCodes.Status200OK)]
     [ProducesResponseType(StatusCodes.Status400BadRequest)]
     [ProducesResponseType(StatusCodes.Status404NotFound)]
@@ -183,6 +193,7 @@ public class EntityTemplatesController : ControllerBase
     /// <param name="request">Optional confirmation notes.</param>
     /// <param name="cancellationToken">Cancellation token.</param>
     [HttpPost("{templateId:guid}/confirm")]
+    [Authorize(Policy = "RequireMasterRole")]
     [ProducesResponseType(typeof(ConfirmTemplateResult), StatusCodes.Status200OK)]
     [ProducesResponseType(StatusCodes.Status400BadRequest)]
     [ProducesResponseType(StatusCodes.Status404NotFound)]
@@ -222,6 +233,7 @@ public class EntityTemplatesController : ControllerBase
     /// <param name="request">The template creation request.</param>
     /// <param name="cancellationToken">Cancellation token.</param>
     [HttpPost]
+    [Authorize(Policy = "RequireMasterRole")]
     [ProducesResponseType(typeof(CreateTemplateResult), StatusCodes.Status201Created)]
     [ProducesResponseType(StatusCodes.Status400BadRequest)]
     [ProducesResponseType(StatusCodes.Status401Unauthorized)]
@@ -269,6 +281,7 @@ public class EntityTemplatesController : ControllerBase
     /// <param name="force">If true, delete even if entities are using this template.</param>
     /// <param name="cancellationToken">Cancellation token.</param>
     [HttpDelete("{templateId:guid}")]
+    [Authorize(Policy = "RequireMasterRole")]
     [ProducesResponseType(typeof(DeleteTemplateResult), StatusCodes.Status200OK)]
     [ProducesResponseType(StatusCodes.Status400BadRequest)]
     [ProducesResponseType(StatusCodes.Status404NotFound)]

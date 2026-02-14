@@ -74,7 +74,7 @@ public class GenerateEntityFieldsCommandHandler
         // Normalize entity type and find confirmed template
         var normalizedEntityType = EntityTemplate.NormalizeEntityTypeName(request.EntityTypeName);
         
-        // Templates are owned by the campaign's Master (OwnerId)
+        // Templates are either owned by the campaign's Master (OwnerId) or by an Admin (shared globally)
         var template = await _entityTemplateRepository.GetConfirmedTemplateForEntityTypeAsync(
             campaign.GameSystemId,
             campaign.OwnerId,

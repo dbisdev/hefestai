@@ -354,6 +354,7 @@ export const TerminalLayout: React.FC<TerminalLayoutProps> = ({
           onClose={() => setShowRuleQuery(false)} 
           gameSystemId={gameSystemId || activeCampaign?.gameSystemId}
           gameSystemName={gameSystemName}
+          campaignOwnerId={activeCampaign?.ownerId}
         />
       )}
     </div>

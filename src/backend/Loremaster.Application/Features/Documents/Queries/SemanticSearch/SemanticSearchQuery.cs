@@ -13,6 +13,7 @@ namespace Loremaster.Application.Features.Documents.Queries.SemanticSearch;
 /// <param name="GameSystemId">Optional game system ID to filter documents (for RAG on manuals).</param>
 /// <param name="GenerateAnswer">Whether to generate a RAG answer from the results.</param>
 /// <param name="SystemPrompt">Optional system prompt for RAG answer generation.</param>
+/// <param name="IncludeAdminDocs">When true, includes Admin-owned documents in search (for shared docs access).</param>
 public record SemanticSearchQuery(
     string Query,
     Guid OwnerId,
@@ -20,7 +21,8 @@ public record SemanticSearchQuery(
     float Threshold = 0.7f,
     Guid? GameSystemId = null,
     bool GenerateAnswer = false,
-    string? SystemPrompt = null) : IRequest<SemanticSearchResult>;
+    string? SystemPrompt = null,
+    bool IncludeAdminDocs = false) : IRequest<SemanticSearchResult>;
 
 public record SemanticSearchResult(
     IReadOnlyList<DocumentSearchResultDto> Documents,

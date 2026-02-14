@@ -13,9 +13,9 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { TerminalLayout } from '@shared/components/layout';
 import { Button } from '@shared/components/ui';
-import { useCampaign } from '@core/context';
-import { gameSystemService } from '@core/services/api';
-import type { Campaign, GameSystem, UpdateCampaignInput } from '@core/types';
+import { useAuth, useCampaign } from '@core/context';
+import { gameSystemService, campaignService } from '@core/services/api';
+import type { Campaign, GameSystem, UpdateCampaignInput, CampaignMember } from '@core/types';
 import { Screen, CampaignRole } from '@core/types';
 
 interface CampaignListPageProps {
@@ -37,6 +37,7 @@ interface CampaignListPageProps {
  * - Create new campaign navigation
  */
 export const CampaignListPage: React.FC<CampaignListPageProps> = ({ onNavigate, onLogout }) => {
+  const { isMaster } = useAuth();
   const { 
     campaigns, 
     activeCampaign,
@@ -55,6 +56,9 @@ export const CampaignListPage: React.FC<CampaignListPageProps> = ({ onNavigate, 
   const [selectedCampaign, setSelectedCampaign] = useState<Campaign | null>(null);
   const [filter, setFilter] = useState<'all' | 'master' | 'player'>('all');
   const [operationInProgress, setOperationInProgress] = useState<string | null>(null);
+  
+  // Campaign members state - maps campaignId to members array
+  const [campaignMembers, setCampaignMembers] = useState<Record<string, CampaignMember[]>>({});
   
   // Edit form state
   const [showEditForm, setShowEditForm] = useState(false);
@@ -97,6 +101,40 @@ export const CampaignListPage: React.FC<CampaignListPageProps> = ({ onNavigate, 
 
     loadGameSystems();
   }, [addLog]);
+
+  /**
+   * Load members for all campaigns
+   */
+  useEffect(() => {
+    const loadAllCampaignMembers = async () => {
+      if (campaigns.length === 0) return;
+
+      try {
+        const membersMap: Record<string, CampaignMember[]> = {};
+        
+        // Fetch members for all campaigns in parallel
+        const results = await Promise.allSettled(
+          campaigns.map(async (campaign) => {
+            const members = await campaignService.getMembers(campaign.id);
+            return { campaignId: campaign.id, members };
+          })
+        );
+
+        results.forEach((result) => {
+          if (result.status === 'fulfilled') {
+            membersMap[result.value.campaignId] = result.value.members;
+          }
+        });
+
+        setCampaignMembers(membersMap);
+        addLog(`[SUCCESS] Miembros de campañas cargados.`);
+      } catch (err) {
+        console.error('Failed to load campaign members:', err);
+      }
+    };
+
+    loadAllCampaignMembers();
+  }, [campaigns, addLog]);
 
   /**
    * Get game system name by ID
@@ -274,6 +312,46 @@ export const CampaignListPage: React.FC<CampaignListPageProps> = ({ onNavigate, 
     return { label: 'JUGADOR', color: 'text-yellow-400', icon: 'person' };
   };
 
+  /**
+   * Render members summary for a campaign
+   * Shows icons for each member type (Master/Player) with their names on hover
+   */
+  const renderMembersSummary = (campaignId: string) => {
+    const members = campaignMembers[campaignId];
+    
+    if (!members || members.length === 0) {
+      return null;
+    }
+
+    const masters = members.filter(m => m.role === CampaignRole.Master);
+    const players = members.filter(m => m.role === CampaignRole.Player);
+
+    return (
+      <div className="flex items-center gap-3 mt-2 pt-2 border-t border-primary/10">
+        {/* Masters */}
+        {masters.length > 0 && (
+          <div className="flex items-center gap-1" title={masters.map(m => m.displayName).join(', ')}>
+            <span className="material-icons text-cyan-400 text-xs">star</span>
+            <span className="text-cyan-400 text-xs font-mono">{masters.length}</span>
+          </div>
+        )}
+        
+        {/* Players */}
+        {players.length > 0 && (
+          <div className="flex items-center gap-1" title={players.map(m => m.displayName).join(', ')}>
+            <span className="material-icons text-yellow-400 text-xs">person</span>
+            <span className="text-yellow-400 text-xs font-mono">{players.length}</span>
+          </div>
+        )}
+
+        {/* Total count */}
+        <span className="text-primary/30 text-xs">
+          ({members.length} {members.length === 1 ? 'miembro' : 'miembros'})
+        </span>
+      </div>
+    );
+  };
+
   return (
     <TerminalLayout
       title="CAMPAÑAS"
@@ -298,13 +376,26 @@ export const CampaignListPage: React.FC<CampaignListPageProps> = ({ onNavigate, 
                 </p>
               </div>
               <div className="flex items-center gap-2">
-                <Button 
-                  onClick={() => onNavigate(Screen.CAMPAIGN_GEN)}
-                  variant="primary"
-                  size="sm"
-                >
-                  + NUEVA CAMPAÑA
-                </Button>                
+                {/* Only Masters can create new campaigns */}
+                {isMaster && (
+                  <Button 
+                    onClick={() => onNavigate(Screen.CAMPAIGN_GEN)}
+                    variant="primary"
+                    size="sm"
+                  >
+                    + NUEVA CAMPAÑA
+                  </Button>
+                )}
+                {/* Players see a "Join Campaign" button instead */}
+                {!isMaster && (
+                  <Button 
+                    onClick={() => onNavigate(Screen.INVITATIONS)}
+                    variant="secondary"
+                    size="sm"
+                  >
+                    UNIRSE A CAMPAÑA
+                  </Button>
+                )}
               </div>
             </div>
           </div>
@@ -448,7 +539,9 @@ export const CampaignListPage: React.FC<CampaignListPageProps> = ({ onNavigate, 
                   <p className="text-sm uppercase">
                     {filter === 'all' ? 'No hay campañas' : `No hay campañas como ${filter === 'master' ? 'Master' : 'Jugador'}`}
                   </p>
-                  <p className="text-xs mt-1">Crea una nueva campaña o únete a una existente</p>
+                  <p className="text-xs mt-1">
+                    {isMaster ? 'Crea una nueva campaña o únete a una existente' : 'Únete a una campaña usando un código de invitación'}
+                  </p>
                 </div>
               ) : (
                 <div className="grid gap-3">
@@ -521,6 +614,9 @@ export const CampaignListPage: React.FC<CampaignListPageProps> = ({ onNavigate, 
                           </p>
                         )}
 
+                        {/* Members Summary */}
+                        {renderMembersSummary(campaign.id)}
+
                         {/* Loading Overlay */}
                         {isOperating && (
                           <div className="absolute inset-0 bg-black/60 flex items-center justify-center">
@@ -591,6 +687,30 @@ export const CampaignListPage: React.FC<CampaignListPageProps> = ({ onNavigate, 
                     {selectedCampaign.isActive ? 'ONLINE' : 'OFFLINE'}
                   </span>
                 </div>
+                
+                {/* Members in selected campaign */}
+                {campaignMembers[selectedCampaign.id] && (
+                  <div className="pt-2 mt-2 border-t border-primary/20">
+                    <span className="text-primary/40 text-xs uppercase">Miembros:</span>
+                    <div className="mt-1 space-y-1 max-h-24 overflow-y-auto">
+                      {[...campaignMembers[selectedCampaign.id]]
+                        .sort((a, b) => {
+                          // Masters first, then sort by name
+                          if (a.role === CampaignRole.Master && b.role !== CampaignRole.Master) return -1;
+                          if (a.role !== CampaignRole.Master && b.role === CampaignRole.Master) return 1;
+                          return a.displayName.localeCompare(b.displayName);
+                        })
+                        .map((member) => (
+                          <div key={member.id} className="flex items-center gap-2 text-xs">
+                            <span className={`material-icons text-xs ${member.role === CampaignRole.Master ? 'text-cyan-400' : 'text-yellow-400'}`}>
+                              {member.role === CampaignRole.Master ? 'star' : 'person'}
+                            </span>
+                            <span className="text-primary/70 truncate">{member.displayName}</span>
+                          </div>
+                        ))}
+                    </div>
+                  </div>
+                )}
               </div>
               
               {/* Action Buttons */}

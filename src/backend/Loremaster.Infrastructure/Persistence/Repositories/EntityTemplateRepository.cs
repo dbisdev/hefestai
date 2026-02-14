@@ -104,13 +104,17 @@ public class EntityTemplateRepository : IEntityTemplateRepository
     {
         var normalizedTypeName = EntityTemplate.NormalizeEntityTypeName(entityTypeName);
         
+        // Return confirmed templates that are either:
+        // 1. Owned by the specified ownerId (private to that Master), OR
+        // 2. Owned by an Admin user (shared globally)
         return await _context.EntityTemplates
             .Include(et => et.GameSystem)
+            .Include(et => et.Owner)
             .FirstOrDefaultAsync(et => 
                 et.GameSystemId == gameSystemId && 
-                et.OwnerId == ownerId &&
                 et.EntityTypeName == normalizedTypeName &&
-                et.Status == TemplateStatus.Confirmed, 
+                et.Status == TemplateStatus.Confirmed &&
+                (et.OwnerId == ownerId || et.Owner.Role == Domain.Enums.UserRole.Admin), 
                 cancellationToken);
     }
 

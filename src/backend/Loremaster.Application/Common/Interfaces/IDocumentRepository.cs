@@ -19,7 +19,8 @@ public interface IDocumentRepository
     /// <param name="limit">Maximum number of results to return.</param>
     /// <param name="threshold">Minimum similarity threshold (0.0 to 1.0).</param>
     /// <param name="gameSystemId">Optional game system ID to filter documents (for RAG on manuals).</param>
-    /// <param name="skipOwnerFilter">When true, skips owner filtering (for admin operations).</param>
+    /// <param name="skipOwnerFilter">When true, skips owner filtering entirely (for admin operations).</param>
+    /// <param name="includeAdminDocs">When true, includes documents owned by Admin users in addition to ownerId's docs.</param>
     /// <param name="cancellationToken">Cancellation token.</param>
     /// <returns>List of documents with similarity scores.</returns>
     Task<IReadOnlyList<DocumentSearchResult>> SemanticSearchAsync(
@@ -29,6 +30,7 @@ public interface IDocumentRepository
         float threshold = 0.7f,
         Guid? gameSystemId = null,
         bool skipOwnerFilter = false,
+        bool includeAdminDocs = false,
         CancellationToken cancellationToken = default);
     
     Task<Document> AddAsync(Document document, CancellationToken cancellationToken = default);
@@ -75,6 +77,37 @@ public interface IDocumentRepository
     Task<IReadOnlyList<ManualWithChunkCount>> GetManualsByGameSystemIdAsync(
         Guid gameSystemId,
         Guid ownerId,
+        CancellationToken cancellationToken = default);
+    
+    /// <summary>
+    /// Get all parent documents (manuals) for a game system with chunk counts,
+    /// filtering by documents owned by Admin users OR the specified owner.
+    /// Used for Players who can only see Admin-shared documents, and Masters who see their own + Admin docs.
+    /// </summary>
+    /// <param name="gameSystemId">The game system ID.</param>
+    /// <param name="ownerId">The owner ID (Master) to include their documents.</param>
+    /// <param name="includeAdminDocs">When true, includes documents owned by Admin users.</param>
+    /// <param name="cancellationToken">Cancellation token.</param>
+    /// <returns>List of manuals with chunk counts.</returns>
+    Task<IReadOnlyList<ManualWithChunkCount>> GetAccessibleManualsByGameSystemIdAsync(
+        Guid gameSystemId,
+        Guid? ownerId,
+        bool includeAdminDocs = true,
+        CancellationToken cancellationToken = default);
+    
+    /// <summary>
+    /// Checks if a game system has any documents available for RAG search.
+    /// Considers documents owned by Admin users (shared) OR the specified owner.
+    /// </summary>
+    /// <param name="gameSystemId">The game system ID.</param>
+    /// <param name="ownerId">Optional owner ID to include their documents.</param>
+    /// <param name="includeAdminDocs">When true, includes documents owned by Admin users.</param>
+    /// <param name="cancellationToken">Cancellation token.</param>
+    /// <returns>True if documents are available, false otherwise.</returns>
+    Task<bool> HasDocumentsForGameSystemAsync(
+        Guid gameSystemId,
+        Guid? ownerId,
+        bool includeAdminDocs = true,
         CancellationToken cancellationToken = default);
 }
 

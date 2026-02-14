@@ -88,6 +88,7 @@ public class GenerateEntityImageCommandHandler
         }
 
         // Find confirmed template for this entity type
+        // Templates are either owned by the campaign's Master (OwnerId) or by an Admin (shared globally)
         var template = await _entityTemplateRepository.GetConfirmedTemplateForEntityTypeAsync(
             campaign.GameSystemId,
             campaign.OwnerId,

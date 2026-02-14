@@ -20,7 +20,8 @@ export type {
   ManualDto,
   ManualSummaryDto,
   UploadManualResult,
-  RagSourceType
+  RagSourceType,
+  DocumentAvailabilityResult
 } from './document.service';
 export type { 
   PaginatedEntitiesResult, 

@@ -23,7 +23,7 @@ interface InvitationsPageProps {
  * Provides UI for joining campaigns and managing invitation codes
  */
 export const InvitationsPage: React.FC<InvitationsPageProps> = ({ onNavigate, onLogout }) => {
-  const { user } = useAuth();
+  const { isMaster } = useAuth();
   const { 
     joinCampaign, 
     campaigns,
@@ -173,9 +173,6 @@ export const InvitationsPage: React.FC<InvitationsPageProps> = ({ onNavigate, on
       addLog('ERROR: NO SE PUDO COPIAR AL PORTAPAPELES');
     }
   };
-
-  // Check if user is a Master
-  const isMaster = user?.role === 'MASTER';
 
   return (
     <TerminalLayout

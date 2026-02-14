@@ -55,6 +55,9 @@ public interface IEntityTemplateRepository
     /// <summary>
     /// Gets a confirmed template for a specific entity type within a game system.
     /// Used to validate entity creation.
+    /// Returns templates that are either:
+    /// - Owned by the specified ownerId (private to that Master), OR
+    /// - Owned by an Admin user (shared globally)
     /// </summary>
     Task<EntityTemplate?> GetConfirmedTemplateForEntityTypeAsync(
         Guid gameSystemId,

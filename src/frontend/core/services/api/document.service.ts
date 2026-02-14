@@ -49,6 +49,8 @@ export interface SemanticSearchParams {
   generateAnswer?: boolean;
   /** Optional system prompt for answer generation */
   systemPrompt?: string;
+  /** Optional Master ID to include their documents (for Players in a campaign) */
+  masterId?: string;
 }
 
 /**
@@ -140,6 +142,16 @@ export interface GenerateMissingEmbeddingsParams {
   gameSystemId?: string;
 }
 
+/**
+ * Result of document availability check
+ */
+export interface DocumentAvailabilityResult {
+  /** Whether documents are available for RAG search */
+  hasDocuments: boolean;
+  /** The game system ID that was checked */
+  gameSystemId: string;
+}
+
 export const documentService = {
   /**
    * Perform semantic search across documents.
@@ -157,6 +169,7 @@ export const documentService = {
       gameSystemId: params.gameSystemId,
       generateAnswer: params.generateAnswer ?? false,
       systemPrompt: params.systemPrompt,
+      masterId: params.masterId,
     });
 
     return response;
@@ -236,5 +249,20 @@ export const documentService = {
       maxDocuments: params.maxDocuments ?? 100,
       gameSystemId: params.gameSystemId,
     });
+  },
+
+  /**
+   * Check if a game system has documents available for RAG search.
+   * Accessible by all authenticated users (including Players).
+   * Players see Admin-shared documents only, unless masterId is provided.
+   * Masters see Admin-shared documents + their own documents.
+   * 
+   * @param gameSystemId - The game system ID to check
+   * @param masterId - Optional Master ID to include their documents (for Players in a campaign)
+   * @returns Document availability status
+   */
+  async checkDocumentAvailability(gameSystemId: string, masterId?: string): Promise<DocumentAvailabilityResult> {
+    const params = masterId ? `?masterId=${masterId}` : '';
+    return httpClient.get<DocumentAvailabilityResult>(`/documents/game-systems/${gameSystemId}/available${params}`);
   },
 };
