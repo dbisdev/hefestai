@@ -196,22 +196,29 @@ export const EnemyGeneratorPage: React.FC<EnemyGeneratorPageProps> = ({ onBack, 
     addLog('ARCHIVANDO AMENAZA...');
     
     try {
+      // Flatten stats into attributes to match template field definitions
+      // Form fields go into metadata for reference
       await entityService.create(activeCampaignId, {
         entityType: 'enemy',
         name: generatedEnemy.name,
         description: generatedEnemy.abilities,
         imageUrl: enemyImage !== UNKNOWN_ENEMY_IMAGE ? enemyImage : undefined,
         attributes: {
-          species: generatedEnemy.species || form.species,
-          threatLevel: form.threatLevel,
-          behavior: form.behavior,
-          environment: form.environment,
-          weakness: generatedEnemy.weakness,
-          stats: generatedEnemy.stats
+          // Spread AI-generated stats directly as top-level attributes
+          // These should match the template field definitions
+          ...generatedEnemy.stats
         },
         metadata: {
           generatedAt: new Date().toISOString(),
-          generator: 'enemy_generator'
+          generator: 'enemy_generator',
+          // Store generation parameters for reference
+          generationParams: {
+            species: generatedEnemy.species || form.species,
+            threatLevel: form.threatLevel,
+            behavior: form.behavior,
+            environment: form.environment,
+            weakness: generatedEnemy.weakness
+          }
         },
         generationRequestId
       });

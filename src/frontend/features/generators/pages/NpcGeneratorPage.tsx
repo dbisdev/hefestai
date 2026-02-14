@@ -198,21 +198,28 @@ export const NpcGeneratorPage: React.FC<NpcGeneratorPageProps> = ({ onBack, onNa
     addLog('ESCRIBIENDO EN ALMACENAMIENTO...');
     
     try {
+      // Flatten stats into attributes to match template field definitions
+      // Form fields (species, occupation, etc.) go into metadata for reference
       await entityService.create(activeCampaignId, {
         entityType: 'npc',
         name: generatedNpc.name,
         description: generatedNpc.background,
         imageUrl: npcImage !== UNKNOWN_NPC_IMAGE ? npcImage : undefined,
         attributes: {
-          species: form.species,
-          occupation: generatedNpc.occupation || form.occupation,
-          personality: form.personality,
-          setting: form.setting,
-          stats: generatedNpc.stats
+          // Spread AI-generated stats directly as top-level attributes
+          // These should match the template field definitions (e.g., STRENGTH, AGILITY, etc.)
+          ...generatedNpc.stats
         },
         metadata: {
           generatedAt: new Date().toISOString(),
-          generator: 'npc_generator'
+          generator: 'npc_generator',
+          // Store generation parameters for reference
+          generationParams: {
+            species: form.species,
+            occupation: generatedNpc.occupation || form.occupation,
+            personality: form.personality,
+            setting: form.setting
+          }
         },
         generationRequestId
       });

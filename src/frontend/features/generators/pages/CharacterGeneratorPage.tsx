@@ -186,20 +186,27 @@ export const CharacterGeneratorPage: React.FC<CharacterGeneratorPageProps> = ({ 
     addLog('WRITING TO PERSISTENT STORAGE...');
     
     try {
+      // Flatten stats into attributes to match template field definitions
+      // Form fields (species, role, morphology) go into metadata for reference
       await entityService.create(activeCampaignId, {
         entityType: 'character',
         name: generatedChar.name,
         description: generatedChar.bio,
         imageUrl: charImage !== UNKNOWN_CHAR_IMAGE ? charImage : undefined,
         attributes: {
-          species: form.species.toUpperCase(),
-          role: form.role.toUpperCase(),
-          morphology: form.morphology,
+          // Spread AI-generated stats directly as top-level attributes
+          // These should match the template field definitions (e.g., STRENGTH, AGILITY, etc.)
           ...generatedChar.stats
         },
         metadata: {
           generatedAt: new Date().toISOString(),
-          generator: 'character_synth_v2'
+          generator: 'character_synth_v2',
+          // Store generation parameters for reference
+          generationParams: {
+            species: form.species.toUpperCase(),
+            role: form.role.toUpperCase(),
+            morphology: form.morphology
+          }
         },
         generationRequestId
       });

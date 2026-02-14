@@ -150,20 +150,27 @@ export const VehicleGeneratorPage: React.FC<VehicleGeneratorPageProps> = ({ onBa
     addLog('Writing to shipyard database...');
 
     try {
+      // Flatten stats into attributes to match template field definitions
+      // Form fields go into metadata for reference
       await entityService.create(activeCampaignId, {
         entityType: 'vehicle',
         name: generatedVehi.name,
         description: generatedVehi.specs,
         imageUrl: vehicleImage !== VEHICLE_PLACEHOLDER_IMAGE ? vehicleImage : undefined,
         attributes: {
-          vehicleType: form.type,
-          chassisClass: form.class,
-          engine: form.engine,
-          stats: generatedVehi.stats
+          // Spread AI-generated stats directly as top-level attributes
+          // These should match the template field definitions
+          ...generatedVehi.stats
         },
         metadata: {
           generatedAt: new Date().toISOString(),
-          generator: 'vehicle_generator'
+          generator: 'vehicle_generator',
+          // Store generation parameters for reference
+          generationParams: {
+            vehicleType: form.type,
+            chassisClass: form.class,
+            engine: form.engine
+          }
         },
         generationRequestId
       });
