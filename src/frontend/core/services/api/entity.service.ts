@@ -10,6 +10,7 @@ import type {
   CreateLoreEntityInput,
   UpdateLoreEntityInput,
   ChangeVisibilityInput,
+  TransferOwnershipInput,
   EntityCategory,
 } from '../../types';
 
@@ -127,6 +128,25 @@ export const entityService = {
   ): Promise<LoreEntity> {
     return httpClient.patch<LoreEntity>(
       `${buildEntityUrl(campaignId, entityId)}/visibility`,
+      input
+    );
+  },
+
+  /**
+   * Transfer entity ownership to another campaign member.
+   * Only the current owner or campaign master can transfer ownership.
+   * @param campaignId - The campaign ID
+   * @param entityId - The entity ID to transfer
+   * @param input - Transfer ownership request with new owner ID
+   * @returns Updated entity with new owner
+   */
+  async transferOwnership(
+    campaignId: string,
+    entityId: string,
+    input: TransferOwnershipInput
+  ): Promise<LoreEntity> {
+    return httpClient.patch<LoreEntity>(
+      `${buildEntityUrl(campaignId, entityId)}/owner`,
       input
     );
   },

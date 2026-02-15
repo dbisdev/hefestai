@@ -1,18 +1,28 @@
 /**
  * Entity Edit Modal Component
- * Allows Masters to edit entity details (name, description, visibility)
+ * Allows editing entity details (name, description, visibility, attributes)
+ * Visibility editing restricted to entity owner or campaign master
+ * Ownership transfer available to entity owner or campaign master
  * Cyberpunk terminal aesthetics matching the rest of the application
  */
 
 import React, { useState, useEffect, useCallback, useRef } from 'react';
-import { entityService } from '@core/services/api';
+import { entityService, campaignService } from '@core/services/api';
 import { useCampaign } from '@core/context';
-import type { LoreEntity } from '@core/types';
-import { VisibilityLevel } from '@core/types';
+import type { LoreEntity, DynamicStats, FieldDefinition, CampaignMember } from '@core/types';
+import { VisibilityLevel, CampaignRole } from '@core/types';
 
 interface EntityEditModalProps {
   /** Entity to edit */
   entity: LoreEntity;
+  /** Whether the current user can edit visibility (owner or campaign master) */
+  canEditVisibility: boolean;
+  /** Whether the current user can edit ownership (owner or campaign master) */
+  canEditOwnership?: boolean;
+  /** Current user ID for ownership comparison */
+  currentUserId?: string;
+  /** Field definitions from template for display name mapping */
+  fieldDefinitions?: FieldDefinition[];
   /** Callback when modal is closed */
   onClose: () => void;
   /** Callback when entity is successfully saved */
@@ -20,11 +30,70 @@ interface EntityEditModalProps {
 }
 
 /**
+ * Map of field identifier (name) to display name.
+ */
+type LabelMap = Record<string, string>;
+
+/**
+ * Builds a label map from field definitions.
+ * Maps field.name (identifier) -> field.displayName
+ */
+const buildLabelMapFromFields = (fields: FieldDefinition[]): LabelMap => {
+  const map: LabelMap = {};
+  fields.forEach(field => {
+    map[field.name] = field.displayName;
+    // Also map case variations for flexibility
+    map[field.name.toLowerCase()] = field.displayName;
+    map[field.name.toUpperCase()] = field.displayName;
+  });
+  return map;
+};
+
+/**
+ * Gets the display label for a field key.
+ * Falls back to formatting the raw key if not found in map.
+ * @param key - The field identifier (e.g., "ATTRIBUTES_STRENGTH")
+ * @param labelMap - Optional map of identifiers to display names
+ * @returns Human-readable label
+ */
+const getDisplayLabel = (key: string, labelMap?: LabelMap): string => {
+  // First check exact match in label map
+  if (labelMap?.[key]) {
+    return labelMap[key];
+  }
+  
+  // Check case-insensitive match
+  if (labelMap) {
+    const lowerKey = key.toLowerCase();
+    const upperKey = key.toUpperCase();
+    if (labelMap[lowerKey]) return labelMap[lowerKey];
+    if (labelMap[upperKey]) return labelMap[upperKey];
+  }
+  
+  // Fallback: Format the raw key to be more readable
+  return key
+    .replace(/_/g, ' ')
+    .toLowerCase()
+    .replace(/\b\w/g, c => c.toUpperCase());
+};
+
+/**
+ * Checks if a value is a nested object (like SKILLS)
+ */
+const isNestedObject = (value: unknown): value is Record<string, unknown> => {
+  return typeof value === 'object' && value !== null && !Array.isArray(value);
+};
+
+/**
  * Modal component for editing entity details
- * Supports editing name, description, visibility, and image URL
+ * Supports editing name, description, visibility, image URL, and dynamic attributes
  */
 export const EntityEditModal: React.FC<EntityEditModalProps> = ({
   entity,
+  canEditVisibility,
+  canEditOwnership = false,
+  currentUserId,
+  fieldDefinitions,
   onClose,
   onSave,
 }) => {
@@ -34,13 +103,26 @@ export const EntityEditModal: React.FC<EntityEditModalProps> = ({
   const [isSaving, setIsSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
   
-  // Form state
+  // Campaign members for ownership transfer
+  const [campaignMembers, setCampaignMembers] = useState<CampaignMember[]>([]);
+  const [isLoadingMembers, setIsLoadingMembers] = useState(false);
+  const [selectedOwnerId, setSelectedOwnerId] = useState<string>(entity.ownerId);
+  
+  // Build label map from field definitions
+  const labelMap = fieldDefinitions ? buildLabelMapFromFields(fieldDefinitions) : undefined;
+  
+  // Form state for basic fields
   const [formData, setFormData] = useState({
     name: entity.name,
     description: entity.description || '',
     visibility: entity.visibility,
     imageUrl: entity.imageUrl || '',
   });
+  
+  // State for editable attributes (deep copy to avoid mutating original)
+  const [attributes, setAttributes] = useState<DynamicStats>(
+    entity.attributes ? JSON.parse(JSON.stringify(entity.attributes)) : {}
+  );
 
   // Focus trap - focus first input on mount
   useEffect(() => {
@@ -60,6 +142,31 @@ export const EntityEditModal: React.FC<EntityEditModalProps> = ({
   }, [onClose]);
 
   /**
+   * Fetch campaign members for ownership transfer dropdown
+   * Only fetches if user can edit ownership
+   */
+  useEffect(() => {
+    const fetchMembers = async () => {
+      if (!canEditOwnership || !activeCampaignId) {
+        return;
+      }
+      
+      setIsLoadingMembers(true);
+      try {
+        const members = await campaignService.getMembers(activeCampaignId);
+        setCampaignMembers(members);
+      } catch (err) {
+        console.error('Failed to fetch campaign members:', err);
+        setCampaignMembers([]);
+      } finally {
+        setIsLoadingMembers(false);
+      }
+    };
+    
+    fetchMembers();
+  }, [canEditOwnership, activeCampaignId]);
+
+  /**
    * Handle form field changes
    */
   const handleChange = useCallback((
@@ -71,7 +178,42 @@ export const EntityEditModal: React.FC<EntityEditModalProps> = ({
   }, []);
 
   /**
+   * Handle attribute value change (for numeric and string values)
+   */
+  const handleAttributeChange = useCallback((key: string, value: string | number) => {
+    setAttributes(prev => ({ ...prev, [key]: value }));
+    setError(null);
+  }, []);
+
+  /**
+   * Handle nested attribute value change (for objects like SKILLS)
+   */
+  const handleNestedAttributeChange = useCallback((
+    parentKey: string, 
+    childKey: string, 
+    value: string | number
+  ) => {
+    setAttributes(prev => {
+      const parent = prev[parentKey];
+      if (isNestedObject(parent)) {
+        return {
+          ...prev,
+          [parentKey]: {
+            ...parent,
+            [childKey]: value,
+          },
+        };
+      }
+      return prev;
+    });
+    setError(null);
+  }, []);
+
+  /**
    * Handle form submission
+   * Transfers ownership if changed, then updates entity details if user still has permission.
+   * Note: If a player transfers ownership to someone else, they lose edit permission,
+   * so we skip the entity update in that case.
    */
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -90,13 +232,38 @@ export const EntityEditModal: React.FC<EntityEditModalProps> = ({
     setError(null);
 
     try {
-      const updatedEntity = await entityService.update(activeCampaignId, entity.id, {
+      let updatedEntity: LoreEntity;
+      const ownershipChanged = canEditOwnership && selectedOwnerId !== entity.ownerId;
+      
+      // Check if user will still have edit permission after ownership transfer
+      // Masters can always edit (non-player-owned entities), owners can edit their own
+      const currentUserIsOwner = currentUserId === entity.ownerId;
+      const willTransferToOther = ownershipChanged && selectedOwnerId !== currentUserId;
+      
+      // If ownership changed, transfer ownership FIRST
+      if (ownershipChanged) {
+        updatedEntity = await entityService.transferOwnership(
+          activeCampaignId,
+          entity.id,
+          { newOwnerId: selectedOwnerId }
+        );
+        
+        // If current user was the owner (not master) and transferred to someone else,
+        // they lose edit permission - just return the transferred entity
+        if (currentUserIsOwner && willTransferToOther) {
+          onSave(updatedEntity);
+          return;
+        }
+      }
+
+      // Update the entity details
+      updatedEntity = await entityService.update(activeCampaignId, entity.id, {
         name: formData.name.trim(),
         description: formData.description.trim() || undefined,
         visibility: formData.visibility,
         imageUrl: formData.imageUrl.trim() || undefined,
-        attributes: entity.attributes, // Keep existing attributes
-        metadata: entity.metadata, // Keep existing metadata
+        attributes: Object.keys(attributes).length > 0 ? attributes : undefined,
+        metadata: entity.metadata,
       });
 
       onSave(updatedEntity);
@@ -118,6 +285,25 @@ export const EntityEditModal: React.FC<EntityEditModalProps> = ({
     { value: VisibilityLevel.Public, label: 'PÚBLICO', description: 'Todos pueden verlo' },
   ];
 
+  /**
+   * Separate attributes by type for proper rendering
+   */
+  const numericAttrs: [string, number][] = [];
+  const stringAttrs: [string, string][] = [];
+  const nestedAttrs: [string, Record<string, unknown>][] = [];
+
+  Object.entries(attributes).forEach(([key, value]) => {
+    if (typeof value === 'number') {
+      numericAttrs.push([key, value]);
+    } else if (typeof value === 'string') {
+      stringAttrs.push([key, value]);
+    } else if (isNestedObject(value)) {
+      nestedAttrs.push([key, value]);
+    }
+  });
+
+  const hasAttributes = numericAttrs.length > 0 || stringAttrs.length > 0 || nestedAttrs.length > 0;
+
   return (
     <div 
       className="fixed inset-0 bg-black/80 backdrop-blur-sm z-50 flex items-center justify-center p-4"
@@ -130,10 +316,10 @@ export const EntityEditModal: React.FC<EntityEditModalProps> = ({
         role="dialog"
         aria-modal="true"
         aria-labelledby="edit-modal-title"
-        className="w-full max-w-lg bg-surface-dark border border-primary shadow-2xl animate-glitch-in"
+        className="w-full max-w-2xl max-h-[90vh] bg-surface-dark border border-primary shadow-2xl animate-glitch-in flex flex-col"
       >
         {/* Header */}
-        <div className="bg-primary text-black font-bold p-3 flex justify-between items-center">
+        <div className="bg-primary text-black font-bold p-3 flex justify-between items-center flex-shrink-0">
           <h2 id="edit-modal-title" className="text-xs uppercase tracking-widest flex items-center gap-2">
             <span className="material-icons text-sm">edit</span>
             EDITAR_ENTIDAD
@@ -147,8 +333,8 @@ export const EntityEditModal: React.FC<EntityEditModalProps> = ({
           </button>
         </div>
 
-        {/* Form */}
-        <form onSubmit={handleSubmit} className="p-6 space-y-4 font-mono">
+        {/* Form - Scrollable */}
+        <form onSubmit={handleSubmit} className="p-6 space-y-4 font-mono overflow-y-auto flex-1 custom-scrollbar">
           {/* Error Message */}
           {error && (
             <div className="bg-danger/20 border border-danger/50 p-3 text-danger text-xs">
@@ -157,88 +343,266 @@ export const EntityEditModal: React.FC<EntityEditModalProps> = ({
             </div>
           )}
 
-          {/* Name Field */}
-          <div>
-            <label 
-              htmlFor="entity-name"
-              className="block text-xs text-primary/60 uppercase mb-1"
-            >
-              Nombre *
-            </label>
-            <input
-              id="entity-name"
-              type="text"
-              value={formData.name}
-              onChange={(e) => handleChange('name', e.target.value)}
-              placeholder="Nombre de la entidad"
-              disabled={isSaving}
-              className="w-full bg-black/40 border border-primary/30 text-primary p-3 text-sm focus:border-primary focus:outline-none placeholder:text-primary/20 disabled:opacity-50"
-              required
-            />
-          </div>
+          {/* Basic Info Section */}
+          <div className="space-y-4">
+            <p className="text-[9px] text-primary/40 uppercase tracking-[0.2em] font-bold border-b border-primary/20 pb-1">
+              // INFORMACIÓN_BÁSICA
+            </p>
 
-          {/* Description Field */}
-          <div>
-            <label 
-              htmlFor="entity-description"
-              className="block text-xs text-primary/60 uppercase mb-1"
-            >
-              Descripción
-            </label>
-            <textarea
-              id="entity-description"
-              value={formData.description}
-              onChange={(e) => handleChange('description', e.target.value)}
-              placeholder="Descripción de la entidad (opcional)"
-              rows={4}
-              disabled={isSaving}
-              className="w-full bg-black/40 border border-primary/30 text-primary p-3 text-sm focus:border-primary focus:outline-none placeholder:text-primary/20 resize-none disabled:opacity-50"
-            />
-          </div>
+            {/* Name Field */}
+            <div>
+              <label 
+                htmlFor="entity-name"
+                className="block text-xs text-primary/60 uppercase mb-1"
+              >
+                Nombre *
+              </label>
+              <input
+                id="entity-name"
+                type="text"
+                value={formData.name}
+                onChange={(e) => handleChange('name', e.target.value)}
+                placeholder="Nombre de la entidad"
+                disabled={isSaving}
+                className="w-full bg-black/40 border border-primary/30 text-primary p-3 text-sm focus:border-primary focus:outline-none placeholder:text-primary/20 disabled:opacity-50"
+                required
+              />
+            </div>
 
-          {/* Image URL Field */}
-          <div>
-            <label 
-              htmlFor="entity-image"
-              className="block text-xs text-primary/60 uppercase mb-1"
-            >
-              URL de Imagen
-            </label>
-            <input
-              id="entity-image"
-              type="url"
-              value={formData.imageUrl}
-              onChange={(e) => handleChange('imageUrl', e.target.value)}
-              placeholder="https://..."
-              disabled={isSaving}
-              className="w-full bg-black/40 border border-primary/30 text-primary p-3 text-sm focus:border-primary focus:outline-none placeholder:text-primary/20 disabled:opacity-50"
-            />
-          </div>
+            {/* Description Field */}
+            <div>
+              <label 
+                htmlFor="entity-description"
+                className="block text-xs text-primary/60 uppercase mb-1"
+              >
+                Descripción
+              </label>
+              <textarea
+                id="entity-description"
+                value={formData.description}
+                onChange={(e) => handleChange('description', e.target.value)}
+                placeholder="Descripción de la entidad (opcional)"
+                rows={3}
+                disabled={isSaving}
+                className="w-full bg-black/40 border border-primary/30 text-primary p-3 text-sm focus:border-primary focus:outline-none placeholder:text-primary/20 resize-none disabled:opacity-50"
+              />
+            </div>
 
-          {/* Visibility Field */}
-          <div>
-            <label className="block text-xs text-primary/60 uppercase mb-2">
-              Visibilidad
-            </label>
-            <div className="grid grid-cols-2 gap-2">
-              {visibilityOptions.map((option) => (
-                <button
-                  key={option.value}
-                  type="button"
-                  onClick={() => handleChange('visibility', option.value)}
-                  disabled={isSaving}
-                  className={`p-2 border text-left transition-colors ${
-                    formData.visibility === option.value
-                      ? 'border-primary bg-primary/20 text-primary'
-                      : 'border-primary/30 hover:border-primary/60 text-primary/60'
-                  } disabled:opacity-50`}
-                >
-                  <span className="text-xs font-bold block">{option.label}</span>
-                  <span className="text-[9px] text-primary/40">{option.description}</span>
-                </button>
-              ))}
+            {/* Image URL Field */}
+            <div>
+              <label 
+                htmlFor="entity-image"
+                className="block text-xs text-primary/60 uppercase mb-1"
+              >
+                URL de Imagen
+              </label>
+              <input
+                id="entity-image"
+                type="url"
+                value={formData.imageUrl}
+                onChange={(e) => handleChange('imageUrl', e.target.value)}
+                placeholder="https://..."
+                disabled={isSaving}
+                className="w-full bg-black/40 border border-primary/30 text-primary p-3 text-sm focus:border-primary focus:outline-none placeholder:text-primary/20 disabled:opacity-50"
+              />
             </div>
           </div>
+
+          {/* Visibility Field - Only shown if user can edit */}
+          {canEditVisibility ? (
+            <div className="space-y-2">
+              <p className="text-[9px] text-primary/40 uppercase tracking-[0.2em] font-bold border-b border-primary/20 pb-1">
+                // VISIBILIDAD
+              </p>
+              <div className="grid grid-cols-2 gap-2">
+                {visibilityOptions.map((option) => (
+                  <button
+                    key={option.value}
+                    type="button"
+                    onClick={() => handleChange('visibility', option.value)}
+                    disabled={isSaving}
+                    className={`p-2 border text-left transition-colors ${
+                      formData.visibility === option.value
+                        ? 'border-primary bg-primary/20 text-primary'
+                        : 'border-primary/30 hover:border-primary/60 text-primary/60'
+                    } disabled:opacity-50`}
+                  >
+                    <span className="text-xs font-bold block">{option.label}</span>
+                    <span className="text-[9px] text-primary/40">{option.description}</span>
+                  </button>
+                ))}
+              </div>
+            </div>
+          ) : (
+            <div className="bg-black/40 border border-primary/10 p-3">
+              <p className="text-[9px] text-primary/40 uppercase mb-1">Visibilidad (solo lectura)</p>
+              <p className="text-sm text-primary uppercase font-bold">
+                {visibilityOptions.find(o => o.value === formData.visibility)?.label || 'DESCONOCIDO'}
+              </p>
+              <p className="text-[9px] text-primary/30 mt-1">
+                Solo el propietario o el master pueden cambiar la visibilidad
+              </p>
+            </div>
+          )}
+
+          {/* Ownership Transfer Section - Only shown if user can edit ownership */}
+          {canEditOwnership ? (
+            <div className="space-y-2">
+              <p className="text-[9px] text-primary/40 uppercase tracking-[0.2em] font-bold border-b border-primary/20 pb-1">
+                // PROPIETARIO
+              </p>
+              {isLoadingMembers ? (
+                <div className="flex items-center gap-2 p-3 bg-black/40 border border-primary/20">
+                  <span className="material-icons text-sm text-primary/60 animate-spin">sync</span>
+                  <span className="text-xs text-primary/60">Cargando miembros...</span>
+                </div>
+              ) : (
+                <div className="relative">
+                  <select
+                    id="entity-owner"
+                    value={selectedOwnerId}
+                    onChange={(e) => setSelectedOwnerId(e.target.value)}
+                    disabled={isSaving}
+                    className="w-full bg-black/40 border border-primary/30 text-primary p-3 text-sm focus:border-primary focus:outline-none disabled:opacity-50 appearance-none cursor-pointer"
+                  >
+                    {campaignMembers.map((member) => (
+                      <option key={member.userId} value={member.userId}>
+                        {member.displayName} ({member.role === CampaignRole.Master ? 'MASTER' : 'PLAYER'})
+                        {member.userId === entity.ownerId ? ' - Actual' : ''}
+                      </option>
+                    ))}
+                  </select>
+                  <span className="material-icons absolute right-3 top-1/2 -translate-y-1/2 text-primary/60 pointer-events-none text-sm">
+                    expand_more
+                  </span>
+                </div>
+              )}
+              {selectedOwnerId !== entity.ownerId && (
+                <div className="bg-yellow-500/10 border border-yellow-500/30 p-2 text-[10px] text-yellow-500 flex items-center gap-2">
+                  <span className="material-icons text-sm">warning</span>
+                  La propiedad se transferira al guardar
+                </div>
+              )}
+            </div>
+          ) : (
+            <div className="bg-black/40 border border-primary/10 p-3">
+              <p className="text-[9px] text-primary/40 uppercase mb-1">Propietario (solo lectura)</p>
+              <p className="text-sm text-primary uppercase font-bold">
+                {entity.ownerName || 'Desconocido'}
+              </p>
+              <p className="text-[9px] text-primary/30 mt-1">
+                Solo el propietario o el master pueden transferir la propiedad
+              </p>
+            </div>
+          )}
+
+          {/* Dynamic Attributes Section */}
+          {hasAttributes && (
+            <div className="space-y-3">
+              <p className="text-[9px] text-primary/40 uppercase tracking-[0.2em] font-bold border-b border-primary/20 pb-1">
+                // ATRIBUTOS
+              </p>
+
+              {/* Numeric Attributes Grid */}
+              {numericAttrs.length > 0 && (
+                <div className="grid grid-cols-3 gap-2">
+                  {numericAttrs.map(([key, value]) => (
+                    <div key={key} className="bg-black/40 border border-primary/20 p-2">
+                      <label 
+                        htmlFor={`attr-${key}`}
+                        className="block text-[9px] text-primary/40 uppercase mb-1 truncate"
+                        title={key}
+                      >
+                        {getDisplayLabel(key, labelMap)}
+                      </label>
+                      <input
+                        id={`attr-${key}`}
+                        type="number"
+                        value={value}
+                        onChange={(e) => handleAttributeChange(key, parseFloat(e.target.value) || 0)}
+                        disabled={isSaving}
+                        className="w-full bg-black/60 border border-primary/30 text-primary p-2 text-sm text-center font-bold focus:border-primary focus:outline-none disabled:opacity-50"
+                      />
+                    </div>
+                  ))}
+                </div>
+              )}
+
+              {/* String Attributes */}
+              {stringAttrs.map(([key, value]) => (
+                <div key={key} className="bg-black/40 border border-primary/20 p-3">
+                  <label 
+                    htmlFor={`attr-${key}`}
+                    className="block text-[9px] text-primary/40 uppercase mb-1"
+                    title={key}
+                  >
+                    {getDisplayLabel(key, labelMap)}
+                  </label>
+                  <textarea
+                    id={`attr-${key}`}
+                    value={value}
+                    onChange={(e) => handleAttributeChange(key, e.target.value)}
+                    rows={2}
+                    disabled={isSaving}
+                    className="w-full bg-black/60 border border-primary/30 text-primary p-2 text-xs focus:border-primary focus:outline-none resize-none disabled:opacity-50"
+                  />
+                </div>
+              ))}
+
+              {/* Nested Attributes (like SKILLS) */}
+              {nestedAttrs.map(([parentKey, nestedObj]) => (
+                <div key={parentKey} className="bg-black/40 border border-primary/20 p-3">
+                  <p 
+                    className="text-[9px] text-primary/40 uppercase mb-2 flex items-center gap-1"
+                    title={parentKey}
+                  >
+                    <span className="material-icons text-xs">folder_open</span>
+                    {getDisplayLabel(parentKey, labelMap)}
+                  </p>
+                  <div className="grid grid-cols-2 gap-2">
+                    {Object.entries(nestedObj).map(([childKey, childValue]) => (
+                      <div key={childKey} className="flex items-center gap-2">
+                        <label 
+                          htmlFor={`attr-${parentKey}-${childKey}`}
+                          className="text-[9px] text-primary/60 uppercase flex-1 truncate"
+                          title={childKey}
+                        >
+                          {getDisplayLabel(childKey, labelMap)}
+                        </label>
+                        {typeof childValue === 'number' ? (
+                          <input
+                            id={`attr-${parentKey}-${childKey}`}
+                            type="number"
+                            value={childValue}
+                            onChange={(e) => handleNestedAttributeChange(
+                              parentKey, 
+                              childKey, 
+                              parseFloat(e.target.value) || 0
+                            )}
+                            disabled={isSaving}
+                            className="w-16 bg-black/60 border border-primary/30 text-primary p-1 text-xs text-center font-bold focus:border-primary focus:outline-none disabled:opacity-50"
+                          />
+                        ) : (
+                          <input
+                            id={`attr-${parentKey}-${childKey}`}
+                            type="text"
+                            value={String(childValue)}
+                            onChange={(e) => handleNestedAttributeChange(
+                              parentKey, 
+                              childKey, 
+                              e.target.value
+                            )}
+                            disabled={isSaving}
+                            className="flex-1 bg-black/60 border border-primary/30 text-primary p-1 text-xs focus:border-primary focus:outline-none disabled:opacity-50"
+                          />
+                        )}
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
 
           {/* Entity Type (read-only info) */}
           <div className="bg-black/40 border border-primary/10 p-3">

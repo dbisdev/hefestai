@@ -6,7 +6,12 @@
  */
 
 import { jsPDF } from 'jspdf';
-import type { LoreEntity, CharacterData, NpcData, EnemyData } from '@core/types';
+import type { LoreEntity, CharacterData, NpcData, EnemyData, FieldDefinition } from '@core/types';
+
+/**
+ * Map of field identifier (name) to display name.
+ */
+type LabelMap = Record<string, string>;
 
 /**
  * PDF export configuration
@@ -18,6 +23,8 @@ interface PdfExportOptions {
   format?: 'a4' | 'letter';
   /** PDF orientation */
   orientation?: 'portrait' | 'landscape';
+  /** Field definitions from template for display name mapping */
+  fieldDefinitions?: FieldDefinition[];
 }
 
 /**
@@ -49,6 +56,69 @@ const COLORS = {
 };
 
 /**
+ * Check if a value is a nested object (like SKILLS)
+ * @param value - Value to check
+ * @returns True if value is a non-array object
+ */
+const isNestedObject = (value: unknown): value is Record<string, unknown> => {
+  return typeof value === 'object' && value !== null && !Array.isArray(value);
+};
+
+/**
+ * Format a key into a human-readable label
+ * @param key - The raw key (e.g., "ATTRIBUTES_STRENGTH")
+ * @returns Formatted label (e.g., "Attributes Strength")
+ */
+const formatLabel = (key: string): string => {
+  return key
+    .replace(/_/g, ' ')
+    .toLowerCase()
+    .replace(/\b\w/g, c => c.toUpperCase());
+};
+
+/**
+ * Builds a label map from field definitions.
+ * Maps field.name (identifier) -> field.displayName
+ * @param fields - Array of field definitions
+ * @returns Map of field names to display names
+ */
+const buildLabelMapFromFields = (fields: FieldDefinition[]): LabelMap => {
+  const map: LabelMap = {};
+  fields.forEach(field => {
+    map[field.name] = field.displayName;
+    // Also map case variations for flexibility
+    map[field.name.toLowerCase()] = field.displayName;
+    map[field.name.toUpperCase()] = field.displayName;
+  });
+  return map;
+};
+
+/**
+ * Gets the display label for a field key.
+ * Falls back to formatting the raw key if not found in map.
+ * @param key - The field identifier (e.g., "ATTRIBUTES_STRENGTH")
+ * @param labelMap - Optional map of identifiers to display names
+ * @returns Human-readable label
+ */
+const getDisplayLabel = (key: string, labelMap?: LabelMap): string => {
+  // First check exact match in label map
+  if (labelMap?.[key]) {
+    return labelMap[key];
+  }
+  
+  // Check case-insensitive match
+  if (labelMap) {
+    const lowerKey = key.toLowerCase();
+    const upperKey = key.toUpperCase();
+    if (labelMap[lowerKey]) return labelMap[lowerKey];
+    if (labelMap[upperKey]) return labelMap[upperKey];
+  }
+  
+  // Fallback: Format the raw key to be more readable
+  return formatLabel(key);
+};
+
+/**
  * CharacterSheetPdfService
  * Generates styled PDF character sheets with cyberpunk aesthetics
  */
@@ -61,6 +131,41 @@ export class CharacterSheetPdfService {
     body: 10,
     small: 8,
   };
+  /** Minimum space required before footer (in mm) */
+  private static readonly FOOTER_MARGIN = 25;
+
+  /**
+   * Check if content would overflow page and add new page if needed
+   * @param doc - jsPDF document instance
+   * @param currentY - Current Y position
+   * @param requiredSpace - Space needed for next content block
+   * @param margin - Page margin
+   * @returns Updated Y position (reset to margin + header space if new page added)
+   */
+  private static checkPageOverflow(
+    doc: jsPDF,
+    currentY: number,
+    requiredSpace: number,
+    margin: number
+  ): number {
+    const pageHeight = doc.internal.pageSize.getHeight();
+    const maxY = pageHeight - this.FOOTER_MARGIN;
+    
+    if (currentY + requiredSpace > maxY) {
+      // Add new page
+      doc.addPage();
+      const pageWidth = doc.internal.pageSize.getWidth();
+      
+      // Draw background on new page
+      doc.setFillColor(...COLORS.background);
+      doc.rect(0, 0, pageWidth, pageHeight, 'F');
+      
+      // Return starting Y position for new page
+      return margin;
+    }
+    
+    return currentY;
+  }
 
   /**
    * Export a character entity to PDF
@@ -76,7 +181,11 @@ export class CharacterSheetPdfService {
       includeImage = true,
       format = 'a4',
       orientation = 'portrait',
+      fieldDefinitions,
     } = options;
+
+    // Build label map from field definitions for display name mapping
+    const labelMap = fieldDefinitions ? buildLabelMapFromFields(fieldDefinitions) : undefined;
 
     const doc = new jsPDF({
       orientation,
@@ -130,8 +239,14 @@ export class CharacterSheetPdfService {
     // Right column: Stats and attributes
     let rightY = yPos;
 
-    // Stats grid
-    rightY = this.drawStatsGrid(doc, entity.attributes || {}, rightCol, rightY, colWidth);
+    // Stats grid (numeric attributes)
+    rightY = this.drawStatsGrid(doc, entity.attributes || {}, rightCol, rightY, colWidth, labelMap);
+
+    // String attributes (TALENT, GEAR, etc.)
+    rightY = this.drawStringAttributes(doc, entity.attributes || {}, rightCol, rightY, colWidth, margin, labelMap);
+
+    // Nested attributes (SKILLS, etc.)
+    rightY = this.drawNestedAttributes(doc, entity.attributes || {}, rightCol, rightY, colWidth, margin, labelMap);
 
     // Metadata
     if (entity.metadata && Object.keys(entity.metadata).length > 0) {
@@ -299,13 +414,20 @@ export class CharacterSheetPdfService {
 
   /**
    * Draw stats grid
+   * @param doc - jsPDF document instance
+   * @param attributes - Attributes object
+   * @param x - X coordinate
+   * @param y - Y coordinate
+   * @param width - Available width
+   * @param labelMap - Optional map of field names to display names
    */
   private static drawStatsGrid(
     doc: jsPDF,
     attributes: Record<string, unknown>,
     x: number,
     y: number,
-    width: number
+    width: number,
+    labelMap?: LabelMap
   ): number {
     // Section heading
     doc.setFontSize(this.FONT_SIZE.heading);
@@ -350,10 +472,11 @@ export class CharacterSheetPdfService {
       doc.setLineWidth(0.3);
       doc.rect(cellX, cellY, cellWidth - 2, cellHeight - 2);
       
-      // Stat label
+      // Stat label - use display name from labelMap if available
+      const label = getDisplayLabel(key, labelMap);
       doc.setFontSize(this.FONT_SIZE.small);
       doc.setTextColor(...COLORS.textMuted);
-      doc.text(key.toUpperCase(), cellX + (cellWidth - 2) / 2, cellY + 5, { align: 'center' });
+      doc.text(label.toUpperCase(), cellX + (cellWidth - 2) / 2, cellY + 5, { align: 'center' });
       
       // Stat value
       doc.setFontSize(this.FONT_SIZE.subtitle);
@@ -365,6 +488,180 @@ export class CharacterSheetPdfService {
     
     const rows = Math.ceil(stats.length / cols);
     return y + rows * cellHeight + 8;
+  }
+
+  /**
+   * Draw string attributes (TALENT, GEAR, etc.)
+   * @param doc - jsPDF document instance
+   * @param attributes - Attributes object containing string values
+   * @param x - X coordinate
+   * @param y - Y coordinate
+   * @param width - Available width
+   * @param margin - Page margin for overflow handling
+   * @param labelMap - Optional map of field names to display names
+   * @returns Updated Y position after drawing
+   */
+  private static drawStringAttributes(
+    doc: jsPDF,
+    attributes: Record<string, unknown>,
+    x: number,
+    y: number,
+    width: number,
+    margin: number = 15,
+    labelMap?: LabelMap
+  ): number {
+    // Filter string attributes
+    const stringAttrs = Object.entries(attributes)
+      .filter(([_, value]) => typeof value === 'string' && value.toString().trim() !== '');
+    
+    if (stringAttrs.length === 0) {
+      return y;
+    }
+
+    // Check if we have space for section heading
+    y = this.checkPageOverflow(doc, y, 15, margin);
+
+    // Section heading
+    doc.setFontSize(this.FONT_SIZE.heading);
+    doc.setTextColor(...COLORS.primary);
+    doc.setFont('helvetica', 'bold');
+    doc.text('ATRIBUTOS DE TEXTO', x, y);
+    
+    doc.setDrawColor(...COLORS.primary);
+    doc.setLineWidth(0.2);
+    doc.line(x, y + 1, x + doc.getTextWidth('ATRIBUTOS DE TEXTO'), y + 1);
+    
+    y += 8;
+
+    // Render each string attribute
+    stringAttrs.forEach(([key, value]) => {
+      const label = getDisplayLabel(key, labelMap);
+      const content = String(value);
+      const lines = doc.splitTextToSize(content, width);
+      const contentHeight = lines.length * 4 + 10;
+      
+      // Check for page overflow before each attribute
+      y = this.checkPageOverflow(doc, y, contentHeight, margin);
+      
+      // Draw label
+      doc.setFontSize(this.FONT_SIZE.small);
+      doc.setTextColor(...COLORS.primary);
+      doc.setFont('helvetica', 'bold');
+      doc.text(label.toUpperCase(), x, y);
+      
+      y += 4;
+      
+      // Draw content with word wrap
+      doc.setFontSize(this.FONT_SIZE.body);
+      doc.setTextColor(...COLORS.text);
+      doc.setFont('helvetica', 'normal');
+      
+      doc.text(lines, x, y);
+      
+      y += lines.length * 4 + 6;
+    });
+    
+    return y;
+  }
+
+  /**
+   * Draw nested attributes (SKILLS, etc.)
+   * @param doc - jsPDF document instance
+   * @param attributes - Attributes object containing nested objects
+   * @param x - X coordinate
+   * @param y - Y coordinate
+   * @param width - Available width
+   * @param margin - Page margin for overflow handling
+   * @param labelMap - Optional map of field names to display names
+   * @returns Updated Y position after drawing
+   */
+  private static drawNestedAttributes(
+    doc: jsPDF,
+    attributes: Record<string, unknown>,
+    x: number,
+    y: number,
+    width: number,
+    margin: number = 15,
+    labelMap?: LabelMap
+  ): number {
+    // Filter nested object attributes
+    const nestedAttrs = Object.entries(attributes)
+      .filter(([_, value]) => isNestedObject(value));
+    
+    if (nestedAttrs.length === 0) {
+      return y;
+    }
+
+    // Check if we have space for section heading
+    y = this.checkPageOverflow(doc, y, 15, margin);
+
+    // Section heading
+    doc.setFontSize(this.FONT_SIZE.heading);
+    doc.setTextColor(...COLORS.primary);
+    doc.setFont('helvetica', 'bold');
+    doc.text('HABILIDADES Y GRUPOS', x, y);
+    
+    doc.setDrawColor(...COLORS.primary);
+    doc.setLineWidth(0.2);
+    doc.line(x, y + 1, x + doc.getTextWidth('HABILIDADES Y GRUPOS'), y + 1);
+    
+    y += 8;
+
+    // Render each nested attribute group
+    nestedAttrs.forEach(([key, value]) => {
+      const label = getDisplayLabel(key, labelMap);
+      const nestedObj = value as Record<string, unknown>;
+      const entries = Object.entries(nestedObj);
+      
+      // Estimate height for this group (header + rows of 2 items each)
+      const rowCount = Math.ceil(entries.length / 2);
+      const estimatedHeight = 5 + rowCount * 5 + 8;
+      
+      // Check for page overflow before each group
+      y = this.checkPageOverflow(doc, y, estimatedHeight, margin);
+      
+      // Group label - use display name from labelMap if available
+      doc.setFontSize(this.FONT_SIZE.small);
+      doc.setTextColor(...COLORS.accent);
+      doc.setFont('helvetica', 'bold');
+      doc.text(`▸ ${label.toUpperCase()}`, x, y);
+      
+      y += 5;
+      
+      // Draw entries in a compact format
+      const itemsPerRow = 2;
+      const itemWidth = (width - 5) / itemsPerRow;
+      
+      entries.forEach(([entryKey, entryValue], index) => {
+        const col = index % itemsPerRow;
+        const itemX = x + col * itemWidth + 2;
+        
+        // Start new row if needed
+        if (col === 0 && index > 0) {
+          y += 5;
+          // Check overflow for each new row
+          y = this.checkPageOverflow(doc, y, 5, margin);
+        }
+        
+        // Entry key - use display name from labelMap if available
+        doc.setFontSize(this.FONT_SIZE.small);
+        doc.setTextColor(...COLORS.textMuted);
+        doc.setFont('helvetica', 'normal');
+        doc.text(getDisplayLabel(entryKey, labelMap) + ':', itemX, y);
+        
+        // Entry value
+        doc.setTextColor(...COLORS.text);
+        const valueStr = typeof entryValue === 'object' 
+          ? JSON.stringify(entryValue) 
+          : String(entryValue);
+        const truncated = valueStr.length > 15 ? valueStr.substring(0, 12) + '...' : valueStr;
+        doc.text(truncated, itemX + 20, y);
+      });
+      
+      y += 8;
+    });
+    
+    return y;
   }
 
   /**

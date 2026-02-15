@@ -226,38 +226,43 @@ public class TransferEntityOwnershipCommandHandlerTests
 
     #endregion
 
-    #region Authorization Failures - Only Master Can Transfer
+    #region Authorization Failures - Master or Owner Can Transfer
 
     [Fact]
-    public async Task Handle_WhenPlayerTriesToTransfer_ShouldThrowForbiddenAccessException()
+    public async Task Handle_WhenPlayerTriesToTransferOthersEntity_ShouldThrowForbiddenAccessException()
     {
-        // Arrange
+        // Arrange - Player tries to transfer an entity they don't own
         _currentUserServiceMock.Setup(x => x.UserId).Returns(_playerId);
         var playerMembership = CreatePlayerMembership(_playerId);
+        var entity = CreateEntity(_otherPlayerId, OwnershipType.Player); // Entity owned by other player
+
         SetupCurrentUserMembership(playerMembership);
+        SetupEntity(entity);
 
         var command = new TransferEntityOwnershipCommand(
             _campaignId,
             _entityId,
-            _otherPlayerId);
+            _masterId);
 
         // Act
         var act = () => _handler.Handle(command, CancellationToken.None);
 
         // Assert
         await act.Should().ThrowAsync<ForbiddenAccessException>()
-            .WithMessage("*master*");
+            .WithMessage("*master*owner*");
     }
 
     [Fact]
-    public async Task Handle_WhenPlayerTriesToTransferOwnEntity_ShouldThrowForbiddenAccessException()
+    public async Task Handle_WhenPlayerTransfersOwnEntity_ShouldSucceed()
     {
-        // Arrange - Even transferring own entity requires master role
+        // Arrange - Player transfers their own entity to another player
         _currentUserServiceMock.Setup(x => x.UserId).Returns(_playerId);
         var playerMembership = CreatePlayerMembership(_playerId);
+        var otherPlayerMembership = CreatePlayerMembership(_otherPlayerId);
         var entity = CreateEntity(_playerId, OwnershipType.Player);
 
         SetupCurrentUserMembership(playerMembership);
+        SetupNewOwnerMembership(otherPlayerMembership);
         SetupEntity(entity);
 
         var command = new TransferEntityOwnershipCommand(
@@ -266,11 +271,42 @@ public class TransferEntityOwnershipCommandHandlerTests
             _otherPlayerId);
 
         // Act
-        var act = () => _handler.Handle(command, CancellationToken.None);
+        var result = await _handler.Handle(command, CancellationToken.None);
 
         // Assert
-        await act.Should().ThrowAsync<ForbiddenAccessException>()
-            .WithMessage("*master*");
+        result.Should().NotBeNull();
+        result.OwnerId.Should().Be(_otherPlayerId);
+        result.OwnershipType.Should().Be(OwnershipType.Player);
+
+        _loreEntityRepositoryMock.Verify(x => x.Update(It.IsAny<LoreEntity>()), Times.Once);
+        _unitOfWorkMock.Verify(x => x.SaveChangesAsync(It.IsAny<CancellationToken>()), Times.Once);
+    }
+
+    [Fact]
+    public async Task Handle_WhenPlayerTransfersOwnEntityToMaster_ShouldSucceed()
+    {
+        // Arrange - Player transfers their entity to the master
+        _currentUserServiceMock.Setup(x => x.UserId).Returns(_playerId);
+        var playerMembership = CreatePlayerMembership(_playerId);
+        var masterMembership = CreateMasterMembership(_masterId);
+        var entity = CreateEntity(_playerId, OwnershipType.Player);
+
+        SetupCurrentUserMembership(playerMembership);
+        SetupNewOwnerMembership(masterMembership);
+        SetupEntity(entity);
+
+        var command = new TransferEntityOwnershipCommand(
+            _campaignId,
+            _entityId,
+            _masterId);
+
+        // Act
+        var result = await _handler.Handle(command, CancellationToken.None);
+
+        // Assert
+        result.Should().NotBeNull();
+        result.OwnerId.Should().Be(_masterId);
+        result.OwnershipType.Should().Be(OwnershipType.Master);
     }
 
     #endregion

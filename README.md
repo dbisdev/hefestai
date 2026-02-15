@@ -9,7 +9,7 @@ AI-powered worldbuilding and lore management platform for tabletop RPG game mast
 │    Frontend     │────▶│   .NET Backend   │────▶│  Genkit Service │
 │   (React/Vite)  │     │   (ASP.NET Core) │     │   (Node/Express)│
 │                 │     │                  │     │                 │
-│   Vercel        │     │    Fly.io        │     │    Fly.io       │
+│   Vercel        │     │    Railway       │     │    Railway      │
 └─────────────────┘     └──────────────────┘     └─────────────────┘
                                │
                                ▼
@@ -27,8 +27,8 @@ AI-powered worldbuilding and lore management platform for tabletop RPG game mast
 | Component | Technology | Port (Dev) | Deployment |
 |-----------|------------|------------|------------|
 | Frontend | React 19 + Vite 6 + TypeScript | 5173 | Vercel |
-| Backend API | .NET 8 + EF Core 8 | 5000 | Fly.io |
-| AI Service | Node.js 20 + Genkit 1.0 + Gemini | 3000 | Fly.io |
+| Backend API | .NET 8 + EF Core 8 | 5000 | Railway |
+| AI Service | Node.js 20 + Genkit 1.0 + Gemini | 3000 | Railway |
 | Database | PostgreSQL 16 + pgvector | 5432 | Supabase |
 
 ## Features

@@ -521,20 +521,24 @@ public class LoreEntityTests
     }
 
     [Fact]
-    public void CanBeReadBy_PrivateVisibility_ShouldAllowMasterOnly()
+    public void CanBeReadBy_PrivateVisibility_ShouldAllowOwnerOnly()
     {
         // Arrange
         var entity = LoreEntity.Create(
             _campaignId, _ownerId, "character", "Test",
             visibility: VisibilityLevel.Private);
 
-        // Act & Assert
+        // Act & Assert - Only owner can read private entities
         entity.CanBeReadBy(_otherUserId, isCampaignMember: false, isCampaignMaster: false)
             .Should().BeFalse("Non-member should NOT read private entity");
         entity.CanBeReadBy(_otherUserId, isCampaignMember: true, isCampaignMaster: false)
             .Should().BeFalse("Member (non-master) should NOT read private entity");
         entity.CanBeReadBy(_otherUserId, isCampaignMember: true, isCampaignMaster: true)
-            .Should().BeTrue("Master should read private entity");
+            .Should().BeFalse("Even master should NOT read private entity (owner only)");
+        
+        // Owner can read
+        entity.CanBeReadBy(_ownerId, isCampaignMember: true, isCampaignMaster: false)
+            .Should().BeTrue("Owner should read own private entity");
     }
 
     [Fact]

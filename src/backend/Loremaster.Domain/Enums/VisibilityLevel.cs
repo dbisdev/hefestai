@@ -11,7 +11,7 @@ public enum VisibilityLevel
     Draft = 0,
     
     /// <summary>
-    /// Owner and campaign master can see
+    /// Only owner can see (hidden from others, including Masters)
     /// </summary>
     Private = 1,
     

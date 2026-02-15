@@ -193,8 +193,8 @@ public class LoreEntity : SoftDeletableEntity
         // Campaign visibility - members can read
         if (Visibility == VisibilityLevel.Campaign && isCampaignMember) return true;
         
-        // Private visibility - only master can read (besides owner)
-        if (Visibility == VisibilityLevel.Private && isCampaignMaster) return true;
+        // Private visibility - only owner can read (already handled above)
+        // No special access for masters - private means owner-only
         
         // Draft - only owner (already handled above)
         return false;

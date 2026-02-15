@@ -12,6 +12,10 @@ public record LoreEntityDto
     public Guid Id { get; init; }
     public Guid CampaignId { get; init; }
     public Guid OwnerId { get; init; }
+    /// <summary>
+    /// Display name of the entity owner (User.DisplayName or Email fallback).
+    /// </summary>
+    public string? OwnerName { get; init; }
     public string EntityType { get; init; } = null!;
     public string Name { get; init; } = null!;
     public string? Description { get; init; }
@@ -36,6 +40,7 @@ public record LoreEntityDto
             Id = entity.Id,
             CampaignId = entity.CampaignId,
             OwnerId = entity.OwnerId,
+            OwnerName = entity.Owner?.DisplayName ?? entity.Owner?.Email,
             EntityType = entity.EntityType,
             Name = entity.Name,
             Description = entity.Description,

@@ -111,43 +111,55 @@ export const MasterHubPage: React.FC<MasterHubPageProps> = ({ onNavigate, onLogo
 
           {/* Navigation Panels Grid */}
           <div className="grid grid-cols-1 md:grid-cols-4 gap-6 w-full max-w-7xl mb-12">
-            {HUB_PANELS.map((panel) => (
+            {HUB_PANELS.map((panel, index) => (
               <button
                 key={panel.id}
                 onClick={() => onNavigate(panel.id)}
-                className={`group relative bg-surface-dark/40 border ${panel.color} p-6 text-left transition-all duration-700 hover:scale-[1.01] hover:bg-surface-dark/80 hover:shadow-[0_0_20px_rgba(37,244,106,0.03)] clip-tech-br flex flex-col md:min-h-[280px] min-h-[220px] overflow-hidden`}
+                className={`group relative bg-surface-dark border ${panel.color} p-6 text-left transition-all hover:scale-[1.02] hover:border-primary/60 hover:shadow-[0_0_20px_rgba(37,244,106,0.2)] clip-tech-br flex flex-col md:min-h-[280px] min-h-[220px] overflow-hidden cursor-pointer`}
+                style={{ animationDelay: `${index * 50}ms` }}
               >
                 {/* Panel Header - Icon and Title inline */}
                 <div className="mb-4">
                   <div className="flex items-center gap-3 mb-2">
-                    <div className="w-12 h-12 shrink-0 border border-primary/10 flex items-center justify-center bg-primary/5 group-hover:bg-primary/10 transition-colors duration-700">
-                      <span className="material-icons text-primary/40 group-hover:text-primary/80 text-2xl transition-all">
+                    <div className="w-12 h-12 shrink-0 border border-primary/20 flex items-center justify-center bg-primary/5 group-hover:bg-primary/20 transition-all">
+                      <span className="material-icons text-primary/50 group-hover:text-primary text-2xl transition-all">
                         {panel.icon}
                       </span>
                     </div>
-                    <h3 className="text-xl font-display font-bold text-primary/70 group-hover:text-primary group-hover:text-glow uppercase tracking-widest leading-none transition-colors duration-500">
+                    <h3 className="text-xl font-display font-bold text-primary/80 group-hover:text-primary group-hover:text-glow uppercase tracking-widest leading-none transition-all">
                       {panel.title}
                     </h3>
                   </div>
-                  <p className="text-[10px] text-primary/20 font-mono uppercase tracking-wider italic">
+                  <p className="text-[10px] text-primary/30 font-mono uppercase tracking-wider italic group-hover:text-primary/50 transition-colors">
                     {panel.subtitle}
                   </p>
                 </div>
 
                 {/* Panel Description */}
-                <p className="text-xs text-primary/40 leading-relaxed font-mono mt-2 mb-6 flex-1 group-hover:text-primary/60 transition-colors duration-700">
+                <p className="text-xs text-primary/40 leading-relaxed font-mono mt-2 mb-6 flex-1 group-hover:text-primary/70 transition-colors">
                   {panel.description}
                 </p>
 
+                {/* Decorative pulsing bars - visible on hover */}
+                <div className="absolute top-3 right-3 opacity-0 group-hover:opacity-100 transition-opacity">
+                  <div className="flex gap-1">
+                    <div className="w-1 h-3 bg-primary/40 animate-pulse"></div>
+                    <div className="w-1 h-3 bg-primary/40 animate-pulse" style={{ animationDelay: '0.2s' }}></div>
+                  </div>
+                </div>
+
                 {/* Panel Footer */}
-                <div className="mt-auto pt-4 border-t border-primary/5 flex items-center justify-between">
-                  <span className="text-[10px] text-primary/20 font-bold uppercase tracking-widest group-hover:text-primary/40 transition-colors">
+                <div className="mt-auto pt-4 border-t border-primary/10 flex items-center justify-between group-hover:border-primary/30 transition-colors">
+                  <span className="text-[10px] text-primary/30 font-bold uppercase tracking-widest group-hover:text-primary/60 transition-colors">
                     Entrada Disponible
                   </span>
-                  <span className="material-icons text-primary/30 group-hover:text-primary/60 group-hover:translate-x-0.5 transition-all duration-500">
+                  <span className="material-icons text-primary/40 group-hover:text-primary group-hover:translate-x-1 transition-all">
                     arrow_forward
                   </span>
                 </div>
+
+                {/* Scanline overlay effect on hover */}
+                <div className="absolute inset-0 pointer-events-none opacity-0 group-hover:opacity-10 bg-[linear-gradient(rgba(18,16,16,0)_50%,rgba(0,0,0,0.25)_50%),linear-gradient(90deg,rgba(255,0,0,0.06),rgba(0,255,0,0.02),rgba(0,0,255,0.06))] bg-[length:100%_4px,3px_100%] transition-opacity"></div>
               </button>
             ))}
           </div>

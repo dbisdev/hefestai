@@ -20,7 +20,7 @@ interface CharacterGeneratorPageProps {
   onLogout?: () => void;
 }
 
-const UNKNOWN_CHAR_IMAGE = "https://images.unsplash.com/photo-1518020382113-a7e8fc38eac9?q=80&w=400&auto=format&fit=crop";
+const UNKNOWN_CHAR_IMAGE = "https://images.unsplash.com/photo-1683322001857-f4d932a40672?q=80&w=400&auto=format&fit=crop";
 
 const SPECIES_OPTIONS = [
   { value: '', label: 'Seleccionar Genotipo...' },

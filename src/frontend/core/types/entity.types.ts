@@ -45,6 +45,8 @@ export interface LoreEntity {
   id: string;
   campaignId: string;
   ownerId: string;
+  /** Display name of the entity owner */
+  ownerName?: string;
   entityType: EntityCategory;
   name: string;
   description?: string;
@@ -97,6 +99,17 @@ export interface UpdateLoreEntityInput {
  */
 export interface ChangeVisibilityInput {
   visibility: VisibilityLevel;
+}
+
+/**
+ * Request to transfer entity ownership
+ * Matches backend TransferOwnershipRequest
+ */
+export interface TransferOwnershipInput {
+  /** The ID of the new owner (must be a campaign member) */
+  newOwnerId: string;
+  /** Optional ownership type for the transfer */
+  ownershipType?: OwnershipType;
 }
 
 // ============================================

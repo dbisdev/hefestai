@@ -26,6 +26,7 @@ export type {
   CreateLoreEntityInput,
   UpdateLoreEntityInput,
   ChangeVisibilityInput,
+  TransferOwnershipInput,
   DynamicStats,
   CharacterData,
   SystemData,

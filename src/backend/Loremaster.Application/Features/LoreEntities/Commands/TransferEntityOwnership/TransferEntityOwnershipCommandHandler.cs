@@ -9,7 +9,7 @@ namespace Loremaster.Application.Features.LoreEntities.Commands.TransferEntityOw
 
 /// <summary>
 /// Handler for TransferEntityOwnershipCommand. Transfers entity ownership to another campaign member.
-/// Only the campaign master can transfer entity ownership.
+/// Campaign masters can transfer any entity, and entity owners can transfer their own entities.
 /// </summary>
 public class TransferEntityOwnershipCommandHandler : IRequestHandler<TransferEntityOwnershipCommand, LoreEntityDto>
 {
@@ -47,7 +47,7 @@ public class TransferEntityOwnershipCommandHandler : IRequestHandler<TransferEnt
     /// <param name="request">The transfer ownership command.</param>
     /// <param name="cancellationToken">Cancellation token.</param>
     /// <returns>The updated entity as a DTO.</returns>
-    /// <exception cref="ForbiddenAccessException">Thrown when user is not the campaign master.</exception>
+    /// <exception cref="ForbiddenAccessException">Thrown when user is not the campaign master or entity owner.</exception>
     /// <exception cref="NotFoundException">Thrown when entity, campaign, or new owner not found.</exception>
     public async Task<LoreEntityDto> Handle(TransferEntityOwnershipCommand request, CancellationToken cancellationToken)
     {
@@ -67,18 +67,19 @@ public class TransferEntityOwnershipCommandHandler : IRequestHandler<TransferEnt
             throw new NotFoundException("Campaign", request.CampaignId);
         }
 
-        // Only campaign master can transfer ownership
-        if (!currentUserMembership.IsMaster)
-        {
-            throw new ForbiddenAccessException("Only the campaign master can transfer entity ownership");
-        }
-
         // Get the entity
         var entity = await _loreEntityRepository.GetByIdAsync(request.EntityId, cancellationToken);
         
         if (entity == null || entity.CampaignId != request.CampaignId)
         {
             throw new NotFoundException("LoreEntity", request.EntityId);
+        }
+
+        // Only campaign master or entity owner can transfer ownership
+        var isOwner = entity.OwnerId == userId;
+        if (!currentUserMembership.IsMaster && !isOwner)
+        {
+            throw new ForbiddenAccessException("Only the campaign master or entity owner can transfer entity ownership");
         }
 
         // Verify the new owner is a campaign member
@@ -109,7 +110,7 @@ public class TransferEntityOwnershipCommandHandler : IRequestHandler<TransferEnt
 
         _logger.LogInformation(
             "LoreEntity {EntityId} ownership transferred from {PreviousOwnerId} to {NewOwnerId} " +
-            "with ownership type {OwnershipType} by master {MasterId}",
+            "with ownership type {OwnershipType} by user {UserId}",
             request.EntityId, previousOwnerId, request.NewOwnerId, newOwnershipType, userId);
 
         return LoreEntityDto.FromEntity(entity);

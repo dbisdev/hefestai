@@ -16,7 +16,7 @@ import { EntityEditModal } from '@shared/components/modals';
 import { useCampaign } from '@core/context';
 import { entityService, entityTemplateService } from '@core/services/api';
 import { useCharacterSheetPdf } from '@core/hooks';
-import type { LoreEntity, User, EntityCategory, Campaign, CreateLoreEntityInput, EntityTemplateSummary } from '@core/types';
+import type { LoreEntity, User, EntityCategory, Campaign, CreateLoreEntityInput, EntityTemplateSummary, FieldDefinition } from '@core/types';
 import { Screen, CampaignRole, VisibilityLevel } from '@core/types';
 
 interface GalleryPageProps {
@@ -38,14 +38,14 @@ type CategoryInfo = {
  * Entity categories available in the gallery
  * These map to backend entityType values (lowercase)
  */
-const ENTITY_CATEGORIES: CategoryInfo[] = [
-  { id: 'solar_system', label: 'SISTEMAS SOLARES', icon: 'public' },
+const ENTITY_CATEGORIES: CategoryInfo[] = [  
   { id: 'character', label: 'PERSONAJES', icon: 'face' },
   { id: 'npc', label: 'ACTORES', icon: 'groups' },
   { id: 'enemy', label: 'ENEMIGOS', icon: 'pest_control' },
   { id: 'vehicle', label: 'VEHÍCULOS', icon: 'rocket_launch' },
   { id: 'mission', label: 'MISIONES', icon: 'assignment' },
   { id: 'encounter', label: 'ENCUENTROS', icon: 'pest_control' },
+  { id: 'solar_system', label: 'SISTEMAS SOLARES', icon: 'public' },
 ];
 
 /**
@@ -151,8 +151,8 @@ export const GalleryPage: React.FC<GalleryPageProps> = ({ user, onNavigate, onLo
   const [confirmedTemplates, setConfirmedTemplates] = useState<EntityTemplateSummary[]>([]);
   const [isLoadingTemplates, setIsLoadingTemplates] = useState(false);
   
-  // Field definitions for the selected entity's type (for display name mapping)
-  const [selectedEntityFields, setSelectedEntityFields] = useState<import('@core/types').FieldDefinition[]>([]);
+  // Field definitions for the selected entity's type (used for display name mapping)
+  const [selectedEntityFieldDefs, setSelectedEntityFieldDefs] = useState<FieldDefinition[]>([]);
   
   // Accessibility: Screen reader announcement state
   const [announcement, setAnnouncement] = useState<string>('');
@@ -243,13 +243,13 @@ export const GalleryPage: React.FC<GalleryPageProps> = ({ user, onNavigate, onLo
   }, [activeCampaign?.gameSystemId]);
 
   /**
-   * Fetch template field definitions when an entity is selected.
-   * Used to map field identifiers to display names in the detail panel.
+   * Load field definitions when selected entity changes.
+   * Used for display name mapping in edit modal and PDF export.
    */
   useEffect(() => {
-    const fetchEntityFields = async () => {
+    const loadFieldDefinitions = async () => {
       if (!selectedEntity || !activeCampaign?.gameSystemId) {
-        setSelectedEntityFields([]);
+        setSelectedEntityFieldDefs([]);
         return;
       }
       
@@ -258,14 +258,14 @@ export const GalleryPage: React.FC<GalleryPageProps> = ({ user, onNavigate, onLo
           activeCampaign.gameSystemId,
           selectedEntity.entityType
         );
-        setSelectedEntityFields(fields);
+        setSelectedEntityFieldDefs(fields);
       } catch (error) {
-        console.error('Failed to fetch entity template fields:', error);
-        setSelectedEntityFields([]);
+        console.error('Failed to load field definitions:', error);
+        setSelectedEntityFieldDefs([]);
       }
     };
     
-    fetchEntityFields();
+    loadFieldDefinitions();
   }, [selectedEntity?.entityType, activeCampaign?.gameSystemId]);
 
   /**
@@ -403,9 +403,10 @@ export const GalleryPage: React.FC<GalleryPageProps> = ({ user, onNavigate, onLo
 
   /**
    * Handle opening the edit modal
+   * Allowed for Masters or entity owners
    */
   const handleEditEntity = () => {
-    if (selectedEntity && isMaster) {
+    if (selectedEntity && (isMaster || user?.id === selectedEntity.ownerId)) {
       setShowEditModal(true);
       announce(`Editando entidad: ${selectedEntity.name}`);
     }
@@ -413,12 +414,27 @@ export const GalleryPage: React.FC<GalleryPageProps> = ({ user, onNavigate, onLo
 
   /**
    * Handle saving edited entity
+   * Clears selection if ownership was transferred to another user
    */
-  const handleSaveEdit = (updatedEntity: LoreEntity) => {
-    setSelectedEntity(updatedEntity);
+  const handleSaveEdit = async (updatedEntity: LoreEntity) => {
+    // Check if ownership was transferred to another user
+    const ownershipChanged = updatedEntity.ownerId !== selectedEntity?.ownerId;
+    
+    // Close modal first
     setShowEditModal(false);
-    loadEntities();
-    announce(`Entidad actualizada: ${updatedEntity.name}`);
+    
+    // Refresh entities list
+    await loadEntities();
+    
+    // If ownership changed, clear selection (entity may no longer be accessible)
+    // Otherwise, update the selected entity with fresh data
+    if (ownershipChanged) {
+      setSelectedEntity(null);
+      announce(`Propiedad de "${updatedEntity.name}" transferida`);
+    } else {
+      setSelectedEntity(updatedEntity);
+      announce(`Entidad actualizada: ${updatedEntity.name}`);
+    }
   };
 
   /**
@@ -1113,6 +1129,7 @@ export const GalleryPage: React.FC<GalleryPageProps> = ({ user, onNavigate, onLo
                   key={entity.id}
                   entity={entity}
                   selected={selectedEntity?.id === entity.id}
+                  currentUserId={user?.id}
                   onClick={() => handleEntitySelect(entity)}
                   animationDelay={idx * 50}
                 />
@@ -1139,11 +1156,12 @@ export const GalleryPage: React.FC<GalleryPageProps> = ({ user, onNavigate, onLo
             ref={detailPanelRef}
             entity={selectedEntity}
             isMaster={isMaster}
+            currentUserId={user?.id}
+            fieldDefinitions={selectedEntityFieldDefs}
             onClose={handleDetailClose}
             onDelete={handleDelete}
             onVisibilityChange={handleVisibilityChange}
             onEdit={handleEditEntity}
-            fieldDefinitions={selectedEntityFields}
           />
         )}
       </div>
@@ -1152,6 +1170,16 @@ export const GalleryPage: React.FC<GalleryPageProps> = ({ user, onNavigate, onLo
       {showEditModal && selectedEntity && (
         <EntityEditModal
           entity={selectedEntity}
+          canEditVisibility={
+            // Owner or campaign master can edit visibility
+            (user?.id === selectedEntity.ownerId) || isActiveCampaignMaster
+          }
+          canEditOwnership={
+            // Owner or campaign master can transfer ownership
+            (user?.id === selectedEntity.ownerId) || isActiveCampaignMaster
+          }
+          currentUserId={user?.id}
+          fieldDefinitions={selectedEntityFieldDefs}
           onClose={() => setShowEditModal(false)}
           onSave={handleSaveEdit}
         />
@@ -1167,6 +1195,7 @@ export const GalleryPage: React.FC<GalleryPageProps> = ({ user, onNavigate, onLo
 interface EntityCardProps {
   entity: LoreEntity;
   selected: boolean;
+  currentUserId?: string;
   onClick: () => void;
   animationDelay: number;
 }
@@ -1176,9 +1205,10 @@ interface EntityCardProps {
  * Displays a single entity in the gallery grid
  * Supports keyboard navigation as part of the grid
  */
-const EntityCard: React.FC<EntityCardProps> = ({ entity, selected, onClick, animationDelay }) => {
+const EntityCard: React.FC<EntityCardProps> = ({ entity, selected, currentUserId, onClick, animationDelay }) => {
   // Fallback image if none provided
-  const imageUrl = entity.imageUrl || 'https://images.unsplash.com/photo-1518020382113-a7e8fc38eac9?q=80&w=400&auto=format&fit=crop';
+  const imageUrl = entity.imageUrl || 'https://images.unsplash.com/photo-1683322001857-f4d932a40672?q=80&w=400&auto=format&fit=crop';
+  const isOwner = currentUserId === entity.ownerId;
   
   return (
     <div
@@ -1205,6 +1235,15 @@ const EntityCard: React.FC<EntityCardProps> = ({ entity, selected, onClick, anim
           className="w-full h-full object-cover grayscale brightness-50 group-hover:grayscale-0 group-hover:brightness-100 transition-all duration-500" 
         />
         <div className="absolute inset-0 bg-primary/5 mix-blend-overlay group-hover:bg-transparent transition-colors"></div>
+        
+        {/* Owner badge */}
+        {isOwner && (
+          <div className="absolute top-2 left-2">
+            <span className="bg-primary/90 text-black text-[8px] font-bold px-2 py-0.5 uppercase tracking-wider">
+              OWNER
+            </span>
+          </div>
+        )}
         
         <div className="absolute top-2 right-2 opacity-0 group-hover:opacity-100 transition-opacity">
           <div className="flex gap-1">
@@ -1276,12 +1315,12 @@ const AddNewCard: React.FC<AddNewCardProps> = ({ onClick }) => (
 interface EntityDetailPanelProps {
   entity: LoreEntity;
   isMaster: boolean;
+  currentUserId?: string;
+  fieldDefinitions?: FieldDefinition[];
   onClose: () => void;
   onDelete: (id: string) => void;
   onVisibilityChange: (entityId: string, visibility: VisibilityLevel) => void;
   onEdit: () => void;
-  /** Field definitions for display name mapping */
-  fieldDefinitions?: import('@core/types').FieldDefinition[];
 }
 
 /**
@@ -1291,64 +1330,20 @@ interface EntityDetailPanelProps {
  * Includes PDF export functionality for character sheets
  */
 const EntityDetailPanel = forwardRef<HTMLElement, EntityDetailPanelProps>(
-  ({ entity, isMaster, onClose, onDelete, onVisibilityChange, onEdit, fieldDefinitions }, ref) => {
+  ({ entity, isMaster, currentUserId, fieldDefinitions, onClose, onDelete, onVisibilityChange, onEdit }, ref) => {
     // Fallback image if none provided
-    const imageUrl = entity.imageUrl || 'https://images.unsplash.com/photo-1518020382113-a7e8fc38eac9?q=80&w=400&auto=format&fit=crop';
+    const imageUrl = entity.imageUrl || 'https://images.unsplash.com/photo-1683322001857-f4d932a40672?q=80&w=400&auto=format&fit=crop';
     
     // PDF export hook
     const { state: pdfState, exportToPdf } = useCharacterSheetPdf();
     
-    // Visibility dropdown state
-    const [isVisibilityOpen, setIsVisibilityOpen] = useState(false);
-    
-    // Build label map from field definitions for display name mapping
-    const labelMap = React.useMemo(() => {
-      if (!fieldDefinitions || fieldDefinitions.length === 0) return undefined;
-      const map: Record<string, string> = {};
-      fieldDefinitions.forEach(field => {
-        map[field.name] = field.displayName;
-        map[field.name.toLowerCase()] = field.displayName;
-        map[field.name.toUpperCase()] = field.displayName;
-      });
-      return map;
-    }, [fieldDefinitions]);
-    
-    /**
-     * Get display label for an attribute key.
-     * Uses template field definitions if available, otherwise formats the key.
-     */
-    const getDisplayLabel = (key: string): string => {
-      if (labelMap?.[key]) return labelMap[key];
-      if (labelMap?.[key.toLowerCase()]) return labelMap[key.toLowerCase()];
-      if (labelMap?.[key.toUpperCase()]) return labelMap[key.toUpperCase()];
-      // Fallback: format the key (e.g., "ATTRIBUTES_STRENGTH" -> "Attributes Strength")
-      return key.replace(/_/g, ' ').toLowerCase().replace(/\b\w/g, c => c.toUpperCase());
-    };
-    
-    /**
-     * Visibility options for the dropdown
-     */
-    const visibilityOptions = [
-      { value: VisibilityLevel.Draft, label: 'BORRADOR', description: 'Solo tú puedes verlo' },
-      { value: VisibilityLevel.Private, label: 'PRIVADO', description: 'Solo el creador' },
-      { value: VisibilityLevel.Campaign, label: 'CAMPAÑA', description: 'Miembros de la campaña' },
-      { value: VisibilityLevel.Public, label: 'PÚBLICO', description: 'Todos pueden verlo' }
-    ];
-    
-    /**
-     * Handle visibility selection
-     */
-    const handleVisibilitySelect = (visibility: VisibilityLevel) => {
-      onVisibilityChange(entity.id, visibility);
-      setIsVisibilityOpen(false);
-    };
-    
     /**
      * Handle PDF export
+     * Passes field definitions for display name mapping
      */
     const handleExportPdf = async () => {
       try {
-        await exportToPdf(entity);
+        await exportToPdf(entity, { fieldDefinitions });
       } catch (error) {
         console.error('PDF export failed:', error);
       }
@@ -1396,86 +1391,35 @@ const EntityDetailPanel = forwardRef<HTMLElement, EntityDetailPanelProps>(
                 <span className="text-primary font-bold uppercase">{entity.entityType.replace('_', ' ')}</span>
               </div>
               
-              {/* Visibility - Interactive dropdown for Masters, static display for others */}
-              {isMaster ? (
-                <div className="bg-black/40 border border-primary/10 p-2 text-[9px] relative">
-                  <span className="text-primary/40 block">VISIBILIDAD</span>
-                  <button
-                    onClick={() => setIsVisibilityOpen(!isVisibilityOpen)}
-                    className="w-full flex items-center justify-between text-primary font-bold uppercase hover:text-cyan-400 transition-colors focus:outline-none focus:ring-1 focus:ring-primary"
-                    aria-expanded={isVisibilityOpen}
-                    aria-haspopup="listbox"
-                    aria-label="Cambiar visibilidad"
-                  >
-                    <span>
-                      {entity.visibility === 0 ? 'BORRADOR' : 
-                       entity.visibility === 1 ? 'PRIVADO' : 
-                       entity.visibility === 2 ? 'CAMPAÑA' : 'PUBLICO'}
-                    </span>
-                    <span className="material-icons text-xs">{isVisibilityOpen ? 'expand_less' : 'expand_more'}</span>
-                  </button>
-                  
-                  {/* Visibility dropdown menu */}
-                  {isVisibilityOpen && (
-                    <div 
-                      className="absolute top-full left-0 right-0 mt-1 bg-surface-dark border border-primary/40 shadow-lg z-50"
-                      role="listbox"
-                      aria-label="Opciones de visibilidad"
-                    >
-                      {visibilityOptions.map((option) => (
-                        <button
-                          key={option.value}
-                          onClick={() => handleVisibilitySelect(option.value)}
-                          className={`w-full p-2 text-left hover:bg-primary/20 transition-colors flex flex-col ${
-                            entity.visibility === option.value ? 'bg-primary/10 border-l-2 border-primary' : ''
-                          }`}
-                          role="option"
-                          aria-selected={entity.visibility === option.value}
-                        >
-                          <span className="text-primary font-bold text-[9px]">{option.label}</span>
-                          <span className="text-primary/40 text-[8px]">{option.description}</span>
-                        </button>
-                      ))}
-                    </div>
-                  )}
-                </div>
-              ) : (
-                <div className="bg-black/40 border border-primary/10 p-2 text-[9px]">
-                  <span className="text-primary/40 block">VISIBILIDAD</span>
-                  <span className="text-primary font-bold uppercase">
-                    {entity.visibility === 0 ? 'BORRADOR' : 
-                     entity.visibility === 1 ? 'PRIVADO' : 
-                     entity.visibility === 2 ? 'CAMPAÑA' : 'PUBLICO'}
-                  </span>
-                </div>
-              )}
+              {/* Owner Name display */}
+              <div className="bg-black/40 border border-primary/10 p-2 text-[9px]">
+                <span className="text-primary/40 block">PROPIETARIO</span>
+                <span className="text-primary font-bold truncate block" title={entity.ownerName || 'Desconocido'}>
+                  {entity.ownerName || 'Desconocido'}
+                </span>
+              </div>
+            </div>
+            
+            {/* Visibility - Read-only display */}
+            <div className="bg-black/40 border border-primary/10 p-2 text-[9px]">
+              <span className="text-primary/40 block">VISIBILIDAD</span>
+              <span className="text-primary font-bold uppercase">
+                {entity.visibility === 0 ? 'BORRADOR' : 
+                 entity.visibility === 1 ? 'PRIVADO' : 
+                 entity.visibility === 2 ? 'CAMPAÑA' : 'PUBLICO'}
+              </span>
             </div>
 
             <div className="bg-black/60 p-4 border border-primary/20 text-[11px] text-primary/80 leading-relaxed shadow-inner">
               <p className="text-[9px] text-primary/40 mb-2 uppercase tracking-[0.2em] font-bold">// BITÁCORA_NÚCLEO</p>
               <p>{entity.description || "Sin descripción adicional en el núcleo de datos. Acceso a metadatos restringido."}</p>
             </div>
-
-            {/* Display attributes if available */}
-            {entity.attributes && Object.keys(entity.attributes).length > 0 && (
-              <div className="space-y-2">
-                <p className="text-[9px] text-primary/40 uppercase tracking-[0.2em] font-bold">// ATRIBUTOS</p>
-                <div className="grid grid-cols-3 gap-2">
-                  {Object.entries(entity.attributes).slice(0, 6).map(([key, value]) => (
-                    <div key={key} className="bg-surface-dark border border-primary/20 p-2 text-center" title={key}>
-                      <p className="text-[8px] text-primary/40 uppercase mb-1 truncate">{getDisplayLabel(key)}</p>
-                      <p className="text-sm font-bold text-primary">{String(value)}</p>
-                    </div>
-                  ))}
-                </div>
-              </div>
-            )}
           </div>
 
           {/* Action buttons */}
           <div className="mt-auto flex flex-col gap-2 pt-4 border-t border-primary/10">
-            {/* Edit Button (Master only) */}
-            {isMaster && (
+            {/* Edit Button (Master or Owner can edit) */}
+            {(isMaster || currentUserId === entity.ownerId) && (
               <button 
                 onClick={onEdit}
                 aria-label={`Editar ${entity.name}`}
@@ -1503,8 +1447,8 @@ const EntityDetailPanel = forwardRef<HTMLElement, EntityDetailPanelProps>(
               )}
             </button>
             
-            {/* Delete Button (Master only) */}
-            {isMaster && (
+            {/* Delete Button (Master or Owner can delete) */}
+            {(isMaster || currentUserId === entity.ownerId) && (
               <button 
                 onClick={() => onDelete(entity.id)}
                 aria-label={`Eliminar ${entity.name}`}

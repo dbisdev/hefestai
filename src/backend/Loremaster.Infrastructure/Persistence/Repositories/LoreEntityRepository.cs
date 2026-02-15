@@ -71,21 +71,16 @@ public class LoreEntityRepository : ILoreEntityRepository
             .Where(e => e.CampaignId == campaignId && e.DeletedAt == null);
 
         // Apply visibility filters
-        if (isMaster)
-        {
-            // Masters can see everything except other players' drafts
-            query = query.Where(e => 
-                e.OwnerId == userId || // Own entities
-                e.Visibility != VisibilityLevel.Draft); // Non-draft entities
-        }
-        else
-        {
-            // Players can see: own entities, campaign-visible, public
-            query = query.Where(e => 
-                e.OwnerId == userId || // Own entities
-                e.Visibility == VisibilityLevel.Campaign ||
-                e.Visibility == VisibilityLevel.Public);
-        }
+        // Both Masters and Players follow the same visibility rules:
+        // - Own entities: always visible
+        // - Draft: owner only
+        // - Private: owner only  
+        // - Campaign: all campaign members
+        // - Public: everyone
+        query = query.Where(e => 
+            e.OwnerId == userId || // Own entities (includes Draft and Private)
+            e.Visibility == VisibilityLevel.Campaign ||
+            e.Visibility == VisibilityLevel.Public);
 
         return await query
             .OrderByDescending(e => e.CreatedAt)

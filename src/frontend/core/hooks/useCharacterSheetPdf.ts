@@ -7,7 +7,7 @@
 
 import { useState, useCallback } from 'react';
 import { CharacterSheetPdfService } from '@core/services/pdf';
-import type { LoreEntity } from '@core/types';
+import type { LoreEntity, FieldDefinition } from '@core/types';
 
 /**
  * PDF operation state
@@ -21,6 +21,16 @@ interface PdfState {
   error: string | null;
   /** Last successful operation result */
   lastResult: 'export' | 'import' | null;
+}
+
+/**
+ * PDF export options for the hook
+ */
+interface ExportOptions {
+  /** Optional custom filename */
+  filename?: string;
+  /** Field definitions from template for display name mapping */
+  fieldDefinitions?: FieldDefinition[];
 }
 
 /**
@@ -41,7 +51,7 @@ interface UseCharacterSheetPdfReturn {
   /** Current state */
   state: PdfState;
   /** Export entity to PDF and trigger download */
-  exportToPdf: (entity: LoreEntity, filename?: string) => Promise<void>;
+  exportToPdf: (entity: LoreEntity, options?: ExportOptions) => Promise<void>;
   /** Import entity data from PDF file */
   importFromPdf: (file: File) => Promise<ImportResult | null>;
   /** Clear any error state */
@@ -76,8 +86,11 @@ export function useCharacterSheetPdf(): UseCharacterSheetPdfReturn {
 
   /**
    * Export entity to PDF and trigger download
+   * @param entity - The entity to export
+   * @param options - Export options including filename and field definitions
    */
-  const exportToPdf = useCallback(async (entity: LoreEntity, filename?: string): Promise<void> => {
+  const exportToPdf = useCallback(async (entity: LoreEntity, options: ExportOptions = {}): Promise<void> => {
+    const { filename, fieldDefinitions } = options;
     setState(prev => ({ ...prev, isExporting: true, error: null }));
     
     try {
@@ -85,6 +98,7 @@ export function useCharacterSheetPdf(): UseCharacterSheetPdfReturn {
         includeImage: true,
         format: 'a4',
         orientation: 'portrait',
+        fieldDefinitions,
       });
       
       const exportFilename = filename || `${entity.name.replace(/\s+/g, '_')}_character_sheet`;

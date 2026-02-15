@@ -1,11 +1,12 @@
 /**
  * Login Page
  * Handles user authentication with cyberpunk terminal aesthetics
+ * Uses homepage panel style for consistency
  */
 
 import React, { useState } from 'react';
 import { GridBackground } from '@shared/components/layout';
-import { Input, Button, Card } from '@shared/components/ui';
+import { Input, Button } from '@shared/components/ui';
 import { ErrorMessage } from '@shared/components/feedback';
 import { validateEmail, validatePassword } from '@core/utils';
 import { useAuth } from '@core/context/AuthContext';
@@ -59,30 +60,37 @@ export const LoginPage: React.FC<LoginPageProps> = ({ onLoginSuccess, onGoSignup
       <GridBackground opacity={0.1} size={40} />
       
       <div className="relative z-10 w-full max-w-[450px]">
-        <Card className="p-8 shadow-[0_0_20px_rgba(37,244,106,0.15)] font-mono">
+        {/* Panel with homepage style */}
+        <div className="bg-surface-dark/40 border border-primary/10 p-8 flex flex-col gap-6 group hover:border-primary/40 transition-all clip-tech-br backdrop-blur-sm shadow-[0_0_30px_rgba(37,244,106,0.1)] font-mono">
+          
           {/* Back to Home Button */}
           {onBack && (
             <button 
               onClick={onBack}
-              className="flex items-center gap-1 text-primary/50 hover:text-primary text-[10px] uppercase mb-6 transition-colors"
+              className="flex items-center gap-1 text-primary/50 hover:text-primary text-[10px] uppercase transition-colors self-start"
             >
               <span className="material-icons text-sm">arrow_back</span>
               VOLVER_AL_INICIO
             </button>
           )}
           
-          {/* Header */}
-          <div className="text-center mb-8">
-            <h1 className="text-primary text-4xl font-display font-black text-glow uppercase mb-2">
-              HefestAI
-            </h1>
-            <p className="text-primary/60 text-xs tracking-widest uppercase">
-              Kernel v3.0 // Authentication
-            </p>
+          {/* Header with icon */}
+          <div className="flex items-center gap-4">
+            <div className="w-14 h-14 border border-primary/20 flex items-center justify-center bg-primary/5 group-hover:bg-primary/20 transition-all shrink-0">
+              <span className="material-icons text-3xl text-primary leading-none">login</span>
+            </div>
+            <div>
+              <h1 className="text-2xl font-display font-bold uppercase tracking-widest text-glow text-primary">
+                HefestAI
+              </h1>
+              <p className="text-primary/50 text-[10px] tracking-widest uppercase">
+                Kernel v3.0 // Authentication
+              </p>
+            </div>
           </div>
 
           {/* Form */}
-          <form onSubmit={handleLogin} className="space-y-6">
+          <form onSubmit={handleLogin} className="space-y-5">
             <Input
               label="Identificador de Usuario"
               type="email"
@@ -113,14 +121,14 @@ export const LoginPage: React.FC<LoginPageProps> = ({ onLoginSuccess, onGoSignup
               fullWidth
               size="lg"
               isLoading={authLoading}
-              icon="login"
+              icon="terminal"
             >
               ACCEDER_AL_NUCLEO
             </Button>
           </form>
 
           {/* Signup Link */}
-          <div className="mt-8 pt-6 border-t border-primary/20 text-center">
+          <div className="pt-4 border-t border-primary/10 text-center">
             <p className="text-primary/40 text-[10px] uppercase mb-3">
               ¿No tienes credenciales?
             </p>
@@ -131,7 +139,18 @@ export const LoginPage: React.FC<LoginPageProps> = ({ onLoginSuccess, onGoSignup
               CREAR_NUEVO_REGISTRO
             </button>
           </div>
-        </Card>
+
+          {/* Decorative dots */}
+          <div className="flex gap-1 justify-center pt-2">
+            {[...Array(5)].map((_, i) => (
+              <div 
+                key={i} 
+                className="w-1.5 h-1.5 bg-primary/30 group-hover:bg-primary/50 transition-all" 
+                style={{ transitionDelay: `${i * 50}ms` }}
+              />
+            ))}
+          </div>
+        </div>
       </div>
     </div>
   );

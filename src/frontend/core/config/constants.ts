@@ -40,9 +40,9 @@ export const TRANSITION_IN_DURATION = 500;
 
 // Placeholder Images
 export const PLACEHOLDER_IMAGES = {
-  character: 'https://images.unsplash.com/photo-1518020382113-a7e8fc38eac9?q=80&w=400&auto=format&fit=crop',
+  character: 'https://images.unsplash.com/photo-1683322001857-f4d932a40672?q=80&w=400&auto=format&fit=crop',
   solarSystem: 'https://images.unsplash.com/photo-1464802686167-b939a6910659?q=80&w=400&auto=format&fit=crop',
-  vehicle: 'https://lh3.googleusercontent.com/aida-public/AB6AXuDwdfYYr9eKFLnajyN2Ac6wDARXA_-mfibVDogKPYkAVDBc8v4xmz5S0onKageqWHbJkwaMQal6d_37piOBkfBRODrtpzVCAORmDmN9Lhms-1nWa0CAGhzL-5Cn16UzV3rpA-y-YrjlCMY3FBwJuARw1b7kBd9u5-Ix8KNLLf33w-D8gYTS1IH94XfBXDAo-nEqDs-LwRpisgMDqMM3vEgtruTqz-qjLsv8dR7IrSoRWDYyOqfAh36rTTDQBiDtNWaL6sCxsMV7POo',
+  vehicle: 'https://images.unsplash.com/photo-1702499903230-867455db1752?q=80&w=400&auto=format&fit=crop',
 } as const;
 
 // Generator Options
