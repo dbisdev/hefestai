@@ -312,14 +312,14 @@ const RuleQuery: React.FC<RuleQueryProps> = ({ onClose, gameSystemId: propGameSy
               value={query}
               onChange={(e) => setQuery(e.target.value)}
               placeholder="¿Qué quieres saber sobre las reglas?"
-              className="flex-1 bg-black/50 border border-primary/40 px-4 py-3 text-primary placeholder-primary/40 focus:border-primary focus:outline-none font-mono"
+              className="md:flex-1 flex-none bg-black/50 border border-primary/40 px-2 md:px-3 py-2 text-primary placeholder-primary/40 focus:border-primary focus:outline-none font-mono"
               aria-label="Consulta de reglas"
               disabled={isLoading}
             />
             <button
               type="submit"
               disabled={isLoading || !query.trim() || !hasDocuments || isLoadingGameSystems}
-              className="border border-primary px-3 py-3 text-xs uppercase hover:bg-primary hover:text-black transition-colors text-primary font-bold disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
+              className="border border-primary px-3 py-2 text-xs uppercase hover:bg-primary hover:text-black transition-colors text-primary font-bold disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
               aria-label="Buscar"
             >
               {isLoading ? (
@@ -332,7 +332,7 @@ const RuleQuery: React.FC<RuleQueryProps> = ({ onClose, gameSystemId: propGameSy
             <button
               type="button"
               onClick={() => setShowSettings(!showSettings)}
-              className={`border px-3 py-3 transition-colors ${
+              className={`border px-3 py-2 transition-colors ${
                 showSettings
                   ? 'bg-primary text-black border-primary'
                   : 'border-primary/40 text-primary hover:border-primary'

@@ -238,7 +238,7 @@ export const CampaignSettingsPage: React.FC<CampaignSettingsPageProps> = ({ onBa
     >
       <div className="flex flex-col lg:flex-row h-full p-4 lg:p-8 gap-6">
         {/* Main Form Section */}
-        <div className="flex-1 flex flex-col gap-6">
+        <div className="flex-1 flex flex-col gap-6  overflow-y-auto">
           {/* Header */}
           <div className="border border-primary/30 bg-black/60 p-4">
             <div className="flex items-center justify-between">
@@ -408,7 +408,7 @@ export const CampaignSettingsPage: React.FC<CampaignSettingsPageProps> = ({ onBa
             <span className="material-icons text-sm">terminal</span>
             System Log
           </div>
-          <div className="flex-1 p-4 font-mono text-xs text-primary/70 space-y-1 overflow-y-auto">
+          <div className="md:flex-1 flex-none h-24 md:h-32 p-4 font-mono text-xs text-primary/70 space-y-1 overflow-y-auto">
             {logs.map((log, i) => (
               <p key={i} className={`${log.includes('ERROR') ? 'text-danger' : log.includes('SUCCESS') ? 'text-green-400' : ''}`}>
                 {log}

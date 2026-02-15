@@ -708,7 +708,7 @@ export const GalleryPage: React.FC<GalleryPageProps> = ({ user, onNavigate, onLo
       //   </div>
       // }
     >
-      <div className="flex h-full gap-6 overflow-hidden relative font-mono">
+      <div className="flex h-full gap-3 md:gap-6 overflow-hidden relative font-mono">
         {/* Live region for screen reader announcements */}
         <div 
           role="status" 
@@ -925,7 +925,8 @@ export const GalleryPage: React.FC<GalleryPageProps> = ({ user, onNavigate, onLo
               className="flex flex-col gap-2"
             >
               <div className="p-1 border border-primary/50 text-[10px] text-primary text-center uppercase mb-2 bg-primary/5 font-bold tracking-[0.2em]">
-                :: GENERADORES ::
+                <span className="hidden md:inline">:: GENERADORES ::</span>
+                <span className="md:hidden xs:inline">:: GEN.AI ::</span>
               </div>
               {ENTITY_CATEGORIES.map((cat, index) => (
                 <button
@@ -965,7 +966,8 @@ export const GalleryPage: React.FC<GalleryPageProps> = ({ user, onNavigate, onLo
               className="flex flex-col gap-2"
             >
               <div className="p-1 border border-cyan-500/50 text-[10px] text-cyan-400 text-center uppercase mb-2 bg-cyan-500/5 font-bold tracking-[0.2em]">
-                :: GENERADORES ::
+                <span className="hidden md:inline">:: GENERADORES ::</span>
+                <span className="md:hidden xs:inline">:: GEN.AI ::</span>
               </div>
               {isLoadingTemplates ? (
                 <div className="flex items-center justify-center p-4 text-cyan-500/60">

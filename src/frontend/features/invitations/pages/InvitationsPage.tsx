@@ -193,7 +193,7 @@ export const InvitationsPage: React.FC<InvitationsPageProps> = ({ onNavigate, on
                 <h1 className="text-xl font-display text-primary uppercase tracking-widest">
                   Centro de Invitaciones
                 </h1>
-                <p className="text-primary/40 text-xs mt-1">
+                <p className="text-primary/40 text-xs mt-1 hidden md:block">
                   Gestiona codigos de acceso a campañas
                 </p>
               </div>
@@ -435,7 +435,7 @@ export const InvitationsPage: React.FC<InvitationsPageProps> = ({ onNavigate, on
             <span className="material-icons text-sm">terminal</span>
             System Log
           </div>
-          <div className="flex-1 p-4 font-mono text-xs text-primary/70 space-y-1 overflow-y-auto">
+          <div className="md:flex-1 flex-none h-24 md:h-32 p-4 font-mono text-xs text-primary/70 space-y-1 overflow-y-auto">
             {logs.map((log, i) => (
               <p 
                 key={i} 
@@ -450,6 +450,7 @@ export const InvitationsPage: React.FC<InvitationsPageProps> = ({ onNavigate, on
             <p className="animate-pulse">_</p>
           </div>
         </div>
+
       </div>
     </TerminalLayout>
   );

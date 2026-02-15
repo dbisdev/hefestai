@@ -329,7 +329,7 @@ export const GameSystemsPage: React.FC<GameSystemsPageProps> = ({ onNavigate, on
                 <h1 className="text-xl font-display text-primary uppercase tracking-widest">
                   Sistemas de Juego
                 </h1>
-                <p className="text-primary/40 text-xs mt-1">
+                <p className="text-primary/40 text-xs mt-1 hidden md:block">
                   Gestiona los sistemas de reglas disponibles
                 </p>
               </div>
@@ -683,25 +683,19 @@ export const GameSystemsPage: React.FC<GameSystemsPageProps> = ({ onNavigate, on
 
         {/* Terminal Log Section */}
         <div className="w-full lg:w-80 flex flex-col border border-primary/30 bg-black/80">
-          <div className="bg-primary/20 p-2 text-xs text-primary uppercase tracking-widest flex items-center gap-2">
-            <span className="material-icons text-sm">terminal</span>
-            System Log
-          </div>
-          <div className="flex-1 p-4 font-mono text-xs text-primary/70 space-y-1 overflow-y-auto">
-            {logs.map((log, i) => (
-              <p key={i} className={`${log.includes('ERROR') ? 'text-danger' : log.includes('SUCCESS') ? 'text-green-400' : ''}`}>
-                {log}
-              </p>
-            ))}
-            <p className="animate-pulse">_</p>
-          </div>
+
           
           {/* Selected System Details */}
           {selectedSystem && (
-            <div className="border-t border-primary/30 p-4">
-              <h3 className="text-xs text-primary/60 uppercase tracking-widest mb-2">
+            <>
+            <div className="bg-primary/20 p-2 text-xs text-primary uppercase tracking-widest flex items-center gap-2">
+              <span className="material-icons text-sm">terminal</span>
+              Sistema Seleccionado
+            </div>            
+            <div className="flex-1 border-t border-primary/30 p-4">
+              {/* <h3 className="text-xs text-primary/60 uppercase tracking-widest mb-2">
                 Sistema Seleccionado
-              </h3>
+              </h3> */}
               <div className="space-y-2 text-xs">
                 <div className="flex justify-between">
                   <span className="text-primary/40">ID:</span>
@@ -752,7 +746,22 @@ export const GameSystemsPage: React.FC<GameSystemsPageProps> = ({ onNavigate, on
                 CARGAR MANUAL RAG
               </Button>
             </div>
+            </>
           )}
+
+          <div className="bg-primary/20 p-2 text-xs text-primary uppercase tracking-widest flex items-center gap-2">
+            <span className="material-icons text-sm">terminal</span>
+            System Log
+          </div>
+          <div className="md:flex-1 flex-none h-24 md:h-32 p-4 font-mono text-xs text-primary/70 space-y-1 overflow-y-auto">
+            {logs.map((log, i) => (
+              <p key={i} className={`${log.includes('ERROR') ? 'text-danger' : log.includes('SUCCESS') ? 'text-green-400' : ''}`}>
+                {log}
+              </p>
+            ))}
+            <p className="animate-pulse">_</p>
+          </div>
+
         </div>
       </div>
   );
