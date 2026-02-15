@@ -12,7 +12,7 @@
 
 import React, { useState, useEffect, useCallback, useRef, KeyboardEvent, forwardRef } from 'react';
 import { TerminalLayout } from '@shared/components/layout';
-import { EntityEditModal } from '@shared/components/modals';
+import { EntityEditModal, EntityViewModal } from '@shared/components/modals';
 import { useCampaign } from '@core/context';
 import { entityService, entityTemplateService } from '@core/services/api';
 import { useCharacterSheetPdf } from '@core/hooks';
@@ -144,6 +144,7 @@ export const GalleryPage: React.FC<GalleryPageProps> = ({ user, onNavigate, onLo
   const [showCampaignSelector, setShowCampaignSelector] = useState(false);
   const [showImportDialog, setShowImportDialog] = useState(false);
   const [showEditModal, setShowEditModal] = useState(false);
+  const [showViewModal, setShowViewModal] = useState(false);
   const [transitionStatus, setTransitionStatus] = useState<'idle' | 'out' | 'in'>('idle');
   const [searchTerm, setSearchTerm] = useState<string>('');
   
@@ -1150,7 +1151,7 @@ export const GalleryPage: React.FC<GalleryPageProps> = ({ user, onNavigate, onLo
           )}
         </main>
 
-        {/* Detail Panel */}
+{/* Detail Panel */}
         {selectedEntity && (
           <EntityDetailPanel
             ref={detailPanelRef}
@@ -1162,11 +1163,12 @@ export const GalleryPage: React.FC<GalleryPageProps> = ({ user, onNavigate, onLo
             onDelete={handleDelete}
             onVisibilityChange={handleVisibilityChange}
             onEdit={handleEditEntity}
+            onView={() => setShowViewModal(true)}
           />
         )}
       </div>
       
-      {/* Entity Edit Modal */}
+{/* Entity Edit Modal */}
       {showEditModal && selectedEntity && (
         <EntityEditModal
           entity={selectedEntity}
@@ -1182,6 +1184,15 @@ export const GalleryPage: React.FC<GalleryPageProps> = ({ user, onNavigate, onLo
           fieldDefinitions={selectedEntityFieldDefs}
           onClose={() => setShowEditModal(false)}
           onSave={handleSaveEdit}
+        />
+      )}
+      
+      {/* Entity View Modal (Read-only details) */}
+      {showViewModal && selectedEntity && (
+        <EntityViewModal
+          entity={selectedEntity}
+          fieldDefinitions={selectedEntityFieldDefs}
+          onClose={() => setShowViewModal(false)}
         />
       )}
     </TerminalLayout>
@@ -1321,6 +1332,7 @@ interface EntityDetailPanelProps {
   onDelete: (id: string) => void;
   onVisibilityChange: (entityId: string, visibility: VisibilityLevel) => void;
   onEdit: () => void;
+  onView: () => void;
 }
 
 /**
@@ -1330,7 +1342,7 @@ interface EntityDetailPanelProps {
  * Includes PDF export functionality for character sheets
  */
 const EntityDetailPanel = forwardRef<HTMLElement, EntityDetailPanelProps>(
-  ({ entity, isMaster, currentUserId, fieldDefinitions, onClose, onDelete, onVisibilityChange, onEdit }, ref) => {
+  ({ entity, isMaster, currentUserId, fieldDefinitions, onClose, onDelete, onVisibilityChange, onEdit, onView }, ref) => {
     // Fallback image if none provided
     const imageUrl = entity.imageUrl || 'https://images.unsplash.com/photo-1683322001857-f4d932a40672?q=80&w=400&auto=format&fit=crop';
     
@@ -1416,8 +1428,17 @@ const EntityDetailPanel = forwardRef<HTMLElement, EntityDetailPanelProps>(
             </div>
           </div>
 
-          {/* Action buttons */}
+{/* Action buttons */}
           <div className="mt-auto flex flex-col gap-2 pt-4 border-t border-primary/10">
+            {/* View Details Button (Available to all users) */}
+            <button 
+              onClick={onView}
+              aria-label={`Ver detalles de ${entity.name}`}
+              className="w-full py-3 border border-primary/60 text-primary text-[10px] hover:bg-primary/20 transition-all font-bold uppercase tracking-[0.2em] flex items-center justify-center gap-2 focus:outline-none focus:ring-2 focus:ring-primary"
+            >
+              <span className="material-icons text-sm">visibility</span> VER_DETALLES
+            </button>
+            
             {/* Edit Button (Master or Owner can edit) */}
             {(isMaster || currentUserId === entity.ownerId) && (
               <button 

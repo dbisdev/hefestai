@@ -221,7 +221,6 @@ const RuleQuery: React.FC<RuleQueryProps> = ({ onClose, gameSystemId: propGameSy
   return (
     <div
       className="fixed inset-0 bg-black/90 flex items-center justify-center z-50"
-      onClick={onClose}
       onKeyDown={handleKeyDown}
       role="dialog"
       aria-modal="true"
@@ -240,7 +239,6 @@ const RuleQuery: React.FC<RuleQueryProps> = ({ onClose, gameSystemId: propGameSy
       <div
         ref={modalRef}
         className="bg-background-dark border-2 border-primary w-full max-w-4xl max-h-[90vh] overflow-hidden flex flex-col mx-4"
-        onClick={(e) => e.stopPropagation()}
       >
         {/* Header */}
         <div className="border-b border-primary/30 p-4 flex justify-between items-start">

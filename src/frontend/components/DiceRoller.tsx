@@ -127,6 +127,11 @@ const DiceRoller: React.FC<DiceRollerProps> = ({ onClose }) => {
     });
     resizeObserver.observe(containerRef.current);
 
+    // Initial size update with a small delay to ensure container is laid out
+    const initialSizeTimeout = setTimeout(() => {
+      updateSize();
+    }, 100);
+
     // Animation Loop
     const animate = () => {
       world.fixedStep();
@@ -148,6 +153,7 @@ const DiceRoller: React.FC<DiceRollerProps> = ({ onClose }) => {
     return () => {
       window.removeEventListener('resize', handleResize);
       resizeObserver.disconnect();
+      clearTimeout(initialSizeTimeout);
       if (requestRef.current) cancelAnimationFrame(requestRef.current);
       
       // Eliminar todos los meshes de la escena
@@ -319,15 +325,15 @@ const DiceRoller: React.FC<DiceRollerProps> = ({ onClose }) => {
   const fails = currentResults.filter(r => r.value === 1).length;
 
   return (
-    <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/90 backdrop-blur-md p-4 font-mono">
-      <div className="w-full max-w-6xl h-[85vh] bg-surface-dark border-2 border-primary/40 rounded-lg overflow-hidden flex flex-col shadow-[0_0_80px_rgba(37,244,106,0.15)] relative">
+    <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/90 backdrop-blur-md p-2 md:p-4 font-mono">
+      <div className="w-full max-w-6xl h-[95vh] md:h-[85vh] bg-surface-dark border-2 border-primary/40 rounded-lg overflow-hidden flex flex-col shadow-[0_0_80px_rgba(37,244,106,0.15)] relative">
         {/* Header */}
-        <div className="bg-primary/5 border-b border-primary/20 p-4 flex justify-between items-center z-10">
-          <div className="flex items-center gap-3">
-            <span className="material-icons text-primary animate-pulse">view_in_ar</span>
+        <div className="bg-primary/5 border-b border-primary/20 p-3 md:p-4 flex justify-between items-center z-10">
+          <div className="flex items-center gap-2 md:gap-3">
+            <span className="material-icons text-primary animate-pulse text-lg md:text-2xl">view_in_ar</span>
             <div className="flex flex-col">
-              <span className="text-sm font-bold tracking-widest text-primary uppercase">Módulo de Realidad Virtual Dice_Gen</span>
-              <span className="text-[10px] text-primary/40 uppercase">Simulación Física: Precision H-99</span>
+              <span className="text-xs md:text-sm font-bold tracking-widest text-primary uppercase">Dice_Gen</span>
+              <span className="text-[8px] md:text-[10px] text-primary/40 uppercase hidden sm:block">Simulación Física: Precision H-99</span>
             </div>
           </div>
           <button onClick={onClose} className="text-primary/60 hover:text-primary transition-colors hover:rotate-90">
@@ -335,13 +341,14 @@ const DiceRoller: React.FC<DiceRollerProps> = ({ onClose }) => {
           </button>
         </div>
 
-        <div className="flex-1 flex overflow-hidden">
-          {/* Left Panel: Stats & Controls */}
-          <aside className="w-80 border-r border-primary/20 flex flex-col bg-black/40 z-10">
+        {/* Main Content - Responsive layout using CSS order */}
+        <div className="flex-1 flex flex-col md:flex-row overflow-hidden">
+          {/* Left Panel (Desktop) / Middle Section (Mobile): Controls */}
+          <aside className="order-2 md:order-1 md:w-80 md:border-r border-primary/20 flex flex-col z-10 shrink-0 md:shrink">
             {/* Controls */}
-            <div className="p-6 space-y-6 border-b border-primary/10">
+            <div className="p-3 md:p-6 space-y-3 md:space-y-6 border-y md:border-y-0 md:border-b border-primary/10 bg-black/40">
               <h3 className="text-[10px] text-primary/60 uppercase tracking-widest font-bold">// Configuración</h3>
-              <div className="space-y-4">
+              <div className="space-y-3 md:space-y-4">
                 <div className="flex justify-between items-center bg-black/30 p-2 border border-primary/10 clip-tech-tl">
                   <label className="text-[10px] text-primary/70 uppercase">Negros</label>
                   <div className="flex items-center gap-4">
@@ -370,7 +377,7 @@ const DiceRoller: React.FC<DiceRollerProps> = ({ onClose }) => {
               <button 
                 onClick={rollDice}
                 disabled={isRolling || (blackCount + yellowCount === 0)}
-                className="w-full h-14 bg-primary text-black font-bold uppercase tracking-widest hover:scale-[1.02] active:scale-95 transition-all shadow-[0_0_20px_rgba(37,244,106,0.2)] disabled:opacity-20 flex items-center justify-center gap-2 overflow-hidden px-4"
+                className="w-full h-12 md:h-14 bg-primary text-black font-bold uppercase tracking-widest hover:scale-[1.02] active:scale-95 transition-all shadow-[0_0_20px_rgba(37,244,106,0.2)] disabled:opacity-20 flex items-center justify-center gap-2 overflow-hidden px-4"
               >
                 {isRolling ? (
                   <span className="material-icons animate-spin text-lg">refresh</span>
@@ -381,118 +388,192 @@ const DiceRoller: React.FC<DiceRollerProps> = ({ onClose }) => {
               </button>
             </div>
 
-            {/* Current Result Display */}
-            <div className="flex-1 flex flex-col p-6 overflow-hidden">
-               <h3 className="text-[10px] text-primary/60 uppercase tracking-widest font-bold mb-4">// Historial_Sesión</h3>
-               
-               <div className="flex-1 overflow-y-auto custom-scrollbar space-y-4">
-                  {currentResults.length > 0 && (
-                    <div className="bg-primary/5 border-l-2 border-primary p-3 animate-glitch-in">
-                      <p className="text-[8px] text-primary/40 uppercase mb-2">Última Tirada</p>
-                      
-                      <div className="grid grid-cols-2 gap-2 mb-4">
-                        <div className="bg-black/40 border border-primary/20 p-2 text-center">
-                          <p className="text-[7px] text-primary/60 uppercase mb-1">Éxitos [6]</p>
-                          <p className="text-3xl font-display font-bold text-primary text-glow leading-none">{successes}</p>
-                        </div>
-                        <div className="bg-black/40 border border-danger/20 p-2 text-center">
-                          <p className="text-[7px] text-danger/60 uppercase mb-1">Fallos [1]</p>
-                          <p className="text-3xl font-display font-bold text-danger leading-none">{fails}</p>
+            {/* History/Results - Hidden on mobile (shown in order-3 section) */}
+            <div className="hidden md:flex flex-1 flex-col p-4 md:p-6 overflow-hidden bg-black/40">
+              <h3 className="text-[10px] text-primary/60 uppercase tracking-widest font-bold mb-3 md:mb-4">// Historial_Sesión</h3>
+              
+              <div className="flex-1 overflow-y-auto custom-scrollbar space-y-3 md:space-y-4">
+                {currentResults.length > 0 && (
+                  <div className="bg-primary/5 border-l-2 border-primary p-3 animate-glitch-in">
+                    <p className="text-[8px] text-primary/40 uppercase mb-2">Última Tirada</p>
+                    
+                    <div className="grid grid-cols-2 gap-2 mb-3 md:mb-4">
+                      <div className="bg-black/40 border border-primary/20 p-2 text-center">
+                        <p className="text-[7px] text-primary/60 uppercase mb-1">Éxitos [6]</p>
+                        <p className="text-2xl md:text-3xl font-display font-bold text-primary text-glow leading-none">{successes}</p>
+                      </div>
+                      <div className="bg-black/40 border border-danger/20 p-2 text-center">
+                        <p className="text-[7px] text-danger/60 uppercase mb-1">Fallos [1]</p>
+                        <p className="text-2xl md:text-3xl font-display font-bold text-danger leading-none">{fails}</p>
+                      </div>
+                    </div>
+
+                    <div className="flex flex-wrap gap-1.5 mb-3">
+                      {currentResults.map(r => (
+                        <span key={r.id} className={`w-6 h-6 flex items-center justify-center text-[10px] font-bold border transition-all ${
+                          r.value === 6 ? 'border-primary ring-1 ring-primary/40' : 
+                          r.value === 1 ? 'border-danger' : 'border-primary/20'
+                        } ${
+                          r.color === 'black' ? 'bg-black text-primary' : 'bg-yellow-500 text-black'
+                        }`}>
+                          {r.value}
+                        </span>
+                      ))}
+                    </div>
+
+                    <div className="flex justify-between items-center border-t border-primary/10 pt-2">
+                      <span className="text-[8px] text-primary/40 uppercase tracking-widest">Suma Bruta:</span>
+                      <span className="text-lg font-display font-bold text-primary/80 leading-none">{total}</span>
+                    </div>
+                  </div>
+                )}
+
+                {history.slice(1).map((h, i) => {
+                  const hSucc = h.filter(r => r.value === 6).length;
+                  const hFail = h.filter(r => r.value === 1).length;
+                  const hTotal = h.reduce((a, b) => a + b.value, 0);
+                  return (
+                    <div key={i} className="opacity-40 hover:opacity-100 transition-opacity border-l border-primary/10 pl-3">
+                      <div className="flex justify-between items-center mb-1">
+                        <p className="text-[8px] uppercase">Registro #{history.length - i - 1}</p>
+                        <div className="flex gap-2">
+                          <span className="text-[8px] text-primary font-bold">É:{hSucc}</span>
+                          <span className="text-[8px] text-danger font-bold">F:{hFail}</span>
                         </div>
                       </div>
-
-                      <div className="flex flex-wrap gap-1.5 mb-3">
-                        {currentResults.map(r => (
-                          <span key={r.id} className={`w-6 h-6 flex items-center justify-center text-[10px] font-bold border transition-all ${
-                            r.value === 6 ? 'border-primary ring-1 ring-primary/40' : 
-                            r.value === 1 ? 'border-danger' : 'border-primary/20'
-                          } ${
-                            r.color === 'black' ? 'bg-black text-primary' : 'bg-yellow-500 text-black'
-                          }`}>
+                      <div className="flex gap-1 text-[8px] flex-wrap">
+                        {h.map(r => (
+                          <span key={r.id} className={`${r.value === 6 ? 'text-primary font-bold' : r.value === 1 ? 'text-danger font-bold' : 'text-primary/40'}`}>
                             {r.value}
                           </span>
                         ))}
-                      </div>
-
-                      <div className="flex justify-between items-center border-t border-primary/10 pt-2">
-                         <span className="text-[8px] text-primary/40 uppercase tracking-widest">Suma Bruta:</span>
-                         <span className="text-lg font-display font-bold text-primary/80 leading-none">{total}</span>
+                        <span className="ml-auto text-[7px] text-primary/30 uppercase">Σ {hTotal}</span>
                       </div>
                     </div>
-                  )}
+                  );
+                })}
 
-                  {history.slice(1).map((h, i) => {
-                    const hSucc = h.filter(r => r.value === 6).length;
-                    const hFail = h.filter(r => r.value === 1).length;
-                    const hTotal = h.reduce((a, b) => a + b.value, 0);
-                    return (
-                      <div key={i} className="opacity-40 hover:opacity-100 transition-opacity border-l border-primary/10 pl-3">
-                        <div className="flex justify-between items-center mb-1">
-                          <p className="text-[8px] uppercase">Registro #{history.length - i - 1}</p>
-                          <div className="flex gap-2">
-                            <span className="text-[8px] text-primary font-bold">É:{hSucc}</span>
-                            <span className="text-[8px] text-danger font-bold">F:{hFail}</span>
-                          </div>
-                        </div>
-                        <div className="flex gap-1 text-[8px] flex-wrap">
-                          {h.map(r => (
-                            <span key={r.id} className={`${r.value === 6 ? 'text-primary font-bold' : r.value === 1 ? 'text-danger font-bold' : 'text-primary/40'}`}>
-                              {r.value}
-                            </span>
-                          ))}
-                          <span className="ml-auto text-[7px] text-primary/30 uppercase">Σ {hTotal}</span>
-                        </div>
-                      </div>
-                    );
-                  })}
-
-                  {history.length === 0 && !isRolling && (
-                    <div className="h-full flex flex-col items-center justify-center text-primary/20 text-center gap-2">
-                      <span className="material-icons text-4xl">inventory_2</span>
-                      <p className="text-[10px] uppercase">Esperando secuencia<br/>de lanzamiento</p>
-                    </div>
-                  )}
-               </div>
+                {history.length === 0 && !isRolling && (
+                  <div className="h-full flex flex-col items-center justify-center text-primary/20 text-center gap-2 py-4">
+                    <span className="material-icons text-3xl md:text-4xl">inventory_2</span>
+                    <p className="text-[10px] uppercase">Esperando secuencia<br/>de lanzamiento</p>
+                  </div>
+                )}
+              </div>
             </div>
           </aside>
 
-          {/* Right Panel: 3D Arena */}
-          <main className="flex-1 relative bg-black/20 cursor-move">
-            <div ref={containerRef} className="w-full h-full" />
+          {/* 3D Arena - Top on mobile (order-1), Right on desktop (order-2) */}
+          <main className="order-1 md:order-2 flex-1 relative bg-black/20 cursor-move h-[35vh] md:h-auto md:min-h-0">
+            <div ref={containerRef} className="absolute inset-0 w-full h-full" />
             
             {/* Arena Overlays */}
-            <div className="absolute top-4 right-4 pointer-events-none text-right">
-               <p className="text-[8px] text-primary/40 uppercase">Render: Real_Time // FPS: 60</p>
-               <p className="text-[8px] text-primary/40 uppercase">Coordenadas: 0,0,0</p>
+            <div className="absolute top-2 right-2 md:top-4 md:right-4 pointer-events-none text-right z-10">
+              <p className="text-[8px] text-primary/40 uppercase">Render: Real_Time // FPS: 60</p>
+              <p className="text-[8px] text-primary/40 uppercase hidden md:block">Coordenadas: 0,0,0</p>
             </div>
 
-            <div className="absolute bottom-4 left-4 pointer-events-none">
+            <div className="absolute bottom-2 left-2 md:bottom-4 md:left-4 pointer-events-none z-10">
               <div className="flex gap-1">
                 {[...Array(5)].map((_, i) => (
-                  <div key={i} className="w-1 h-4 bg-primary/20" />
+                  <div key={i} className="w-1 h-3 md:h-4 bg-primary/20" />
                 ))}
               </div>
-              <p className="text-[8px] text-primary/40 uppercase mt-1">Status: Operational</p>
+              <p className="text-[8px] text-primary/40 uppercase mt-1 hidden md:block">Status: Operational</p>
             </div>
 
             {isRolling && (
-              <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
-                <div className="flex flex-col items-center gap-4">
-                  <div className="w-24 h-1 bg-primary/10 relative overflow-hidden">
-                     <div className="absolute inset-0 bg-primary animate-[scan_1s_linear_infinite]" />
+              <div className="absolute inset-0 flex items-center justify-center pointer-events-none z-10">
+                <div className="flex flex-col items-center gap-2 md:gap-4">
+                  <div className="w-16 md:w-24 h-1 bg-primary/10 relative overflow-hidden">
+                    <div className="absolute inset-0 bg-primary animate-[scan_1s_linear_infinite]" />
                   </div>
-                  <span className="text-primary text-[10px] font-bold uppercase tracking-[0.3em] animate-pulse">Calculando Probabilidades</span>
+                  <span className="text-primary text-[9px] md:text-[10px] font-bold uppercase tracking-[0.2em] md:tracking-[0.3em] animate-pulse">Calculando...</span>
                 </div>
               </div>
             )}
           </main>
+
+          {/* History/Results - Bottom on mobile (order-3), hidden on desktop */}
+          <div className="order-3 md:hidden flex flex-col p-4 overflow-hidden bg-black/40 border-t border-primary/10 max-h-[35vh] shrink-0">
+            <h3 className="text-[10px] text-primary/60 uppercase tracking-widest font-bold mb-3">// Historial_Sesión</h3>
+            
+            <div className="flex-1 overflow-y-auto custom-scrollbar space-y-3 min-h-0">
+              {currentResults.length > 0 && (
+                <div className="bg-primary/5 border-l-2 border-primary p-3 animate-glitch-in">
+                  <p className="text-[8px] text-primary/40 uppercase mb-2">Última Tirada</p>
+                  
+                  <div className="grid grid-cols-2 gap-2 mb-3">
+                    <div className="bg-black/40 border border-primary/20 p-2 text-center">
+                      <p className="text-[7px] text-primary/60 uppercase mb-1">Éxitos [6]</p>
+                      <p className="text-2xl font-display font-bold text-primary text-glow leading-none">{successes}</p>
+                    </div>
+                    <div className="bg-black/40 border border-danger/20 p-2 text-center">
+                      <p className="text-[7px] text-danger/60 uppercase mb-1">Fallos [1]</p>
+                      <p className="text-2xl font-display font-bold text-danger leading-none">{fails}</p>
+                    </div>
+                  </div>
+
+                  <div className="flex flex-wrap gap-1.5 mb-3">
+                    {currentResults.map(r => (
+                      <span key={r.id} className={`w-6 h-6 flex items-center justify-center text-[10px] font-bold border transition-all ${
+                        r.value === 6 ? 'border-primary ring-1 ring-primary/40' : 
+                        r.value === 1 ? 'border-danger' : 'border-primary/20'
+                      } ${
+                        r.color === 'black' ? 'bg-black text-primary' : 'bg-yellow-500 text-black'
+                      }`}>
+                        {r.value}
+                      </span>
+                    ))}
+                  </div>
+
+                  <div className="flex justify-between items-center border-t border-primary/10 pt-2">
+                    <span className="text-[8px] text-primary/40 uppercase tracking-widest">Suma Bruta:</span>
+                    <span className="text-lg font-display font-bold text-primary/80 leading-none">{total}</span>
+                  </div>
+                </div>
+              )}
+
+              {history.slice(1).map((h, i) => {
+                const hSucc = h.filter(r => r.value === 6).length;
+                const hFail = h.filter(r => r.value === 1).length;
+                const hTotal = h.reduce((a, b) => a + b.value, 0);
+                return (
+                  <div key={i} className="opacity-60 border-l border-primary/10 pl-3">
+                    <div className="flex justify-between items-center mb-1">
+                      <p className="text-[8px] uppercase">Registro #{history.length - i - 1}</p>
+                      <div className="flex gap-2">
+                        <span className="text-[8px] text-primary font-bold">É:{hSucc}</span>
+                        <span className="text-[8px] text-danger font-bold">F:{hFail}</span>
+                      </div>
+                    </div>
+                    <div className="flex gap-1 text-[8px] flex-wrap">
+                      {h.map(r => (
+                        <span key={r.id} className={`${r.value === 6 ? 'text-primary font-bold' : r.value === 1 ? 'text-danger font-bold' : 'text-primary/40'}`}>
+                          {r.value}
+                        </span>
+                      ))}
+                      <span className="ml-auto text-[7px] text-primary/30 uppercase">Σ {hTotal}</span>
+                    </div>
+                  </div>
+                );
+              })}
+
+              {history.length === 0 && !isRolling && (
+                <div className="h-full flex flex-col items-center justify-center text-primary/20 text-center gap-2 py-4">
+                  <span className="material-icons text-3xl">inventory_2</span>
+                  <p className="text-[10px] uppercase">Esperando secuencia<br/>de lanzamiento</p>
+                </div>
+              )}
+            </div>
+          </div>
         </div>
 
         {/* Footer */}
         <div className="bg-black p-2 border-t border-primary/20 flex justify-between items-center text-[8px] text-primary/30 uppercase tracking-widest">
-           <span>Engine: Three.js r160</span>
-           <span>World: Cannon-es PhysX</span>
-           <span>Auth: Secure_Session_0x1</span>
+          <span>Engine: Three.js</span>
+          <span className="hidden sm:inline">World: Cannon-es PhysX</span>
+          <span>Auth: Secure</span>
         </div>
       </div>
     </div>

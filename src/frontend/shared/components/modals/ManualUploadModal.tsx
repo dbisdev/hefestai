@@ -174,14 +174,11 @@ export const ManualUploadModal: React.FC<ManualUploadModalProps> = ({
     { value: 'Custom', label: 'PERSONALIZADO', description: 'Contenido propio o homebrew' },
   ];
 
-  return (
+return (
     <div 
       className="fixed inset-0 bg-black/90 backdrop-blur-sm z-[100] flex items-center justify-center p-4"
-      onClick={(e) => {
-        if (e.target === e.currentTarget && !isUploading) onClose();
-      }}
     >
-      <div 
+      <div
         ref={modalRef}
         role="dialog"
         aria-modal="true"
