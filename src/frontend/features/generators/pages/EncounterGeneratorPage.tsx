@@ -329,7 +329,7 @@ export const EncounterGeneratorPage: React.FC<EncounterGeneratorPageProps> = ({ 
               isLoading={isGenerating}
               icon="play_circle"
             >
-              SIMULAR_ENCUENTRO
+              SIMULAR
             </Button>
             <Button
               onClick={handleSave}
@@ -339,7 +339,7 @@ export const EncounterGeneratorPage: React.FC<EncounterGeneratorPageProps> = ({ 
               isLoading={isSaving}
               icon="save"
             >
-              GUARDAR_ENTIDAD
+              GUARDAR
             </Button>
           </div>
         </div>

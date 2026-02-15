@@ -253,7 +253,7 @@ export const VehicleGeneratorPage: React.FC<VehicleGeneratorPageProps> = ({ onBa
               size="lg"
               isLoading={isSaving}
             >
-              GUARDAR_ENTIDAD
+              GUARDAR
             </Button>
           </div>
         </div>

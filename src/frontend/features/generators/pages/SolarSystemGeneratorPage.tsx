@@ -208,7 +208,7 @@ export const SolarSystemGeneratorPage: React.FC<SolarSystemGeneratorPageProps> =
                 isLoading={isSaving}
                 icon="save"
               >
-                GUARDAR_ENTIDAD
+                GUARDAR
               </Button>
             </div>
           </div>

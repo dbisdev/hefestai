@@ -314,7 +314,7 @@ export const MissionGeneratorPage: React.FC<MissionGeneratorPageProps> = ({ onBa
               isLoading={isGenerating}
               icon="assignment_add"
             >
-              GENERAR_MISION
+              GENERAR
             </Button>
             <Button
               onClick={handleSave}
@@ -324,7 +324,7 @@ export const MissionGeneratorPage: React.FC<MissionGeneratorPageProps> = ({ onBa
               isLoading={isSaving}
               icon="save"
             >
-              GUARDAR_ENTIDAD
+              GUARDAR
             </Button>
           </div>
         </div>

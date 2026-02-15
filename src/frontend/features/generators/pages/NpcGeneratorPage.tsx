@@ -321,7 +321,7 @@ export const NpcGeneratorPage: React.FC<NpcGeneratorPageProps> = ({ onBack, onNa
               isLoading={isGenerating}
               icon="person_add"
             >
-              GENERAR_ACTOR
+              GENERAR
             </Button>
             <Button
               onClick={handleSave}
@@ -331,7 +331,7 @@ export const NpcGeneratorPage: React.FC<NpcGeneratorPageProps> = ({ onBack, onNa
               isLoading={isSaving}
               icon="save"
             >
-              GUARDAR_ENTIDAD
+              GUARDAR
             </Button>
           </div>
         </div>

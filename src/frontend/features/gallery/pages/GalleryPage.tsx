@@ -908,7 +908,7 @@ export const GalleryPage: React.FC<GalleryPageProps> = ({ user, onNavigate, onLo
               className="flex flex-col gap-2"
             >
               <div className="p-1 border border-primary/50 text-[10px] text-primary text-center uppercase mb-2 bg-primary/5 font-bold tracking-[0.2em]">
-                :: SECTORES_DATOS ::
+                :: GENERADORES ::
               </div>
               {ENTITY_CATEGORIES.map((cat, index) => (
                 <button
@@ -1377,7 +1377,7 @@ const EntityDetailPanel = forwardRef<HTMLElement, EntityDetailPanelProps>(
         
         <div className="p-6 flex flex-col gap-6 flex-1 overflow-y-auto custom-scrollbar font-mono">
           <div className="relative w-full aspect-square border-2 border-primary/30 p-1 bg-black shadow-[0_0_15px_rgba(37,244,106,0.1)]">
-            <img src={imageUrl} alt={`Imagen de ${entity.name}`} className="w-full h-full object-cover filter grayscale hover:grayscale-0 transition-all duration-700" />
+            <img src={imageUrl} alt={`Imagen de ${entity.name}`} className="w-full h-full object-cover filter transition-all duration-700" />
             <div className="absolute top-2 left-2 px-1 bg-primary/80 text-black text-[8px] font-bold">ANALYSIS_LIVE</div>
             <div className="absolute bottom-2 right-2 flex gap-1">
               {[...Array(3)].map((_, i) => <div key={i} className="w-1.5 h-1.5 bg-primary/40 animate-pulse" style={{ animationDelay: `${i*0.1}s` }} />)}

@@ -335,7 +335,7 @@ export const EnemyGeneratorPage: React.FC<EnemyGeneratorPageProps> = ({ onBack, 
               isLoading={isGenerating}
               icon="pest_control"
             >
-              ANALIZAR_AMENAZA
+              ANALIZAR
             </Button>
             <Button
               onClick={handleSave}
@@ -345,7 +345,7 @@ export const EnemyGeneratorPage: React.FC<EnemyGeneratorPageProps> = ({ onBack, 
               isLoading={isSaving}
               icon="save"
             >
-              GUARDAR_ENTIDAD
+              GUARDAR
             </Button>
           </div>
         </div>

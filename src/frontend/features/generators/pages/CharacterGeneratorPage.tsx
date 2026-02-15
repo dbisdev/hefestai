@@ -313,7 +313,7 @@ export const CharacterGeneratorPage: React.FC<CharacterGeneratorPageProps> = ({ 
               isLoading={isGenerating}
               icon="blur_on"
             >
-              GENERAR_SYNTH
+              GENERAR
             </Button>
             <Button
               onClick={handleSave}
@@ -323,7 +323,7 @@ export const CharacterGeneratorPage: React.FC<CharacterGeneratorPageProps> = ({ 
               isLoading={isSaving}
               icon="save"
             >
-              GUARDAR_ENTIDAD
+              GUARDAR
             </Button>
           </div>
         </div>
