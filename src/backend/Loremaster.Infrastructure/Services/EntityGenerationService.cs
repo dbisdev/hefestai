@@ -66,7 +66,7 @@ public class EntityGenerationService : IEntityGenerationService
                 ownerId,
                 config.EntityTypeName,
                 config.UserPrompt,
-                maxChunks: 5,
+                maxChunks: 7,
                 cancellationToken);
 
             // Build the generation prompt

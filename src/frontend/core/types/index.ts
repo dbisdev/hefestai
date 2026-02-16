@@ -29,6 +29,8 @@ export type {
   TransferOwnershipInput,
   DynamicStats,
   CharacterData,
+  PlanetData,
+  SystemStats,
   SystemData,
   VehicleData,
   NpcData,

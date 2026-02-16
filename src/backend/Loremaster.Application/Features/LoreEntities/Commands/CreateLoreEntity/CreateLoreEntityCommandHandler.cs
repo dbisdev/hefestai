@@ -12,7 +12,8 @@ namespace Loremaster.Application.Features.LoreEntities.Commands.CreateLoreEntity
 /// <summary>
 /// Handler for CreateLoreEntityCommand. Creates a new lore entity within a campaign.
 /// Only campaign members can create entities.
-/// Entity creation is validated against confirmed templates for the campaign's game system.
+/// Entity creation is validated against confirmed templates for the campaign's game system,
+/// except for template-independent entity types like solar systems.
 /// </summary>
 public class CreateLoreEntityCommandHandler : IRequestHandler<CreateLoreEntityCommand, LoreEntityDto>
 {
@@ -23,6 +24,21 @@ public class CreateLoreEntityCommandHandler : IRequestHandler<CreateLoreEntityCo
     private readonly ICurrentUserService _currentUserService;
     private readonly IUnitOfWork _unitOfWork;
     private readonly ILogger<CreateLoreEntityCommandHandler> _logger;
+
+    /// <summary>
+    /// Entity types that can be created without requiring a confirmed template.
+    /// These are system-level or generated entities that have their own structure.
+    /// </summary>
+    private static readonly HashSet<string> TemplateIndependentEntityTypes = new(StringComparer.OrdinalIgnoreCase)
+    {
+        "solar_system",
+        "star_system",
+        "planetary_system",
+        "mission",
+        "missions",
+        "encounter",
+        "encounters"
+    };
 
     public CreateLoreEntityCommandHandler(
         ILoreEntityRepository loreEntityRepository,
@@ -75,42 +91,56 @@ public class CreateLoreEntityCommandHandler : IRequestHandler<CreateLoreEntityCo
             throw new NotFoundException("Campaign", request.CampaignId);
         }
 
-        // Validate entity type against confirmed templates
-        // Templates are either owned by the campaign's Master (OwnerId) or by an Admin (shared globally)
         var normalizedEntityType = EntityTemplate.NormalizeEntityTypeName(request.EntityType);
-        var template = await _entityTemplateRepository.GetConfirmedTemplateForEntityTypeAsync(
-            campaign.GameSystemId,
-            campaign.OwnerId,
-            normalizedEntityType,
-            cancellationToken);
+        EntityTemplate? template = null;
 
-        if (template == null)
-        {
-            _logger.LogWarning(
-                "Entity creation rejected: No confirmed template for type '{EntityType}' in game system {GameSystemId}",
-                normalizedEntityType, campaign.GameSystemId);
-            
-            throw new ValidationException(
-                $"Entity type '{request.EntityType}' is not available. " +
-                $"A confirmed template must exist before entities of this type can be created.");
-        }
+        // Check if this entity type requires template validation
+        var isTemplateIndependent = TemplateIndependentEntityTypes.Contains(normalizedEntityType);
 
-        // Validate attributes against template if provided
-        if (request.Attributes != null && request.Attributes.Count > 0)
+        if (!isTemplateIndependent)
         {
-            var attributesDict = request.Attributes
-                .ToDictionary(kvp => kvp.Key, kvp => (object?)kvp.Value);
-            
-            var validationResult = template.ValidateEntityAttributes(attributesDict);
-            if (!validationResult.IsValid)
+            // Validate entity type against confirmed templates
+            // Templates are either owned by the campaign's Master (OwnerId) or by an Admin (shared globally)
+            template = await _entityTemplateRepository.GetConfirmedTemplateForEntityTypeAsync(
+                campaign.GameSystemId,
+                campaign.OwnerId,
+                normalizedEntityType,
+                cancellationToken);
+
+            if (template == null)
             {
                 _logger.LogWarning(
-                    "Entity attributes validation failed for type '{EntityType}': {Errors}",
-                    normalizedEntityType, string.Join("; ", validationResult.Errors));
+                    "Entity creation rejected: No confirmed template for type '{EntityType}' in game system {GameSystemId}",
+                    normalizedEntityType, campaign.GameSystemId);
                 
                 throw new ValidationException(
-                    $"Entity attributes are invalid: {string.Join("; ", validationResult.Errors)}");
+                    $"Entity type '{request.EntityType}' is not available. " +
+                    $"A confirmed template must exist before entities of this type can be created.");
             }
+
+            // Validate attributes against template if provided
+            if (request.Attributes != null && request.Attributes.Count > 0)
+            {
+                var attributesDict = request.Attributes
+                    .ToDictionary(kvp => kvp.Key, kvp => (object?)kvp.Value);
+                
+                var validationResult = template.ValidateEntityAttributes(attributesDict);
+                if (!validationResult.IsValid)
+                {
+                    _logger.LogWarning(
+                        "Entity attributes validation failed for type '{EntityType}': {Errors}",
+                        normalizedEntityType, string.Join("; ", validationResult.Errors));
+                    
+                    throw new ValidationException(
+                        $"Entity attributes are invalid: {string.Join("; ", validationResult.Errors)}");
+                }
+            }
+        }
+        else
+        {
+            _logger.LogDebug(
+                "Skipping template validation for template-independent entity type '{EntityType}'",
+                normalizedEntityType);
         }
 
         // Determine ownership type based on role and request
@@ -140,7 +170,7 @@ public class CreateLoreEntityCommandHandler : IRequestHandler<CreateLoreEntityCo
             metadata = JsonDocument.Parse(JsonSerializer.Serialize(request.Metadata));
         }
 
-        // Create the entity using the normalized entity type from the template
+        // Create the entity using the normalized entity type from the template (or request if template-independent)
         var entity = LoreEntity.Create(
             campaignId: request.CampaignId,
             ownerId: userId,
@@ -159,10 +189,20 @@ public class CreateLoreEntityCommandHandler : IRequestHandler<CreateLoreEntityCo
         await _loreEntityRepository.AddAsync(entity, cancellationToken);
         await _unitOfWork.SaveChangesAsync(cancellationToken);
 
-        _logger.LogInformation(
-            "LoreEntity {EntityId} of type {EntityType} created by user {UserId} in campaign {CampaignId} using template {TemplateId}" +
-            (request.GenerationRequestId.HasValue ? " linked to GenerationRequest {GenerationRequestId}" : ""), 
-            entity.Id, entity.EntityType, userId, request.CampaignId, template.Id, request.GenerationRequestId);
+        if (template != null)
+        {
+            _logger.LogInformation(
+                "LoreEntity {EntityId} of type {EntityType} created by user {UserId} in campaign {CampaignId} using template {TemplateId}" +
+                (request.GenerationRequestId.HasValue ? " linked to GenerationRequest {GenerationRequestId}" : ""), 
+                entity.Id, entity.EntityType, userId, request.CampaignId, template.Id, request.GenerationRequestId);
+        }
+        else
+        {
+            _logger.LogInformation(
+                "LoreEntity {EntityId} of type {EntityType} (template-independent) created by user {UserId} in campaign {CampaignId}" +
+                (request.GenerationRequestId.HasValue ? " linked to GenerationRequest {GenerationRequestId}" : ""), 
+                entity.Id, entity.EntityType, userId, request.CampaignId, request.GenerationRequestId);
+        }
 
         return LoreEntityDto.FromEntity(entity);
     }

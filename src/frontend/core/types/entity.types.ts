@@ -138,12 +138,50 @@ export interface CharacterData {
 }
 
 /**
+ * Planet data structure for solar systems
+ * All fields optional to handle variable AI responses
+ */
+export interface PlanetData {
+  /** Orbital position from the star (1 = closest) */
+  orbital_position?: number;
+  /** Planet type (Terrestrial, Gas Giant, Ice Planet, etc.) */
+  type?: string;
+  /** Planet name (can be null if unnamed) */
+  name?: string | null;
+  /** Planet diameter in km */
+  size?: number;
+  /** Surface gravity relative to Earth (1.0 = Earth gravity) */
+  gravity?: number;
+  /** Atmospheric composition */
+  atmosphere?: string;
+  /** Surface temperature classification */
+  temperature?: string;
+  /** Notable geological/environmental features */
+  features?: string;
+  /** Available natural resources */
+  resources?: string;
+}
+
+/**
+ * Solar system stats structure
+ */
+export interface SystemStats {
+  /** Stellar classification (e.g., "GV", "M", "O") */
+  star_type?: string;
+  /** Array of planets in the system */
+  planets?: PlanetData[];
+}
+
+/**
  * Solar system data structure
  */
 export interface SystemData {
+  /** System name */
   name: string;
+  /** System description/lore */
   description: string;
-  planets: string[];
+  /** System statistics and planet data */
+  stats?: SystemStats;
 }
 
 /**
