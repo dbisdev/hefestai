@@ -40,9 +40,14 @@ const MISSION_TYPE_OPTIONS = [
 ];
 
 /**
+ * Difficulty level type for form state
+ */
+type DifficultyLevel = 'EASY' | 'MEDIUM' | 'HARD' | 'EXTREME';
+
+/**
  * Difficulty level options
  */
-const DIFFICULTY_OPTIONS: { value: MissionData['difficulty']; label: string; color: string; icon: string }[] = [
+const DIFFICULTY_OPTIONS: { value: DifficultyLevel; label: string; color: string; icon: string }[] = [
   { value: 'EASY', label: 'Facil', color: 'text-green-400', icon: 'shield' },
   { value: 'MEDIUM', label: 'Medio', color: 'text-yellow-400', icon: 'security' },
   { value: 'HARD', label: 'Dificil', color: 'text-orange-400', icon: 'gpp_maybe' },
@@ -78,7 +83,7 @@ export const MissionGeneratorPage: React.FC<MissionGeneratorPageProps> = ({ onBa
 
   const [form, setForm] = useState({
     missionType: '',
-    difficulty: 'MEDIUM' as MissionData['difficulty'],
+    difficulty: 'MEDIUM' as DifficultyLevel,
     environment: 'space-station',
     factionInvolved: 'corporate'
   });
@@ -162,6 +167,7 @@ export const MissionGeneratorPage: React.FC<MissionGeneratorPageProps> = ({ onBa
 
   /**
    * Saves the generated mission to the active campaign
+   * Maps AI response fields to entity attributes
    */
   const handleSave = async () => {
     if (!generatedMission) return;
@@ -178,15 +184,15 @@ export const MissionGeneratorPage: React.FC<MissionGeneratorPageProps> = ({ onBa
       await entityService.create(activeCampaignId, {
         entityType: 'mission',
         name: generatedMission.name,
-        description: generatedMission.briefing,
+        description: generatedMission.description,
         imageUrl: missionImage !== MISSION_PLACEHOLDER_IMAGE ? missionImage : undefined,
         attributes: {
           missionType: form.missionType.toUpperCase(),
-          difficulty: form.difficulty,
+          difficulty: generatedMission.stats?.difficulty ?? form.difficulty,
           environment: form.environment,
-          objective: generatedMission.objective,
-          rewards: generatedMission.rewards,
-          estimatedDuration: generatedMission.estimatedDuration
+          objective: generatedMission.stats?.objective,
+          rewards: generatedMission.stats?.rewards,
+          estimatedDuration: generatedMission.stats?.estimatedDuration
         },
         metadata: {
           generatedAt: new Date().toISOString(),
@@ -363,31 +369,45 @@ export const MissionGeneratorPage: React.FC<MissionGeneratorPageProps> = ({ onBa
           {generatedMission && (
             <>
               {/* Briefing Section */}
-              <div className="bg-surface-dark/50 border border-primary/20 p-4">
-                <p className="text-[9px] text-primary/40 uppercase tracking-widest mb-2 flex items-center gap-1">
-                  <span className="material-icons text-xs">description</span> Briefing
-                </p>
-                <p className="text-[11px] text-white/80 leading-relaxed">{generatedMission.briefing}</p>
-              </div>
+              {generatedMission.description && (
+                <div className="bg-surface-dark/50 border border-primary/20 p-4">
+                  <p className="text-[9px] text-primary/40 uppercase tracking-widest mb-2 flex items-center gap-1">
+                    <span className="material-icons text-xs">description</span> Briefing
+                  </p>
+                  <p className="text-[11px] text-white/80 leading-relaxed">{generatedMission.description}</p>
+                </div>
+              )}
 
               {/* Objective Section */}
-              <div className="bg-black/60 border border-yellow-500/30 p-4">
-                <p className="text-[9px] text-yellow-500/60 uppercase tracking-widest mb-2 flex items-center gap-1">
-                  <span className="material-icons text-xs">flag</span> Objetivo Principal
-                </p>
-                <p className="text-[11px] text-yellow-500/90 font-bold">{generatedMission.objective}</p>
-              </div>
+              {generatedMission.stats?.objective && (
+                <div className="bg-black/60 border border-yellow-500/30 p-4">
+                  <p className="text-[9px] text-yellow-500/60 uppercase tracking-widest mb-2 flex items-center gap-1">
+                    <span className="material-icons text-xs">flag</span> Objetivo Principal
+                  </p>
+                  <p className="text-[11px] text-yellow-500/90 font-bold">{generatedMission.stats.objective}</p>
+                </div>
+              )}
 
               {/* Info Grid */}
               <div className="grid grid-cols-2 gap-3">
-                <div className="bg-surface-dark border border-primary/20 p-3">
-                  <p className="text-[8px] text-primary/40 uppercase tracking-widest mb-1">Recompensa</p>
-                  <p className="text-[10px] text-primary">{generatedMission.rewards}</p>
-                </div>
-                <div className="bg-surface-dark border border-primary/20 p-3">
-                  <p className="text-[8px] text-primary/40 uppercase tracking-widest mb-1">Duracion Est.</p>
-                  <p className="text-[10px] text-primary">{generatedMission.estimatedDuration}</p>
-                </div>
+                {generatedMission.stats?.rewards && (
+                  <div className="bg-surface-dark border border-primary/20 p-3">
+                    <p className="text-[8px] text-primary/40 uppercase tracking-widest mb-1">Recompensa</p>
+                    <p className="text-[10px] text-primary">{generatedMission.stats.rewards}</p>
+                  </div>
+                )}
+                {generatedMission.stats?.estimatedDuration && (
+                  <div className="bg-surface-dark border border-primary/20 p-3">
+                    <p className="text-[8px] text-primary/40 uppercase tracking-widest mb-1">Duracion Est.</p>
+                    <p className="text-[10px] text-primary">{generatedMission.stats.estimatedDuration}</p>
+                  </div>
+                )}
+                {generatedMission.stats?.difficulty && (
+                  <div className="bg-surface-dark border border-primary/20 p-3">
+                    <p className="text-[8px] text-primary/40 uppercase tracking-widest mb-1">Dificultad IA</p>
+                    <p className="text-[10px] text-primary">{generatedMission.stats.difficulty}</p>
+                  </div>
+                )}
               </div>
             </>
           )}

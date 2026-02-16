@@ -222,29 +222,76 @@ export interface EnemyData {
 }
 
 /**
+ * Mission stats structure
+ * Contains nested mission attributes from AI generation
+ * All fields optional to handle variable AI responses
+ */
+export interface MissionStats {
+  /** Primary mission objective */
+  objective?: string;
+  /** Mission rewards (credits, items, reputation, etc.) */
+  rewards?: string;
+  /** Difficulty level */
+  difficulty?: string;
+  /** Estimated time to complete */
+  estimatedDuration?: string;
+}
+
+/**
  * Mission data structure
  * Used for quests, objectives, and campaign missions
+ * Matches AI response format: { name, description, stats: { ... } }
  */
 export interface MissionData {
+  /** Mission codename/title */
   name: string;
-  briefing: string;
-  objective: string;
-  rewards: string;
-  difficulty: 'EASY' | 'MEDIUM' | 'HARD' | 'EXTREME';
-  estimatedDuration: string;
+  /** Mission briefing/description (AI returns 'description', not 'briefing') */
+  description?: string;
+  /** Nested stats object containing mission details */
+  stats?: MissionStats;
+}
+
+/**
+ * Encounter participant structure
+ * AI may return participants as objects with details
+ */
+export interface EncounterParticipant {
+  /** Enemy/NPC type (e.g., "Xenomorph Drone") */
+  type?: string;
+  /** Number of this participant type */
+  count?: number;
+  /** Additional notes about this participant */
+  notes?: string;
+}
+
+/**
+ * Encounter stats structure
+ * Contains nested encounter attributes from AI generation
+ * All fields optional to handle variable AI responses
+ */
+export interface EncounterStats {
+  /** Combat environment description */
+  environment?: string;
+  /** List of enemies/NPCs in the encounter - can be strings or objects */
+  participants?: (string | EncounterParticipant)[];
+  /** Difficulty level */
+  difficulty?: string;
+  /** Potential loot/rewards from the encounter */
+  loot?: string;
 }
 
 /**
  * Encounter data structure
  * Used for combat encounters or random events
+ * Matches AI response format: { name, description, stats: { ... } }
  */
 export interface EncounterData {
+  /** Encounter name/title */
   name: string;
-  description: string;
-  environment: string;
-  participants: string[];
-  difficulty: 'EASY' | 'MEDIUM' | 'HARD' | 'EXTREME';
-  loot: string;
+  /** Encounter narrative description */
+  description?: string;
+  /** Nested stats object containing encounter details */
+  stats?: EncounterStats;
 }
 
 // ============================================

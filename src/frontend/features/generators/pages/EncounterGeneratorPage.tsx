@@ -39,9 +39,14 @@ const ENCOUNTER_TYPE_OPTIONS = [
 ];
 
 /**
+ * Difficulty level type for form state
+ */
+type DifficultyLevel = 'EASY' | 'MEDIUM' | 'HARD' | 'EXTREME';
+
+/**
  * Difficulty level options
  */
-const DIFFICULTY_OPTIONS: { value: EncounterData['difficulty']; label: string; color: string }[] = [
+const DIFFICULTY_OPTIONS: { value: DifficultyLevel; label: string; color: string }[] = [
   { value: 'EASY', label: 'Facil', color: 'text-green-400' },
   { value: 'MEDIUM', label: 'Medio', color: 'text-yellow-400' },
   { value: 'HARD', label: 'Dificil', color: 'text-orange-400' },
@@ -86,7 +91,7 @@ export const EncounterGeneratorPage: React.FC<EncounterGeneratorPageProps> = ({ 
 
   const [form, setForm] = useState({
     encounterType: '',
-    difficulty: 'MEDIUM' as EncounterData['difficulty'],
+    difficulty: 'MEDIUM' as DifficultyLevel,
     environment: 'open-area',
     enemyCount: 'squad'
   });
@@ -170,6 +175,7 @@ export const EncounterGeneratorPage: React.FC<EncounterGeneratorPageProps> = ({ 
 
   /**
    * Saves the generated encounter to the entity service using campaign-scoped endpoint
+   * Maps AI response fields to entity attributes
    */
   const handleSave = async () => {
     if (!generatedEncounter || !activeCampaignId) return;
@@ -184,11 +190,11 @@ export const EncounterGeneratorPage: React.FC<EncounterGeneratorPageProps> = ({ 
         imageUrl: encounterImage !== ENCOUNTER_PLACEHOLDER_IMAGE ? encounterImage : undefined,
         attributes: {
           encounterType: form.encounterType,
-          difficulty: form.difficulty,
-          environment: generatedEncounter.environment,
+          difficulty: generatedEncounter.stats?.difficulty ?? form.difficulty,
+          environment: generatedEncounter.stats?.environment ?? form.environment,
           enemyCount: form.enemyCount,
-          participants: generatedEncounter.participants,
-          loot: generatedEncounter.loot
+          participants: generatedEncounter.stats?.participants,
+          loot: generatedEncounter.stats?.loot
         },
         metadata: {
           generatedAt: new Date().toISOString(),
@@ -378,41 +384,61 @@ export const EncounterGeneratorPage: React.FC<EncounterGeneratorPageProps> = ({ 
           {generatedEncounter && (
             <>
               {/* Description Section */}
-              <div className="bg-surface-dark/50 border border-primary/20 p-4">
-                <p className="text-[9px] text-primary/40 uppercase tracking-widest mb-2 flex items-center gap-1">
-                  <span className="material-icons text-xs">description</span> Descripcion
-                </p>
-                <p className="text-[11px] text-white/80 leading-relaxed">{generatedEncounter.description}</p>
-              </div>
+              {generatedEncounter.description && (
+                <div className="bg-surface-dark/50 border border-primary/20 p-4">
+                  <p className="text-[9px] text-primary/40 uppercase tracking-widest mb-2 flex items-center gap-1">
+                    <span className="material-icons text-xs">description</span> Descripcion
+                  </p>
+                  <p className="text-[11px] text-white/80 leading-relaxed">{generatedEncounter.description}</p>
+                </div>
+              )}
 
               {/* Environment Section */}
-              <div className="bg-black/60 border border-blue-500/30 p-4">
-                <p className="text-[9px] text-blue-500/60 uppercase tracking-widest mb-2 flex items-center gap-1">
-                  <span className="material-icons text-xs">terrain</span> Entorno
-                </p>
-                <p className="text-[11px] text-blue-500/90">{generatedEncounter.environment}</p>
-              </div>
+              {generatedEncounter.stats?.environment && (
+                <div className="bg-black/60 border border-blue-500/30 p-4">
+                  <p className="text-[9px] text-blue-500/60 uppercase tracking-widest mb-2 flex items-center gap-1">
+                    <span className="material-icons text-xs">terrain</span> Entorno
+                  </p>
+                  <p className="text-[11px] text-blue-500/90">{generatedEncounter.stats.environment}</p>
+                </div>
+              )}
 
               {/* Participants Section */}
-              <div className="bg-surface-dark border border-danger/20 p-4">
-                <p className="text-[9px] text-danger/60 uppercase tracking-widest mb-2 flex items-center gap-1">
-                  <span className="material-icons text-xs">groups</span> Participantes
-                </p>
-                <div className="flex flex-wrap gap-2">
-                  {generatedEncounter.participants.map((participant, idx) => (
-                    <span key={idx} className="px-2 py-1 bg-danger/10 border border-danger/30 text-[9px] text-danger/80">
-                      {participant}
-                    </span>
-                  ))}
+              {generatedEncounter.stats?.participants && generatedEncounter.stats.participants.length > 0 && (
+                <div className="bg-surface-dark border border-danger/20 p-4">
+                  <p className="text-[9px] text-danger/60 uppercase tracking-widest mb-2 flex items-center gap-1">
+                    <span className="material-icons text-xs">groups</span> Participantes
+                  </p>
+                  <div className="flex flex-wrap gap-2">
+                    {generatedEncounter.stats.participants.map((participant, idx) => {
+                      // Handle both string and object formats
+                      const displayText = typeof participant === 'string' 
+                        ? participant 
+                        : `${participant.type ?? 'Unknown'}${participant.count ? ` x${participant.count}` : ''}`;
+                      return (
+                        <span key={idx} className="px-2 py-1 bg-danger/10 border border-danger/30 text-[9px] text-danger/80">
+                          {displayText}
+                        </span>
+                      );
+                    })}
+                  </div>
                 </div>
-              </div>
+              )}
 
-              {/* Loot Section */}
-              <div className="bg-black/60 border border-yellow-500/30 p-4">
-                <p className="text-[9px] text-yellow-500/60 uppercase tracking-widest mb-2 flex items-center gap-1">
-                  <span className="material-icons text-xs">inventory_2</span> Botin Potencial
-                </p>
-                <p className="text-[11px] text-yellow-500/90">{generatedEncounter.loot}</p>
+              {/* Info Grid */}
+              <div className="grid grid-cols-2 gap-3">
+                {generatedEncounter.stats?.loot && (
+                  <div className="bg-black/60 border border-yellow-500/30 p-3">
+                    <p className="text-[8px] text-yellow-500/60 uppercase tracking-widest mb-1">Botin Potencial</p>
+                    <p className="text-[10px] text-yellow-500/90">{generatedEncounter.stats.loot}</p>
+                  </div>
+                )}
+                {generatedEncounter.stats?.difficulty && (
+                  <div className="bg-surface-dark border border-primary/20 p-3">
+                    <p className="text-[8px] text-primary/40 uppercase tracking-widest mb-1">Dificultad IA</p>
+                    <p className="text-[10px] text-primary">{generatedEncounter.stats.difficulty}</p>
+                  </div>
+                )}
               </div>
             </>
           )}
