@@ -88,10 +88,10 @@ export const SignupPage: React.FC<SignupPageProps> = ({ onSignupSuccess, onBack 
             </div>
             <div>
               <h1 className="text-2xl font-display font-bold uppercase tracking-widest text-glow text-primary">
-                Nuevo Registro
+                HefestAI
               </h1>
               <p className="text-primary/50 text-[10px] tracking-widest uppercase">
-                Omega_Central // Onboarding
+                Kernel v3.0 // Onboarding
               </p>
             </div>
           </div>
@@ -207,17 +207,7 @@ export const SignupPage: React.FC<SignupPageProps> = ({ onSignupSuccess, onBack 
               VOLVER_AL_ACCESO
             </button>
           </div>
-
-          {/* Decorative dots */}
-          <div className="flex gap-1 justify-center pt-2">
-            {[...Array(5)].map((_, i) => (
-              <div 
-                key={i} 
-                className="w-1.5 h-1.5 bg-primary/30 group-hover:bg-primary/50 transition-all" 
-                style={{ transitionDelay: `${i * 50}ms` }}
-              />
-            ))}
-          </div>
+          
         </div>
       </div>
     </div>

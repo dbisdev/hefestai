@@ -22,29 +22,29 @@ export const LoginPage: React.FC<LoginPageProps> = ({ onLoginSuccess, onGoSignup
   const { login, error: authError, isLoading: authLoading, clearError } = useAuth();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
-  const [validationErrors, setValidationErrors] = useState<Record<string, string>>({});
+  //const [validationErrors, setValidationErrors] = useState<Record<string, string>>({});
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
     clearError();
-    setValidationErrors({});
+    // setValidationErrors({});
 
-    // Client-side validation (OWASP A03 - Input Validation)
-    const emailValidation = validateEmail(email);
-    const passwordValidation = validatePassword(password);
+    // // Client-side validation (OWASP A03 - Input Validation)
+    // const emailValidation = validateEmail(email);
+    // const passwordValidation = validatePassword(password);
 
-    const errors: Record<string, string> = {};
-    if (!emailValidation.isValid) {
-      errors.email = emailValidation.errors[0];
-    }
-    if (!passwordValidation.isValid) {
-      errors.password = passwordValidation.errors[0];
-    }
+    // const errors: Record<string, string> = {};
+    // if (!emailValidation.isValid) {
+    //   errors.email = emailValidation.errors[0];
+    // }
+    // if (!passwordValidation.isValid) {
+    //   errors.password = passwordValidation.errors[0];
+    // }
 
-    if (Object.keys(errors).length > 0) {
-      setValidationErrors(errors);
-      return;
-    }
+    // if (Object.keys(errors).length > 0) {
+    //   setValidationErrors(errors);
+    //   return;
+    // }
 
     try {
       // Use AuthContext login to update global state
@@ -98,7 +98,7 @@ export const LoginPage: React.FC<LoginPageProps> = ({ onLoginSuccess, onGoSignup
               value={email}
               onChange={(e) => setEmail(e.target.value)}
               placeholder="USER_ID@omega.sys"
-              error={validationErrors.email}
+              //error={validationErrors.email}
               autoComplete="email"
             />
 
@@ -109,7 +109,7 @@ export const LoginPage: React.FC<LoginPageProps> = ({ onLoginSuccess, onGoSignup
               value={password}
               onChange={(e) => setPassword(e.target.value)}
               placeholder="••••••••"
-              error={validationErrors.password}
+              //error={validationErrors.password}
               autoComplete="current-password"
             />
 
@@ -139,17 +139,7 @@ export const LoginPage: React.FC<LoginPageProps> = ({ onLoginSuccess, onGoSignup
               CREAR_NUEVO_REGISTRO
             </button>
           </div>
-
-          {/* Decorative dots */}
-          <div className="flex gap-1 justify-center pt-2">
-            {[...Array(5)].map((_, i) => (
-              <div 
-                key={i} 
-                className="w-1.5 h-1.5 bg-primary/30 group-hover:bg-primary/50 transition-all" 
-                style={{ transitionDelay: `${i * 50}ms` }}
-              />
-            ))}
-          </div>
+          
         </div>
       </div>
     </div>

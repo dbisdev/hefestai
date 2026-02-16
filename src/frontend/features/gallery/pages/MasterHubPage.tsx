@@ -64,7 +64,7 @@ const HUB_PANELS: HubPanel[] = [
     subtitle: 'Configuración de reglas y mecánicas',
     icon: 'settings_suggest',
     color: 'border-primary/20',
-    description: 'Ajusta los parámetros del motor de juego. Define tablas de probabilidad y sistemas de combate.'
+    description: 'Ajusta los parámetros del motor de juego. Extrae y define entidades para el generador de IA.'
   },
   {
     id: Screen.GALLERY,

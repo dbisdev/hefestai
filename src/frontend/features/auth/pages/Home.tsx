@@ -55,7 +55,7 @@ const Home: React.FC<HomeProps> = ({ onLogin, onSignup }) => {
             <span className="bg-primary text-black px-4 ml-[-8px]">Historia</span>
           </h1>
           <p className="max-w-2xl mx-auto text-primary/60 text-lg md:text-xl leading-relaxed font-mono">
-            La interfaz retro-futurista definitiva para Maestros de Juego y Operativos. 
+            La interfaz retro-futurista definitiva para Maestros de Juego y Jugadores. 
             Sintetiza mundos, despliega activos y archiva tu cronología a través de la nébula.
           </p>
           
@@ -64,7 +64,7 @@ const Home: React.FC<HomeProps> = ({ onLogin, onSignup }) => {
               onClick={onSignup}
               className="px-8 py-4 bg-primary text-black font-bold uppercase tracking-widest hover:bg-white transition-all shadow-[0_0_30px_#25f46a44] clip-tech-tl"
             >
-              Inicializar Nuevo Perfil
+              Inicializar Perfil
             </button>
             <button 
               onClick={onLogin}
@@ -86,7 +86,7 @@ const Home: React.FC<HomeProps> = ({ onLogin, onSignup }) => {
               <h3 className="text-xl font-display font-bold uppercase tracking-widest text-glow transition-colors duration-500">Nodo Génesis</h3>
             </div>
             <p className="text-sm text-primary/50 leading-relaxed font-mono">
-              Despliega sistemas estelares de alta fidelidad y entidades biométricas. Nuestro enlace neural GenAI sintetiza órbitas planetarias únicas, rasgos de especies y perfiles operativos en tiempo real.
+              Crea y organiza personajes, escenarios y otras entidades de manera automática. Nuestro sistema te ayuda a generar contenido único en segundos, listo para usar o editar a tu gusto.
             </p>
             <div className="mt-auto pt-6 flex gap-1">
               {[...Array(5)].map((_, i) => <div key={i} className="w-1.5 h-1.5 bg-primary/20" />)}
@@ -102,7 +102,7 @@ const Home: React.FC<HomeProps> = ({ onLogin, onSignup }) => {
               <h3 className="text-xl font-display font-bold uppercase tracking-widest text-glow transition-colors duration-500">Núcleo de Archivo</h3>
             </div>
             <p className="text-sm text-primary/50 leading-relaxed font-mono">
-              Repositorio centralizado para todos los activos operativos. Accede a la galería galáctica con fallas sincronizadas de CRT para una experiencia de recuperación de datos inmersiva.
+              Tu espacio central para guardar y consultar todos los activos de tus partidas. Navega, busca y comparte todo de forma sencilla desde la interfaz retro.
             </p>
             <div className="mt-auto pt-6 flex gap-1">
               {[...Array(5)].map((_, i) => <div key={i} className="w-1.5 h-1.5 bg-primary/40" />)}
@@ -151,7 +151,7 @@ const Home: React.FC<HomeProps> = ({ onLogin, onSignup }) => {
               <span className="text-[10px] uppercase font-bold tracking-[0.2em]">Protocolo de Privacidad de Datos</span>
             </div>
             <p className="text-[10px] text-primary/30 leading-relaxed uppercase max-w-md">
-              Aviso: Hefestai_OS es una herramienta de simulación especializada. Todas las entidades generadas, configuraciones estelares y planos de vehículos son propiedad del perfil de Maestro de Juego respectivo. La sincronización del enlace neural está encriptada con AES-4096. No se utilizan créditos galácticos reales en esta simulación.
+              Aviso: Hefestai es una herramienta de simulación especializada. Todas las entidades generadas, configuraciones estelares y planos de vehículos son propiedad del perfil de Maestro de Juego respectivo. La sincronización del enlace neural está encriptada con AES-4096. No se utilizan créditos galácticos reales en esta simulación.
             </p>
           </div>
           <div className="md:text-right">

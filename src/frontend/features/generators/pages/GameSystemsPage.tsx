@@ -305,7 +305,7 @@ export const GameSystemsPage: React.FC<GameSystemsPageProps> = ({ onNavigate, on
       </AdminLayout>
     ) : (
       <TerminalLayout 
-        title="SISTEMAS DE JUEGO" 
+        title="SISTEMAS" 
         subtitle="Gestion de sistemas de juego"
         icon="sports_esports"
         onLogout={onLogout}
@@ -780,7 +780,7 @@ export const GameSystemsPage: React.FC<GameSystemsPageProps> = ({ onNavigate, on
         </AdminLayout>
       ) : (
         <TerminalLayout 
-          title="SISTEMAS DE JUEGO" 
+          title="SISTEMAS" 
           subtitle="Gestion de sistemas de juego"
           icon="sports_esports"
           onLogout={onLogout}
