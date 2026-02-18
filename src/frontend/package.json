@@ -16,6 +16,7 @@
     "jspdf": "^4.1.0",
     "react": "^19.2.3",
     "react-dom": "^19.2.3",
+    "react-router-dom": "^7.2.0",
     "three": "0.160.0"
   },
   "devDependencies": {

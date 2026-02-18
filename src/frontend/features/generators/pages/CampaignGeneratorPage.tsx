@@ -8,6 +8,8 @@ import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { TerminalLayout } from '@shared/components/layout';
 import { Button } from '@shared/components/ui';
+import { TerminalLog } from '@shared/components/ui';
+import { useTerminalLog } from '@core/hooks/useTerminalLog';
 import { useAuth, useCampaign } from '@core/context';
 import { gameSystemService } from '@core/services/api';
 import type { GameSystem } from '@core/types';
@@ -25,11 +27,14 @@ export const CampaignGeneratorPage: React.FC<CampaignGeneratorPageProps> = ({ on
   const { isMaster } = useAuth();
   const { createCampaign, joinCampaign, isLoading } = useCampaign();
   
-  const [logs, setLogs] = useState([
-    '> Campaign management system online...',
-    '> [SUCCESS] Command protocols established.',
-    '> Awaiting campaign parameters...'
-  ]);
+  const { logs, addLog } = useTerminalLog({
+    maxLogs: 6,
+    initialLogs: [
+      '> Campaign management system online...',
+      '> [SUCCESS] Command protocols established.',
+      '> Awaiting campaign parameters...'
+    ]
+  });
   const [isCreating, setIsCreating] = useState(false);
   const [isJoining, setIsJoining] = useState(false);
   // Players can only join campaigns, so default to 'join' tab for them
@@ -75,13 +80,6 @@ export const CampaignGeneratorPage: React.FC<CampaignGeneratorPageProps> = ({ on
 
     loadGameSystems();
   }, []);
-
-  /**
-   * Adds a log entry to the terminal display
-   */
-  const addLog = (msg: string) => {
-    setLogs(prev => [...prev, `> ${msg}`].slice(-6));
-  };
 
   /**
    * Handles creating a new campaign
@@ -442,13 +440,7 @@ export const CampaignGeneratorPage: React.FC<CampaignGeneratorPageProps> = ({ on
           </div>
 
           {/* Log Panel */}
-          <div className="h-24 bg-black/80 border border-primary/20 p-3 text-[10px] text-primary/80 overflow-y-auto font-mono scrollbar-hide">
-            {logs.map((log, i) => (
-              <p key={i} className={i === logs.length - 1 ? "text-primary font-bold" : "opacity-60"}>
-                {log}
-              </p>
-            ))}
-          </div>
+          <TerminalLog logs={logs} maxLogs={6} className="h-24" />
         </div>
       </div>
     </TerminalLayout>

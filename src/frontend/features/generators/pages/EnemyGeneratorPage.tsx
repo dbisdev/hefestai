@@ -7,16 +7,13 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { TerminalLayout } from '@shared/components/layout';
-import { Button, ImageSourceSelector, DynamicStatsPanel } from '@shared/components/ui';
+import { Button, ImageSourceSelector, DynamicStatsPanel, TerminalLog } from '@shared/components/ui';
 import type { ImageSourceMode } from '@shared/components/ui';
+import { useTerminalLog } from '@core/hooks/useTerminalLog';
 import { aiService, entityService, entityTemplateService } from '@core/services/api';
 import { useCampaign } from '@core/context';
 import { parseJsonResponse } from '@core/utils';
 import type { EnemyData, FieldDefinition } from '@core/types';
-
-interface EnemyGeneratorPageProps {
-  onBack: () => void;
-}
 
 const UNKNOWN_ENEMY_IMAGE = "https://images.unsplash.com/photo-1614728263952-84ea256f9679?q=80&w=400&auto=format&fit=crop";
 
@@ -59,14 +56,17 @@ const BEHAVIOR_OPTIONS = [
   { value: 'berserker', label: 'Berserker - Furia descontrolada' },
 ];
 
-export const EnemyGeneratorPage: React.FC<EnemyGeneratorPageProps> = ({ onBack }) => {
+export const EnemyGeneratorPage: React.FC = () => {
   const navigate = useNavigate();
   const { activeCampaignId, activeCampaign } = useCampaign();
-  const [logs, setLogs] = useState([
-    '> Threat analysis system online...',
-    '> [WARNING] Hostile database accessed.',
-    '> Awaiting threat parameters...'
-  ]);
+  const { logs, addLog } = useTerminalLog({
+    maxLogs: 6,
+    initialLogs: [
+      '> Threat analysis system online...',
+      '> [WARNING] Hostile database accessed.',
+      '> Awaiting threat parameters...'
+    ]
+  });
   const [isGenerating, setIsGenerating] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
   const [generatedEnemy, setGeneratedEnemy] = useState<EnemyData | null>(null);
@@ -113,13 +113,6 @@ export const EnemyGeneratorPage: React.FC<EnemyGeneratorPageProps> = ({ onBack }
     
     fetchTemplateFields();
   }, [activeCampaign?.gameSystemId]);
-
-  /**
-   * Adds a log entry to the terminal display
-   */
-  const addLog = (msg: string) => {
-    setLogs(prev => [...prev, `> ${msg}`].slice(-6));
-  };
 
   /**
    * Handles enemy generation via AI service
@@ -232,7 +225,7 @@ export const EnemyGeneratorPage: React.FC<EnemyGeneratorPageProps> = ({ onBack }
   };
 
   /**
-   * Gets the color class for threat level display
+   * Handles enemy generation via AI service
    */
   const getThreatColor = () => {
     const threat = THREAT_LEVEL_OPTIONS.find(t => t.value === form.threatLevel);
@@ -386,9 +379,7 @@ export const EnemyGeneratorPage: React.FC<EnemyGeneratorPageProps> = ({ onBack }
           </div>
 
           {/* Log Panel */}
-          <div className="h-24 bg-black/80 border border-danger/20 p-3 text-[10px] text-danger/80 overflow-y-auto font-mono scrollbar-hide">
-            {logs.map((log, i) => <p key={i} className={i === logs.length - 1 ? "text-danger font-bold" : "opacity-60"}>{log}</p>)}
-          </div>
+          <TerminalLog logs={logs} maxLogs={6} className="h-24" />
 
           {/* Stats Panel - Dynamic based on game system */}
           <DynamicStatsPanel 

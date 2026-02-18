@@ -7,16 +7,13 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { TerminalLayout } from '@shared/components/layout';
-import { Button, ImageSourceSelector, DynamicStatsPanel } from '@shared/components/ui';
+import { Button, ImageSourceSelector, DynamicStatsPanel, TerminalLog } from '@shared/components/ui';
 import type { ImageSourceMode } from '@shared/components/ui';
 import { aiService, entityService, entityTemplateService } from '@core/services/api';
-import { useCampaign } from '@core/context';
+import { useCampaign, useAuth } from '@core/context';
 import { parseJsonResponse } from '@core/utils';
+import { useTerminalLog } from '@core/hooks/useTerminalLog';
 import type { CharacterData, FieldDefinition } from '@core/types';
-
-interface CharacterGeneratorPageProps {
-  onBack: () => void;
-}
 
 const UNKNOWN_CHAR_IMAGE = "https://images.unsplash.com/photo-1683322001857-f4d932a40672?q=80&w=400&auto=format&fit=crop";
 
@@ -42,15 +39,19 @@ const ROLE_OPTIONS = [
 
 const MORPHOLOGY_OPTIONS = ['MASCULINE', 'FEMININE', 'NEUTRAL'] as const;
 
-export const CharacterGeneratorPage: React.FC<CharacterGeneratorPageProps> = ({ onBack }) => {
+export const CharacterGeneratorPage: React.FC = () => {
   const navigate = useNavigate();
+  const { user } = useAuth();
   const { activeCampaignId, activeCampaign } = useCampaign();
+  const { logs, addLog } = useTerminalLog({
+    maxLogs: 6,
+    initialLogs: [
+      '> System initialization sequence started...',
+      '> [SUCCESS] Neural link established.',
+      '> Awaiting user input parameters...'
+    ]
+  });
   
-  const [logs, setLogs] = useState([
-    '> System initialization sequence started...',
-    '> [SUCCESS] Neural link established.',
-    '> Awaiting user input parameters...'
-  ]);
   const [isGenerating, setIsGenerating] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
   const [generatedChar, setGeneratedChar] = useState<CharacterData | null>(null);
@@ -97,13 +98,6 @@ export const CharacterGeneratorPage: React.FC<CharacterGeneratorPageProps> = ({ 
     
     fetchTemplateFields();
   }, [activeCampaign?.gameSystemId]);
-
-  /**
-   * Adds a log entry to the terminal display
-   */
-  const addLog = (msg: string) => {
-    setLogs(prev => [...prev, `> ${msg}`].slice(-6));
-  };
 
   /**
    * Handles character generation via AI service
@@ -356,9 +350,7 @@ export const CharacterGeneratorPage: React.FC<CharacterGeneratorPageProps> = ({ 
           </div>
 
           {/* Log Panel */}
-          <div className="h-24 bg-black/80 border border-primary/20 p-3 text-[10px] text-primary/80 overflow-y-auto font-mono scrollbar-hide">
-            {logs.map((log, i) => <p key={i} className={i === logs.length - 1 ? "text-primary font-bold" : "opacity-60"}>{log}</p>)}
-          </div>
+          <TerminalLog logs={logs} maxLogs={6} className="h-24" />
 
           {/* Stats Panel - Dynamic based on game system */}
           <DynamicStatsPanel 

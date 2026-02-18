@@ -13,9 +13,10 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { TerminalLayout } from '@shared/components/layout';
-import { Button } from '@shared/components/ui';
+import { Button, TerminalLog } from '@shared/components/ui';
 import { useAuth, useCampaign } from '@core/context';
 import { gameSystemService, campaignService } from '@core/services/api';
+import { useTerminalLog } from '@core/hooks/useTerminalLog';
 import type { Campaign, GameSystem, UpdateCampaignInput, CampaignMember } from '@core/types';
 import { CampaignRole } from '@core/types';
 
@@ -52,18 +53,14 @@ export const CampaignListPage: React.FC = () => {
     description: '',
   });
   
-  const [logs, setLogs] = useState<string[]>([
-    '> Campaign registry system online...',
-    '> [SUCCESS] Connection established.',
-    '> Awaiting commands...'
-  ]);
-
-  /**
-   * Add a log entry to the terminal display
-   */
-  const addLog = useCallback((msg: string) => {
-    setLogs(prev => [...prev, `> ${msg}`].slice(-10));
-  }, []);
+  const { logs, addLog } = useTerminalLog({
+    maxLogs: 10,
+    initialLogs: [
+      '> Campaign registry system online...',
+      '> [SUCCESS] Connection established.',
+      '> Awaiting commands...'
+    ]
+  });
 
   /**
    * Load game systems for display
@@ -755,21 +752,7 @@ export const CampaignListPage: React.FC = () => {
             <span className="material-icons text-sm">terminal</span>
             System Log
           </div>
-          <div className="md:flex-1 flex-none h-24 md:h-32 p-4 font-mono text-xs text-primary/70 space-y-1 overflow-y-auto">
-            {logs.map((log, i) => (
-              <p 
-                key={i} 
-                className={`${
-                  log.includes('ERROR') ? 'text-danger' : 
-                  log.includes('SUCCESS') ? 'text-green-400' : 
-                  log.includes('WARNING') ? 'text-yellow-400' : ''
-                }`}
-              >
-                {log}
-              </p>
-            ))}
-            <p className="animate-pulse">_</p>
-          </div>
+          <TerminalLog logs={logs} maxLogs={10} className="h-24 md:h-32" />
           
 
 

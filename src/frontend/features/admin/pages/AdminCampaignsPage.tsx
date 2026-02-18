@@ -8,15 +8,11 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { AdminLayout } from '@shared/components/layout';
-import { Button } from '@shared/components/ui';
+import { Button, TerminalLog } from '@shared/components/ui';
 import { useAuth } from '@core/context';
+import { useTerminalLog } from '@core/hooks/useTerminalLog';
 import { adminCampaignService, adminUserService } from '@core/services/api';
 import type { AdminCampaign, AdminUpdateCampaignRequest, AdminUser } from '@core/types';
-
-interface AdminCampaignsPageProps {
-  /** Handler for returning to gallery */
-  onBack: () => void;
-}
 
 /**
  * Admin Campaigns Page Component
@@ -26,10 +22,18 @@ interface AdminCampaignsPageProps {
  * - Transfer campaign ownership
  * - Delete (soft delete) campaigns
  */
-export const AdminCampaignsPage: React.FC<AdminCampaignsPageProps> = ({ onBack }) => {
+export const AdminCampaignsPage: React.FC = () => {
   const navigate = useNavigate();
   const { user: currentUser } = useAuth();
-  
+  const { logs, addLog } = useTerminalLog({
+    maxLogs: 12,
+    initialLogs: [
+      '> Campaign management system online...',
+      '> [SUCCESS] Admin protocols established.',
+      '> Awaiting commands...'
+    ]
+  });
+ 
   // Data state
   const [campaigns, setCampaigns] = useState<AdminCampaign[]>([]);
   const [users, setUsers] = useState<AdminUser[]>([]);
@@ -50,20 +54,6 @@ export const AdminCampaignsPage: React.FC<AdminCampaignsPageProps> = ({ onBack }
   
   // Form state for ownership transfer
   const [transferOwnerId, setTransferOwnerId] = useState<string>('');
-  
-  // Terminal logs
-  const [logs, setLogs] = useState([
-    '> Campaign management system online...',
-    '> [SUCCESS] Admin protocols established.',
-    '> Awaiting commands...'
-  ]);
-
-  /**
-   * Adds a log entry to the terminal display.
-   */
-  const addLog = useCallback((msg: string) => {
-    setLogs(prev => [...prev, `> ${msg}`].slice(-12));
-  }, []);
 
   /**
    * Fetches all campaigns from the API.
@@ -692,20 +682,7 @@ export const AdminCampaignsPage: React.FC<AdminCampaignsPageProps> = ({ onBack }
               <span className="material-icons text-sm">terminal</span>
               System Log
             </div>
-            <div className="flex-1 p-4 font-mono text-xs text-primary/70 space-y-1 overflow-y-auto">
-              {logs.map((log, i) => (
-                <p 
-                  key={i} 
-                  className={`${
-                    log.includes('ERROR') ? 'text-danger' : 
-                    log.includes('SUCCESS') ? 'text-green-400' : ''
-                  }`}
-                >
-                  {log}
-                </p>
-              ))}
-              <p className="animate-pulse">_</p>
-            </div>
+            <TerminalLog logs={logs} maxLogs={12} className="flex-1" />
           </div>
         </div>
       </div>

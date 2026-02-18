@@ -8,6 +8,8 @@ import React, { useState, useEffect, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { TerminalLayout } from '@shared/components/layout';
 import { Button } from '@shared/components/ui';
+import { TerminalLog } from '@shared/components/ui';
+import { useTerminalLog } from '@core/hooks/useTerminalLog';
 import { useCampaign } from '@core/context';
 
 interface CampaignSettingsPageProps {
@@ -31,11 +33,14 @@ export const CampaignSettingsPage: React.FC<CampaignSettingsPageProps> = ({ onBa
     isActiveCampaignMaster 
   } = useCampaign();
   
-  const [logs, setLogs] = useState([
-    '> Campaign settings system online...',
-    '> [SUCCESS] Configuration protocols established.',
-    '> Awaiting commands...'
-  ]);
+  const { logs, addLog } = useTerminalLog({
+    maxLogs: 8,
+    initialLogs: [
+      '> Campaign settings system online...',
+      '> [SUCCESS] Configuration protocols established.',
+      '> Awaiting commands...'
+    ]
+  });
   
   const [isSaving, setIsSaving] = useState(false);
   const [isRegenerating, setIsRegenerating] = useState(false);
@@ -58,13 +63,6 @@ export const CampaignSettingsPage: React.FC<CampaignSettingsPageProps> = ({ onBa
       addLog(`Campaña cargada: ${activeCampaign.name.toUpperCase()}`);
     }
   }, [activeCampaign?.id]);
-
-  /**
-   * Adds a log entry to the terminal display
-   */
-  const addLog = useCallback((msg: string) => {
-    setLogs(prev => [...prev, `> ${msg}`].slice(-8));
-  }, []);
 
   /**
    * Handles saving campaign changes
@@ -401,14 +399,7 @@ export const CampaignSettingsPage: React.FC<CampaignSettingsPageProps> = ({ onBa
             <span className="material-icons text-sm">terminal</span>
             System Log
           </div>
-          <div className="md:flex-1 flex-none h-24 md:h-32 p-4 font-mono text-xs text-primary/70 space-y-1 overflow-y-auto">
-            {logs.map((log, i) => (
-              <p key={i} className={`${log.includes('ERROR') ? 'text-danger' : log.includes('SUCCESS') ? 'text-green-400' : ''}`}>
-                {log}
-              </p>
-            ))}
-            <p className="animate-pulse">_</p>
-          </div>
+          <TerminalLog logs={logs} maxLogs={8} className="h-24 md:h-32" />
         </div>
       </div>
     </TerminalLayout>

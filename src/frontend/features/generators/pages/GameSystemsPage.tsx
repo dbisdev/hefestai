@@ -7,25 +7,29 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { TerminalLayout, AdminLayout } from '@shared/components/layout';
-import { Button } from '@shared/components/ui';
+import { Button, TerminalLog } from '@shared/components/ui';
 import { ManualUploadModal } from '@shared/components/modals';
 import { useAuth } from '@core/context';
+import { useTerminalLog } from '@core/hooks/useTerminalLog';
 import { gameSystemService } from '@core/services/api';
 import type { GameSystem, CreateGameSystemRequest, UpdateGameSystemRequest } from '@core/types';
-
-interface GameSystemsPageProps {
-  /** Handler for returning to gallery */
-  onBack: () => void;
-}
 
 /**
  * Game Systems Page Component
  * Provides UI for creating and managing game systems (tabletop RPG rule sets)
  * Only accessible to Master or Admin users
  */
-export const GameSystemsPage: React.FC<GameSystemsPageProps> = ({ onBack }) => {
+export const GameSystemsPage: React.FC = () => {
   const navigate = useNavigate();
   const { user } = useAuth();
+  const { logs, addLog } = useTerminalLog({
+    maxLogs: 10,
+    initialLogs: [
+      '> Game systems management online...',
+      '> [SUCCESS] Repository connection established.',
+      '> Awaiting commands...'
+    ]
+  });
   
   const [gameSystems, setGameSystems] = useState<GameSystem[]>([]);
   const [isLoading, setIsLoading] = useState(true);
@@ -35,12 +39,6 @@ export const GameSystemsPage: React.FC<GameSystemsPageProps> = ({ onBack }) => {
   const [showEditForm, setShowEditForm] = useState(false);
   const [showManualUpload, setShowManualUpload] = useState(false);
   const [selectedSystem, setSelectedSystem] = useState<GameSystem | null>(null);
-  
-  const [logs, setLogs] = useState([
-    '> Game systems management online...',
-    '> [SUCCESS] Repository connection established.',
-    '> Awaiting commands...'
-  ]);
 
   // Form state for creating game system
   const [createForm, setCreateForm] = useState<CreateGameSystemRequest>({
@@ -66,13 +64,6 @@ export const GameSystemsPage: React.FC<GameSystemsPageProps> = ({ onBack }) => {
   
   // Entity types input for edit form (comma-separated for UX)
   const [editEntityTypesInput, setEditEntityTypesInput] = useState('');
-
-  /**
-   * Adds a log entry to the terminal display
-   */
-  const addLog = useCallback((msg: string) => {
-    setLogs(prev => [...prev, `> ${msg}`].slice(-10));
-  }, []);
 
   /**
    * Fetches all game systems from the API
@@ -121,7 +112,7 @@ export const GameSystemsPage: React.FC<GameSystemsPageProps> = ({ onBack }) => {
   };
 
   /**
-   * Validates the edit form
+   * Fetches all game systems from the API
    */
   const validateEditForm = (): boolean => {
     if (!editForm.name.trim()) {
@@ -286,15 +277,14 @@ export const GameSystemsPage: React.FC<GameSystemsPageProps> = ({ onBack }) => {
     <div className="flex flex-col items-center justify-center h-full text-danger/60">
       <span className="material-icons text-6xl mb-4">lock</span>
       <p className="text-sm uppercase tracking-widest">Acceso restringido a Masters</p>
-      <Button onClick={onBack} className="mt-4">VOLVER</Button>
+      <Button onClick={() => navigate(-1)} className="mt-4">VOLVER</Button>
     </div>
   );
   
   if (!isMasterOrAdmin) {
     return useAdminLayout ? (
       <AdminLayout 
-        activeScreen="GAME_SYSTEMS"
-        onBack={onBack}
+        activePath="/game-systems"
       >
         {accessDeniedContent}
       </AdminLayout>
@@ -746,14 +736,7 @@ export const GameSystemsPage: React.FC<GameSystemsPageProps> = ({ onBack }) => {
             <span className="material-icons text-sm">terminal</span>
             System Log
           </div>
-          <div className="md:flex-1 flex-none h-24 md:h-32 p-4 font-mono text-xs text-primary/70 space-y-1 overflow-y-auto">
-            {logs.map((log, i) => (
-              <p key={i} className={`${log.includes('ERROR') ? 'text-danger' : log.includes('SUCCESS') ? 'text-green-400' : ''}`}>
-                {log}
-              </p>
-            ))}
-            <p className="animate-pulse">_</p>
-          </div>
+          <TerminalLog logs={logs} maxLogs={10} className="h-24 md:h-32" />
 
         </div>
       </div>
@@ -764,8 +747,7 @@ export const GameSystemsPage: React.FC<GameSystemsPageProps> = ({ onBack }) => {
     <>
       {useAdminLayout ? (
         <AdminLayout 
-          activeScreen="GAME_SYSTEMS"
-          onBack={onBack}
+          activePath="/game-systems"
         >
           {mainContent}
         </AdminLayout>

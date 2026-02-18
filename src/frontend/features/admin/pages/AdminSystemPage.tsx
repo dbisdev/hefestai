@@ -4,11 +4,12 @@
  * Cyberpunk terminal aesthetics consistent with other admin pages.
  */
 
-import React, { useState, useCallback } from 'react';
+import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { AdminLayout } from '@shared/components/layout';
-import { Button } from '@shared/components/ui';
+import { Button, TerminalLog } from '@shared/components/ui';
 import { useAuth } from '@core/context';
+import { useTerminalLog } from '@core/hooks/useTerminalLog';
 import { documentService } from '@core/services/api';
 import type { GenerateMissingEmbeddingsResult } from '@core/services/api/document.service';
 
@@ -21,7 +22,15 @@ import type { GenerateMissingEmbeddingsResult } from '@core/services/api/documen
 export const AdminSystemPage: React.FC = () => {
   const navigate = useNavigate();
   const { user: currentUser } = useAuth();
-  
+  const { logs, addLog } = useTerminalLog({
+    maxLogs: 20,
+    initialLogs: [
+      '> System operations panel online...',
+      '> [SUCCESS] Admin protocols established.',
+      '> Awaiting commands...'
+    ]
+  });
+ 
   // UI state
   const [isGeneratingEmbeddings, setIsGeneratingEmbeddings] = useState(false);
   const [embeddingsResult, setEmbeddingsResult] = useState<GenerateMissingEmbeddingsResult | null>(null);
@@ -29,20 +38,6 @@ export const AdminSystemPage: React.FC = () => {
   // Configuration state
   const [batchSize, setBatchSize] = useState(10);
   const [maxDocuments, setMaxDocuments] = useState(100);
-  
-  // Terminal logs
-  const [logs, setLogs] = useState([
-    '> System operations panel online...',
-    '> [SUCCESS] Admin protocols established.',
-    '> Awaiting commands...'
-  ]);
-
-  /**
-   * Adds a log entry to the terminal display.
-   */
-  const addLog = useCallback((msg: string) => {
-    setLogs(prev => [...prev, `> ${msg}`].slice(-20));
-  }, []);
 
   /**
    * Handles generating missing embeddings for documents.
@@ -217,30 +212,7 @@ export const AdminSystemPage: React.FC = () => {
         </div>
 
         {/* Right Column - Terminal Log */}
-        <div className="flex-1 flex flex-col overflow-hidden">
-          <div className="border border-primary/30 bg-black/80 flex-1 flex flex-col">
-            <div className="bg-primary/20 p-3 text-xs text-primary uppercase tracking-widest flex items-center gap-2">
-              <span className="material-icons text-sm">terminal</span>
-              System Log
-            </div>
-            <div className="flex-1 p-4 font-mono text-xs text-primary/70 space-y-1 overflow-y-auto">
-              {logs.map((log, i) => (
-                <p 
-                  key={i} 
-                  className={`${
-                    log.includes('ERROR') || log.includes('CRITICO') ? 'text-danger' : 
-                    log.includes('SUCCESS') ? 'text-green-400' :
-                    log.includes('WARNING') ? 'text-yellow-400' :
-                    log.includes('INFO') ? 'text-cyan-400' : ''
-                  }`}
-                >
-                  {log}
-                </p>
-              ))}
-              <p className="animate-pulse">_</p>
-            </div>
-          </div>
-        </div>
+        <TerminalLog logs={logs} maxLogs={20} className="flex-1" />
       </div>
     </AdminLayout>
   );

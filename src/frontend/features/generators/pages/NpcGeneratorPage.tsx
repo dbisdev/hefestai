@@ -9,6 +9,8 @@ import { useNavigate } from 'react-router-dom';
 import { TerminalLayout } from '@shared/components/layout';
 import { Button, ImageSourceSelector, DynamicStatsPanel } from '@shared/components/ui';
 import type { ImageSourceMode } from '@shared/components/ui';
+import { TerminalLog } from '@shared/components/ui';
+import { useTerminalLog } from '@core/hooks/useTerminalLog';
 import { aiService, entityService, entityTemplateService } from '@core/services/api';
 import { useCampaign } from '@core/context';
 import { parseJsonResponse } from '@core/utils';
@@ -61,14 +63,17 @@ const SPECIES_OPTIONS = [
   { value: 'clone', label: 'Clon' },
 ];
 
-export const NpcGeneratorPage: React.FC<NpcGeneratorPageProps> = ({ onBack }) => {
+export const NpcGeneratorPage: React.FC = () => {
   const navigate = useNavigate();
   const { activeCampaignId, activeCampaign } = useCampaign();
-  const [logs, setLogs] = useState([
-    '> Actor database initialized...',
-    '> [SUCCESS] Social profiling module loaded.',
-    '> Awaiting actor parameters...'
-  ]);
+  const { logs, addLog } = useTerminalLog({
+    maxLogs: 6,
+    initialLogs: [
+      '> Actor database initialized...',
+      '> [SUCCESS] Social profiling module loaded.',
+      '> Awaiting actor parameters...'
+    ]
+  });
   const [isGenerating, setIsGenerating] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
   const [generatedNpc, setGeneratedNpc] = useState<NpcData | null>(null);
@@ -115,13 +120,6 @@ export const NpcGeneratorPage: React.FC<NpcGeneratorPageProps> = ({ onBack }) =>
     
     fetchTemplateFields();
   }, [activeCampaign?.gameSystemId]);
-
-  /**
-   * Adds a log entry to the terminal display
-   */
-  const addLog = (msg: string) => {
-    setLogs(prev => [...prev, `> ${msg}`].slice(-6));
-  };
 
   /**
    * Handles NPC generation via AI service
@@ -189,7 +187,7 @@ export const NpcGeneratorPage: React.FC<NpcGeneratorPageProps> = ({ onBack }) =>
   };
 
   /**
-   * Saves the generated NPC to the entity service using campaign-scoped endpoint
+   * Handles NPC generation via AI service
    */
   const handleSave = async () => {
     if (!generatedNpc || !activeCampaignId) return;
@@ -365,9 +363,7 @@ export const NpcGeneratorPage: React.FC<NpcGeneratorPageProps> = ({ onBack }) =>
           </div>
 
           {/* Log Panel */}
-          <div className="h-24 bg-black/80 border border-primary/20 p-3 text-[10px] text-primary/80 overflow-y-auto font-mono scrollbar-hide">
-            {logs.map((log, i) => <p key={i} className={i === logs.length - 1 ? "text-primary font-bold" : "opacity-60"}>{log}</p>)}
-          </div>
+          <TerminalLog logs={logs} maxLogs={6} className="h-24" />
 
           {/* Stats Panel - Dynamic based on game system */}
           <DynamicStatsPanel 

@@ -7,16 +7,12 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { AdminLayout } from '@shared/components/layout';
-import { Button } from '@shared/components/ui';
+import { Button, TerminalLog } from '@shared/components/ui';
 import { useAuth } from '@core/context';
+import { useTerminalLog } from '@core/hooks/useTerminalLog';
 import { adminUserService } from '@core/services/api';
 import type { AdminUser, CreateUserRequest, UpdateUserRequest } from '@core/types';
 import { AdminUserRole, AdminUserRoleLabels, AdminUserRoleColors } from '@core/types';
-
-interface AdminUsersPageProps {
-  /** Handler for returning to gallery */
-  onBack: () => void;
-}
 
 /**
  * Admin Users Page Component
@@ -26,10 +22,18 @@ interface AdminUsersPageProps {
  * - Edit existing users (role, status, password)
  * - Delete (soft delete) users
  */
-export const AdminUsersPage: React.FC<AdminUsersPageProps> = ({ onBack }) => {
+export const AdminUsersPage: React.FC = () => {
   const navigate = useNavigate();
   const { user: currentUser } = useAuth();
-  
+  const { logs, addLog } = useTerminalLog({
+    maxLogs: 12,
+    initialLogs: [
+      '> User management system online...',
+      '> [SUCCESS] Admin protocols established.',
+      '> Awaiting commands...'
+    ]
+  });
+ 
   // Data state
   const [users, setUsers] = useState<AdminUser[]>([]);
   const [selectedUser, setSelectedUser] = useState<AdminUser | null>(null);
@@ -55,20 +59,6 @@ export const AdminUsersPage: React.FC<AdminUsersPageProps> = ({ onBack }) => {
   
   // Form state for editing user
   const [editForm, setEditForm] = useState<UpdateUserRequest>({});
-  
-  // Terminal logs
-  const [logs, setLogs] = useState([
-    '> User management system online...',
-    '> [SUCCESS] Admin protocols established.',
-    '> Awaiting commands...'
-  ]);
-
-  /**
-   * Adds a log entry to the terminal display.
-   */
-  const addLog = useCallback((msg: string) => {
-    setLogs(prev => [...prev, `> ${msg}`].slice(-12));
-  }, []);
 
   /**
    * Fetches all users from the API.
@@ -731,20 +721,7 @@ role: AdminUserRole.Player,
               <span className="material-icons text-sm">terminal</span>
               System Log
             </div>
-            <div className="flex-1 p-4 font-mono text-xs text-primary/70 space-y-1 overflow-y-auto">
-              {logs.map((log, i) => (
-                <p 
-                  key={i} 
-                  className={`${
-                    log.includes('ERROR') ? 'text-danger' : 
-                    log.includes('SUCCESS') ? 'text-green-400' : ''
-                  }`}
-                >
-                  {log}
-                </p>
-              ))}
-              <p className="animate-pulse">_</p>
-            </div>
+            <TerminalLog logs={logs} maxLogs={12} className="flex-1" />
           </div>
         </div>
       </div>

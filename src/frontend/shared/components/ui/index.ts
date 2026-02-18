@@ -18,3 +18,5 @@ export type { ImageSourceMode, ImageSourceSelectorProps } from './ImageSourceSel
 
 export { DynamicStatsPanel, buildLabelMapFromFields } from './DynamicStatsPanel';
 export type { DynamicStatsPanelProps, LabelMap } from './DynamicStatsPanel';
+
+export { TerminalLog } from './TerminalLog';

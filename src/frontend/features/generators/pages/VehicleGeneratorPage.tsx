@@ -9,6 +9,8 @@ import { useNavigate } from 'react-router-dom';
 import { TerminalLayout } from '@shared/components/layout';
 import { Button, ImageSourceSelector, DynamicStatsPanel } from '@shared/components/ui';
 import type { ImageSourceMode } from '@shared/components/ui';
+import { TerminalLog } from '@shared/components/ui';
+import { useTerminalLog } from '@core/hooks/useTerminalLog';
 import { aiService, entityService, entityTemplateService } from '@core/services/api';
 import { useCampaign } from '@core/context';
 import { parseJsonResponse } from '@core/utils';
@@ -36,7 +38,10 @@ const CHASSIS_CLASS_OPTIONS = [
 export const VehicleGeneratorPage: React.FC<VehicleGeneratorPageProps> = ({ onBack }) => {
   const navigate = useNavigate();
   const { activeCampaignId, activeCampaign } = useCampaign();
-  const [logs, setLogs] = useState(['> Awaiting construction parameters...']);
+  const { logs, addLog } = useTerminalLog({
+    maxLogs: 6,
+    initialLogs: ['> Awaiting construction parameters...']
+  });
   const [isGenerating, setIsGenerating] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
   const [generatedVehi, setGeneratedVehi] = useState<VehicleData | null>(null);
@@ -82,10 +87,6 @@ export const VehicleGeneratorPage: React.FC<VehicleGeneratorPageProps> = ({ onBa
     
     fetchTemplateFields();
   }, [activeCampaign?.gameSystemId]);
-
-  const addLog = (msg: string) => {
-    setLogs(prev => [...prev, `> ${msg}`].slice(-6));
-  };
 
   /**
    * Handles vehicle generation via AI service
@@ -278,9 +279,7 @@ export const VehicleGeneratorPage: React.FC<VehicleGeneratorPageProps> = ({ onBa
           </div>
           
           {/* Log Panel */}
-          <div className="h-20 bg-black/80 border border-primary/20 p-2 text-[10px] text-primary/60 overflow-y-auto">
-            {logs.map((l, i) => <p key={i}>{l}</p>)}
-          </div>
+          <TerminalLog logs={logs} maxLogs={6} className="h-20" />
           
           {/* Stats Panel - Dynamic based on game system */}
           <DynamicStatsPanel 

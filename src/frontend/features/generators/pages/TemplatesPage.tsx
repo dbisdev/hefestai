@@ -8,8 +8,9 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { AdminLayout } from '@shared/components/layout';
-import { Button } from '@shared/components/ui';
+import { Button, TerminalLog } from '@shared/components/ui';
 import { useAuth } from '@core/context';
+import { useTerminalLog } from '@core/hooks/useTerminalLog';
 import { entityTemplateService, gameSystemService } from '@core/services/api';
 import type { 
   GameSystem,
@@ -20,11 +21,6 @@ import type {
 } from '@core/types';
 import { TemplateStatus, TemplateStatusLabels, FieldTypeLabels, FieldType } from '@core/types';
 
-interface TemplatesPageProps {
-  /** Handler for returning to gallery */
-  onBack: () => void;
-}
-
 /**
  * Templates Page Component
  * Provides UI for managing entity templates (Admin only)
@@ -32,10 +28,18 @@ interface TemplatesPageProps {
  * - View and edit template field definitions
  * - Confirm templates to make them available for entity creation
  */
-export const TemplatesPage: React.FC<TemplatesPageProps> = ({ onBack }) => {
+export const TemplatesPage: React.FC = () => {
   const navigate = useNavigate();
   const { user } = useAuth();
-  
+  const { logs, addLog } = useTerminalLog({
+    maxLogs: 12,
+    initialLogs: [
+      '> Template management system online...',
+      '> [SUCCESS] Admin protocols established.',
+      '> Awaiting commands...'
+    ]
+  });
+ 
   // Data state
   const [gameSystems, setGameSystems] = useState<GameSystem[]>([]);
   const [selectedGameSystem, setSelectedGameSystem] = useState<GameSystem | null>(null);
@@ -62,19 +66,6 @@ export const TemplatesPage: React.FC<TemplatesPageProps> = ({ onBack }) => {
   // Comparison state for skipped templates (confirmed ones with newly extracted fields)
   const [comparisonExtractedFields, setComparisonExtractedFields] = useState<FieldDefinition[] | null>(null);
   const [comparisonTemplateName, setComparisonTemplateName] = useState<string>('');
-  
-  const [logs, setLogs] = useState([
-    '> Template management system online...',
-    '> [SUCCESS] Admin protocols established.',
-    '> Awaiting commands...'
-  ]);
-
-  /**
-   * Adds a log entry to the terminal display
-   */
-  const addLog = useCallback((msg: string) => {
-    setLogs(prev => [...prev, `> ${msg}`].slice(-12));
-  }, []);
 
   /**
    * Fetches all game systems
@@ -1473,20 +1464,7 @@ export const TemplatesPage: React.FC<TemplatesPageProps> = ({ onBack }) => {
               <span className="material-icons text-sm">terminal</span>
               System Log
             </div>
-            <div className="flex-1 p-4 font-mono text-xs text-primary/70 space-y-1 overflow-y-auto">
-              {logs.map((log, i) => (
-                <p 
-                  key={i} 
-                  className={`${
-                    log.includes('ERROR') ? 'text-danger' : 
-                    log.includes('SUCCESS') ? 'text-green-400' : ''
-                  }`}
-                >
-                  {log}
-                </p>
-              ))}
-              <p className="animate-pulse">_</p>
-            </div>
+            <TerminalLog logs={logs} maxLogs={12} className="flex-1" />
           </div>
         </div>
       </div>

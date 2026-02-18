@@ -8,16 +8,13 @@
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { TerminalLayout } from '@shared/components/layout';
-import { Button, ImageSourceSelector } from '@shared/components/ui';
+import { Button, ImageSourceSelector, TerminalLog } from '@shared/components/ui';
 import type { ImageSourceMode } from '@shared/components/ui';
+import { useTerminalLog } from '@core/hooks/useTerminalLog';
 import { aiService, entityService } from '@core/services/api';
 import { useCampaign } from '@core/context';
 import { parseJsonResponse } from '@core/utils';
 import type { MissionData } from '@core/types';
-
-interface MissionGeneratorPageProps {
-  onBack: () => void;
-}
 
 /** Placeholder image for missions without generated images */
 const MISSION_PLACEHOLDER_IMAGE = "https://images.unsplash.com/photo-1451187580459-43490279c0fa?q=80&w=400&auto=format&fit=crop";
@@ -64,15 +61,17 @@ const ENVIRONMENT_OPTIONS = [
   { value: 'underground', label: 'Instalacion Subterranea' },
 ];
 
-export const MissionGeneratorPage: React.FC<MissionGeneratorPageProps> = ({ onBack }) => {
+export const MissionGeneratorPage: React.FC = () => {
   const navigate = useNavigate();
   const { activeCampaignId, activeCampaign } = useCampaign();
-
-  const [logs, setLogs] = useState([
-    '> Mission briefing system online...',
-    '> [SUCCESS] Tactical database connected.',
-    '> Awaiting mission parameters...'
-  ]);
+  const { logs, addLog } = useTerminalLog({
+    maxLogs: 6,
+    initialLogs: [
+      '> Mission briefing system online...',
+      '> [SUCCESS] Tactical database connected.',
+      '> Awaiting mission parameters...'
+    ]
+  });
   const [isGenerating, setIsGenerating] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
   const [generatedMission, setGeneratedMission] = useState<MissionData | null>(null);
@@ -91,13 +90,6 @@ export const MissionGeneratorPage: React.FC<MissionGeneratorPageProps> = ({ onBa
   const [imageMode, setImageMode] = useState<ImageSourceMode>('generate');
   /** Uploaded image data (base64) */
   const [uploadedImageData, setUploadedImageData] = useState<string | null>(null);
-
-  /**
-   * Adds a log entry to the terminal display
-   */
-  const addLog = (msg: string) => {
-    setLogs(prev => [...prev, `> ${msg}`].slice(-6));
-  };
 
   /**
    * Handles mission generation via AI service
@@ -210,7 +202,7 @@ export const MissionGeneratorPage: React.FC<MissionGeneratorPageProps> = ({ onBa
   };
 
   /**
-   * Gets the color class for difficulty display
+   * Handles mission generation via AI service
    */
   const getDifficultyInfo = () => {
     return DIFFICULTY_OPTIONS.find(d => d.value === form.difficulty) || DIFFICULTY_OPTIONS[1];
@@ -410,9 +402,7 @@ export const MissionGeneratorPage: React.FC<MissionGeneratorPageProps> = ({ onBa
           )}
 
           {/* Log Panel */}
-          <div className="mt-auto h-24 bg-black/80 border border-primary/20 p-3 text-[10px] text-primary/80 overflow-y-auto font-mono scrollbar-hide">
-            {logs.map((log, i) => <p key={i} className={i === logs.length - 1 ? "text-primary font-bold" : "opacity-60"}>{log}</p>)}
-          </div>
+          <TerminalLog logs={logs} maxLogs={6} className="mt-auto h-24" />
         </div>
       </div>
     </TerminalLayout>

@@ -4,11 +4,12 @@
  * Layout: 3 columns - Join Campaign (left) + Campaign Codes (center) + System Log (right)
  */
 
-import React, { useState, useCallback, useEffect } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { TerminalLayout } from '@shared/components/layout';
-import { Button } from '@shared/components/ui';
+import { Button, TerminalLog } from '@shared/components/ui';
 import { useAuth, useCampaign } from '@core/context';
+import { useTerminalLog } from '@core/hooks/useTerminalLog';
 import { CampaignRole, CampaignDetail } from '@core/types';
 import { campaignService } from '@core/services/api';
 
@@ -43,18 +44,14 @@ export const InvitationsPage: React.FC = () => {
   const [isLoadingDetails, setIsLoadingDetails] = useState(false);
 
   // Terminal logs
-  const [logs, setLogs] = useState([
-    '> Sistema de invitaciones activo...',
-    '> [SUCCESS] Conexion establecida.',
-    '> Esperando comandos...'
-  ]);
-
-  /**
-   * Adds a log entry to the terminal display
-   */
-  const addLog = useCallback((msg: string) => {
-    setLogs(prev => [...prev, `> ${msg}`].slice(-12));
-  }, []);
+  const { logs, addLog } = useTerminalLog({
+    maxLogs: 12,
+    initialLogs: [
+      'Sistema de invitaciones activo...',
+      '[SUCCESS] Conexion establecida.',
+      'Esperando comandos...'
+    ]
+  });
 
   // Clear context error on unmount
   useEffect(() => {
@@ -426,24 +423,7 @@ export const InvitationsPage: React.FC = () => {
 
         {/* System Log - Fixed Width Right Sidebar */}
         <div className="w-full lg:w-80 flex flex-col border border-primary/30 bg-black/80">
-          <div className="bg-primary/20 p-2 text-xs text-primary uppercase tracking-widest flex items-center gap-2">
-            <span className="material-icons text-sm">terminal</span>
-            System Log
-          </div>
-          <div className="md:flex-1 flex-none h-24 md:h-32 p-4 font-mono text-xs text-primary/70 space-y-1 overflow-y-auto">
-            {logs.map((log, i) => (
-              <p 
-                key={i} 
-                className={`${
-                  log.includes('ERROR') ? 'text-danger' : 
-                  log.includes('SUCCESS') ? 'text-green-400' : ''
-                }`}
-              >
-                {log}
-              </p>
-            ))}
-            <p className="animate-pulse">_</p>
-          </div>
+          <TerminalLog logs={logs} maxLogs={12} className="flex-1 h-24 md:h-32" />
         </div>
 
       </div>
