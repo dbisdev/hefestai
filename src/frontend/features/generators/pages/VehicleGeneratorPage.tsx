@@ -5,6 +5,7 @@
  */
 
 import React, { useState, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { TerminalLayout } from '@shared/components/layout';
 import { Button, ImageSourceSelector, DynamicStatsPanel } from '@shared/components/ui';
 import type { ImageSourceMode } from '@shared/components/ui';
@@ -12,15 +13,12 @@ import { aiService, entityService, entityTemplateService } from '@core/services/
 import { useCampaign } from '@core/context';
 import { parseJsonResponse } from '@core/utils';
 import type { VehicleData, FieldDefinition } from '@core/types';
-import { Screen } from '@core/types';
 
 /** Placeholder image for vehicles without generated images */
 const VEHICLE_PLACEHOLDER_IMAGE = "https://images.unsplash.com/photo-1702499903230-867455db1752?q=80&w=400&auto=format&fit=crop";
 
 interface VehicleGeneratorPageProps {
   onBack: () => void;
-  onNavigate?: (screen: Screen) => void;
-  onLogout?: () => void;
 }
 
 const VEHICLE_TYPE_OPTIONS = [
@@ -35,7 +33,8 @@ const CHASSIS_CLASS_OPTIONS = [
   { value: 'explorer', label: 'Explorador de Larga Distancia' },
 ];
 
-export const VehicleGeneratorPage: React.FC<VehicleGeneratorPageProps> = ({ onBack, onNavigate, onLogout }) => {
+export const VehicleGeneratorPage: React.FC<VehicleGeneratorPageProps> = ({ onBack }) => {
+  const navigate = useNavigate();
   const { activeCampaignId, activeCampaign } = useCampaign();
   const [logs, setLogs] = useState(['> Awaiting construction parameters...']);
   const [isGenerating, setIsGenerating] = useState(false);
@@ -189,8 +188,6 @@ export const VehicleGeneratorPage: React.FC<VehicleGeneratorPageProps> = ({ onBa
       title="SYNTH_VEHICULO" 
       subtitle="Ensamblaje Naval"
       icon="rocket_launch"
-      onLogout={onLogout}
-      onNavigate={onNavigate}
       gameSystemId={activeCampaign?.gameSystemId}
       hideCampaignSelector={false}
     >

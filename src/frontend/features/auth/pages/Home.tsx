@@ -4,17 +4,8 @@
  * Implements retro-futuristic sci-fi terminal aesthetic
  */
 
-import React from 'react';
-
-/**
- * Props for the Home component
- */
-interface HomeProps {
-  /** Callback to navigate to login page */
-  onLogin: () => void;
-  /** Callback to navigate to signup page */
-  onSignup: () => void;
-}
+import React, { useCallback } from 'react';
+import { useNavigate } from 'react-router-dom';
 
 /**
  * Home page component - Initial landing page for the application
@@ -24,7 +15,17 @@ interface HomeProps {
  * - Retro terminal aesthetic with CRT effects
  * - System status footer
  */
-const Home: React.FC<HomeProps> = ({ onLogin, onSignup }) => {
+const Home: React.FC = () => {
+  const navigate = useNavigate();
+
+  const handleLogin = useCallback(() => {
+    navigate('/login');
+  }, [navigate]);
+
+  const handleSignup = useCallback(() => {
+    navigate('/signup');
+  }, [navigate]);
+
   return (
     <div className="h-full bg-background-dark font-mono text-primary flex flex-col relative overflow-y-auto custom-scrollbar scroll-smooth">
       {/* Background Grid - Fixed so it doesn't scroll with content but stays behind */}
@@ -38,7 +39,7 @@ const Home: React.FC<HomeProps> = ({ onLogin, onSignup }) => {
           <span className="text-lg font-display font-bold tracking-[0.3em] text-glow">HEFESTAI</span>
         </div>
         <button 
-          onClick={onLogin}
+          onClick={handleLogin}
           className="group flex items-center gap-3 border border-primary/40 md:px-4 px-2 py-1.5 hover:bg-primary hover:text-black transition-all clip-tech-br"
         >
           <span className="text-[10px] font-bold uppercase tracking-widest">Acceso al Sistema</span>
@@ -61,13 +62,13 @@ const Home: React.FC<HomeProps> = ({ onLogin, onSignup }) => {
           
           <div className="mt-12 flex flex-col sm:flex-row justify-center gap-4">
             <button 
-              onClick={onSignup}
+              onClick={handleSignup}
               className="px-8 py-4 bg-primary text-black font-bold uppercase tracking-widest hover:bg-white transition-all shadow-[0_0_30px_#25f46a44] clip-tech-tl"
             >
               Inicializar Perfil
             </button>
             <button 
-              onClick={onLogin}
+              onClick={handleLogin}
               className="px-8 py-4 border border-primary text-primary font-bold uppercase tracking-widest hover:bg-primary/10 transition-all"
             >
               Verificar Credenciales

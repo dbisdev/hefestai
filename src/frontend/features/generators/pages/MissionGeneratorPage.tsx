@@ -6,6 +6,7 @@
  */
 
 import React, { useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { TerminalLayout } from '@shared/components/layout';
 import { Button, ImageSourceSelector } from '@shared/components/ui';
 import type { ImageSourceMode } from '@shared/components/ui';
@@ -13,12 +14,9 @@ import { aiService, entityService } from '@core/services/api';
 import { useCampaign } from '@core/context';
 import { parseJsonResponse } from '@core/utils';
 import type { MissionData } from '@core/types';
-import { Screen } from '@core/types';
 
 interface MissionGeneratorPageProps {
   onBack: () => void;
-  onNavigate?: (screen: Screen) => void;
-  onLogout?: () => void;
 }
 
 /** Placeholder image for missions without generated images */
@@ -66,7 +64,8 @@ const ENVIRONMENT_OPTIONS = [
   { value: 'underground', label: 'Instalacion Subterranea' },
 ];
 
-export const MissionGeneratorPage: React.FC<MissionGeneratorPageProps> = ({ onBack, onNavigate, onLogout }) => {
+export const MissionGeneratorPage: React.FC<MissionGeneratorPageProps> = ({ onBack }) => {
+  const navigate = useNavigate();
   const { activeCampaignId, activeCampaign } = useCampaign();
 
   const [logs, setLogs] = useState([
@@ -222,8 +221,6 @@ export const MissionGeneratorPage: React.FC<MissionGeneratorPageProps> = ({ onBa
       title="GENERADOR DE MISIONES" 
       subtitle="Generador de Misiones Tacticas"
       icon="assignment"
-      onLogout={onLogout}
-      onNavigate={onNavigate}
       gameSystemId={activeCampaign?.gameSystemId}
       hideCampaignSelector={false}
     >

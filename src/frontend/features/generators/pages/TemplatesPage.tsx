@@ -6,6 +6,7 @@
  */
 
 import React, { useState, useEffect, useCallback } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { AdminLayout } from '@shared/components/layout';
 import { Button } from '@shared/components/ui';
 import { useAuth } from '@core/context';
@@ -17,15 +18,11 @@ import type {
   ExtractedTemplateInfo,
   FieldDefinition
 } from '@core/types';
-import { TemplateStatus, TemplateStatusLabels, FieldTypeLabels, FieldType, Screen } from '@core/types';
+import { TemplateStatus, TemplateStatusLabels, FieldTypeLabels, FieldType } from '@core/types';
 
 interface TemplatesPageProps {
-  /** Handler for navigating to other screens */
-  onNavigate: (screen: Screen) => void;
   /** Handler for returning to gallery */
   onBack: () => void;
-  /** Handler for logging out */
-  onLogout?: () => void;
 }
 
 /**
@@ -35,7 +32,8 @@ interface TemplatesPageProps {
  * - View and edit template field definitions
  * - Confirm templates to make them available for entity creation
  */
-export const TemplatesPage: React.FC<TemplatesPageProps> = ({ onNavigate, onBack, onLogout }) => {
+export const TemplatesPage: React.FC<TemplatesPageProps> = ({ onBack }) => {
+  const navigate = useNavigate();
   const { user } = useAuth();
   
   // Data state
@@ -617,10 +615,8 @@ export const TemplatesPage: React.FC<TemplatesPageProps> = ({ onNavigate, onBack
   if (!isAdmin) {
     return (
       <AdminLayout 
-        activeScreen={Screen.TEMPLATES} 
-        onNavigate={onNavigate} 
+        activeScreen="TEMPLATES"
         onBack={onBack}
-        onLogout={onLogout}
       >
         <div className="flex flex-col items-center justify-center h-full text-danger/60">
           <span className="material-icons text-6xl mb-4">lock</span>
@@ -633,10 +629,8 @@ export const TemplatesPage: React.FC<TemplatesPageProps> = ({ onNavigate, onBack
 
   return (
     <AdminLayout 
-      activeScreen={Screen.TEMPLATES} 
-      onNavigate={onNavigate} 
+      activeScreen="TEMPLATES"
       onBack={onBack}
-      onLogout={onLogout}
     >
       <div className="flex flex-col lg:flex-row h-full gap-6">
         {/* Left Column - Game Systems & Templates List */}

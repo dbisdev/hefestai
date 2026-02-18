@@ -5,13 +5,13 @@
  */
 
 import React, { useState } from 'react';
+import { useNavigate, useLocation } from 'react-router-dom';
 import DiceRoller from '../../../components/DiceRoller';
 import { useAuth } from '@core/context';
-import { Screen } from '@core/types';
 
 /** Navigation item definition for admin sidebar */
 interface AdminNavItem {
-  id: Screen;
+  path: string;
   label: string;
   icon: string;
   description: string;
@@ -20,31 +20,31 @@ interface AdminNavItem {
 /** Admin navigation items configuration */
 const ADMIN_NAV_ITEMS: AdminNavItem[] = [
   {
-    id: Screen.ADMIN_USERS,
+    path: '/admin/users',
     label: 'USUARIOS',
     icon: 'admin_panel_settings',
     description: 'Gestión de usuarios',
   },
   {
-    id: Screen.GAME_SYSTEMS,
+    path: '/game-systems',
     label: 'SISTEMAS',
     icon: 'sports_esports',
     description: 'Sistemas de juego',
   },
   {
-    id: Screen.ADMIN_SYSTEM,
+    path: '/admin/system',
     label: 'RAG',
     icon: 'settings_suggest',
     description: 'Operaciones del sistema',
   },
   {
-    id: Screen.ADMIN_CAMPAIGNS,
+    path: '/admin/campaigns',
     label: 'CAMPAÑAS',
     icon: 'shield',
     description: 'Gestión de campañas',
   },
   {
-    id: Screen.TEMPLATES,
+    path: '/templates',
     label: 'PLANTILLAS',
     icon: 'description',
     description: 'Plantillas de entidades',
@@ -53,14 +53,8 @@ const ADMIN_NAV_ITEMS: AdminNavItem[] = [
 
 interface AdminLayoutProps {
   children: React.ReactNode;
-  /** Current active screen for highlighting in navigation */
-  activeScreen: Screen;
-  /** Navigation handler for switching between admin sections */
-  onNavigate: (screen: Screen) => void;
-  /** Handler for returning to the main gallery */
-  onBack: () => void;
-  /** Optional logout handler */
-  onLogout?: () => void;
+  /** Current active path for highlighting in navigation */
+  activePath: string;
 }
 
 /**
@@ -73,13 +67,20 @@ interface AdminLayoutProps {
  */
 export const AdminLayout: React.FC<AdminLayoutProps> = ({
   children,
-  activeScreen,
-  onNavigate,
-  onBack,
-  onLogout,
+  activePath,
 }) => {
-  const { isAdmin } = useAuth();
+  const navigate = useNavigate();
+  const location = useLocation();
+  const { isAdmin, logout } = useAuth();
   const [showDice, setShowDice] = useState(false);
+
+  const handleNavigate = (path: string) => {
+    navigate(path);
+  };
+
+  const handleBack = () => {
+    navigate(-1);
+  };
 
   return (
     <div className="flex flex-col h-screen p-4 md:p-8 bg-background-dark font-mono relative">
@@ -115,25 +116,25 @@ export const AdminLayout: React.FC<AdminLayoutProps> = ({
             </button>
           )}
 
-          {/* Hide gallery button for admin users - they only have access to admin panel */}
-          {!isAdmin && (
-            <button
-              onClick={onBack}
-              className="flex items-center gap-2 border border-primary/40 px-3 py-1 text-xs uppercase hover:bg-primary/20 transition-all text-primary font-bold"
-            >
-              <span className="material-icons text-sm">arrow_back</span>
-              <span className="hidden sm:inline">GALERÍA</span>
-            </button>
-          )}
+          {/* Back button - always visible for browser history */}
+          <button
+            onClick={handleBack}
+            className="flex items-center gap-2 border border-primary/40 px-3 py-1 text-xs uppercase hover:bg-primary/20 transition-all text-primary font-bold"
+          >
+            <span className="material-icons text-sm">arrow_back</span>
+            <span className="hidden sm:inline">VOLVER</span>
+          </button>
 
-          {onLogout && (
-            <button
-              onClick={onLogout}
-              className="border border-red-500 px-4 py-1 text-xs uppercase hover:bg-red-500 hover:text-black transition-colors text-red-500 font-bold"
-            >
-              LOGOUT
-            </button>
-          )}
+          {/* Logout Button - always visible */}
+          <button
+            onClick={async () => {
+              await logout();
+              window.location.replace('/');
+            }}
+            className="border border-red-500 px-4 py-1 text-xs uppercase hover:bg-red-500 hover:text-black transition-colors text-red-500 font-bold"
+          >
+            LOGOUT
+          </button>
         </div>
       </header>
 
@@ -151,20 +152,20 @@ export const AdminLayout: React.FC<AdminLayoutProps> = ({
             </div>
             {ADMIN_NAV_ITEMS.map((item) => (
               <button
-                key={item.id}
-                onClick={() => onNavigate(item.id)}
+                key={item.path}
+                onClick={() => handleNavigate(item.path)}
                 className={`group flex items-center gap-3 p-3 border transition-all relative overflow-hidden ${
-                  activeScreen === item.id
+                  activePath === item.path
                     ? 'border-l-4 border-l-red-500 border-y-red-500/30 border-r-red-500/30 bg-red-500/20 shadow-[inset_0_0_15px_rgba(239,68,68,0.1)]'
                     : 'border-red-500/30 hover:border-red-500 hover:bg-red-500/10 bg-surface-dark'
                 }`}
               >
-                {activeScreen === item.id && (
+                {activePath === item.path && (
                   <div className="absolute inset-0 bg-red-500/5 animate-pulse pointer-events-none"></div>
                 )}
                 <span
                   className={`material-icons text-xl ${
-                    activeScreen === item.id ? 'text-red-500' : 'text-red-500/60'
+                    activePath === item.path ? 'text-red-500' : 'text-red-500/60'
                   }`}
                 >
                   {item.icon}
@@ -172,7 +173,7 @@ export const AdminLayout: React.FC<AdminLayoutProps> = ({
                 <div className="hidden md:flex flex-col items-start">
                   <span
                     className={`text-xs font-bold tracking-widest ${
-                      activeScreen === item.id
+                      activePath === item.path
                         ? 'text-red-500 text-glow'
                         : 'text-red-500/70'
                     }`}
@@ -181,7 +182,7 @@ export const AdminLayout: React.FC<AdminLayoutProps> = ({
                   </span>
                   <span className="text-[9px] text-red-500/40">{item.description}</span>
                 </div>
-                {activeScreen === item.id && (
+                {activePath === item.path && (
                   <div className="absolute right-2 top-1/2 -translate-y-1/2 w-1 h-1 bg-red-500 rounded-full animate-ping"></div>
                 )}
               </button>

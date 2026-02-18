@@ -5,28 +5,25 @@
  */
 
 import React, { useState, useCallback, useEffect } from 'react';
+import { useNavigate, useParams } from 'react-router-dom';
 import { TerminalLayout } from '@shared/components/layout';
 import { Button } from '@shared/components/ui';
 import { useAuth, useCampaign } from '@core/context';
-import { Screen, CampaignRole, CampaignDetail } from '@core/types';
+import { CampaignRole, CampaignDetail } from '@core/types';
 import { campaignService } from '@core/services/api';
-
-interface InvitationsPageProps {
-  /** Handler for navigating to other screens */
-  onNavigate: (screen: Screen) => void;
-  /** Handler for logging out */
-  onLogout: () => void;
-}
 
 /**
  * Invitations Page Component
  * Provides UI for joining campaigns and managing invitation codes
  */
-export const InvitationsPage: React.FC<InvitationsPageProps> = ({ onNavigate, onLogout }) => {
-  const { isMaster } = useAuth();
+export const InvitationsPage: React.FC = () => {
+  const navigate = useNavigate();
+  const { campaignId } = useParams();
+  const { isMaster, user } = useAuth();
   const { 
     joinCampaign, 
     campaigns,
+    activeCampaign,
     isLoading: isContextLoading, 
     error: contextError,
     clearError 
@@ -179,8 +176,6 @@ export const InvitationsPage: React.FC<InvitationsPageProps> = ({ onNavigate, on
       title="INVITACIONES"
       subtitle="Unirse a campañas y codigos de invitacion"
       icon="mail"
-      onLogout={onLogout}
-      onNavigate={onNavigate}
       hideCampaignSelector={true}
     >
       <div className="h-full flex flex-col lg:flex-row gap-6 overflow-hidden">
@@ -198,7 +193,7 @@ export const InvitationsPage: React.FC<InvitationsPageProps> = ({ onNavigate, on
                 </p>
               </div>
               <Button
-                onClick={() => onNavigate(Screen.CAMPAIGN_LIST)}
+                onClick={() => navigate('/campaigns')}
                 variant="secondary"
                 size="sm"
               >
@@ -341,7 +336,7 @@ export const InvitationsPage: React.FC<InvitationsPageProps> = ({ onNavigate, on
                         <span className="material-icons text-4xl text-primary/20 mb-2">folder_off</span>
                         <p className="text-primary/40 text-sm">No tienes campañas como Master</p>
                         <Button
-                          onClick={() => onNavigate(Screen.CAMPAIGN_GEN)}
+                          onClick={() => navigate('/campaigns/new')}
                           variant="primary"
                           size="sm"
                           className="mt-4"
@@ -415,7 +410,7 @@ export const InvitationsPage: React.FC<InvitationsPageProps> = ({ onNavigate, on
                   {/* Action Buttons */}
                   <div className="mt-auto space-y-3">
                     <Button
-                      onClick={() => onNavigate(Screen.CAMPAIGN_LIST)}
+                      onClick={() => navigate('/campaigns')}
                       variant="secondary"
                       className="w-full h-12"
                     >

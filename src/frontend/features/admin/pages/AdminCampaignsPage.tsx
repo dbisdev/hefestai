@@ -6,20 +6,16 @@
  */
 
 import React, { useState, useEffect, useCallback } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { AdminLayout } from '@shared/components/layout';
 import { Button } from '@shared/components/ui';
 import { useAuth } from '@core/context';
 import { adminCampaignService, adminUserService } from '@core/services/api';
 import type { AdminCampaign, AdminUpdateCampaignRequest, AdminUser } from '@core/types';
-import { Screen } from '@core/types';
 
 interface AdminCampaignsPageProps {
-  /** Handler for navigating to other screens */
-  onNavigate: (screen: Screen) => void;
   /** Handler for returning to gallery */
   onBack: () => void;
-  /** Handler for logging out */
-  onLogout?: () => void;
 }
 
 /**
@@ -30,7 +26,8 @@ interface AdminCampaignsPageProps {
  * - Transfer campaign ownership
  * - Delete (soft delete) campaigns
  */
-export const AdminCampaignsPage: React.FC<AdminCampaignsPageProps> = ({ onNavigate, onBack, onLogout }) => {
+export const AdminCampaignsPage: React.FC<AdminCampaignsPageProps> = ({ onBack }) => {
+  const navigate = useNavigate();
   const { user: currentUser } = useAuth();
   
   // Data state
@@ -280,10 +277,8 @@ export const AdminCampaignsPage: React.FC<AdminCampaignsPageProps> = ({ onNaviga
   if (!isAdmin) {
     return (
       <AdminLayout 
-        activeScreen={Screen.ADMIN_CAMPAIGNS} 
-        onNavigate={onNavigate} 
+        activeScreen="ADMIN_CAMPAIGNS"
         onBack={onBack}
-        onLogout={onLogout}
       >
         <div className="flex flex-col items-center justify-center h-full text-danger/60">
           <span className="material-icons text-6xl mb-4">lock</span>
@@ -296,10 +291,8 @@ export const AdminCampaignsPage: React.FC<AdminCampaignsPageProps> = ({ onNaviga
 
   return (
     <AdminLayout 
-      activeScreen={Screen.ADMIN_CAMPAIGNS} 
-      onNavigate={onNavigate} 
+      activeScreen="ADMIN_CAMPAIGNS"
       onBack={onBack}
-      onLogout={onLogout}
     >
       <div className="flex flex-col lg:flex-row h-full gap-6">
         {/* Left Column - Campaigns List */}

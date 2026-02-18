@@ -5,6 +5,7 @@
  */
 
 import React, { useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { TerminalLayout } from '@shared/components/layout';
 import { Button, ImageSourceSelector } from '@shared/components/ui';
 import type { ImageSourceMode } from '@shared/components/ui';
@@ -12,12 +13,9 @@ import { aiService, entityService } from '@core/services/api';
 import { useCampaign } from '@core/context';
 import { parseJsonResponse } from '@core/utils';
 import type { EncounterData } from '@core/types';
-import { Screen } from '@core/types';
 
 interface EncounterGeneratorPageProps {
   onBack: () => void;
-  onNavigate?: (screen: Screen) => void;
-  onLogout?: () => void;
 }
 
 /** Placeholder image for encounters without generated images */
@@ -75,7 +73,8 @@ const ENEMY_COUNT_OPTIONS = [
   { value: 'horde', label: '6+ Enemigos' },
 ];
 
-export const EncounterGeneratorPage: React.FC<EncounterGeneratorPageProps> = ({ onBack, onNavigate, onLogout }) => {
+export const EncounterGeneratorPage: React.FC<EncounterGeneratorPageProps> = ({ onBack }) => {
+  const navigate = useNavigate();
   const { activeCampaignId, activeCampaign } = useCampaign();
   const [logs, setLogs] = useState([
     '> Tactical simulation online...',
@@ -224,8 +223,6 @@ export const EncounterGeneratorPage: React.FC<EncounterGeneratorPageProps> = ({ 
       title="SIMULADOR DE COMBATE" 
       subtitle="Generador de Encuentros Tacticos"
       icon="swords"
-      onLogout={onLogout}
-      onNavigate={onNavigate}
       gameSystemId={activeCampaign?.gameSystemId}
       hideCampaignSelector={false}
     >

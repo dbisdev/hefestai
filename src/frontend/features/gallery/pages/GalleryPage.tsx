@@ -11,19 +11,14 @@
  */
 
 import React, { useState, useEffect, useCallback, useRef, KeyboardEvent, forwardRef } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { TerminalLayout } from '@shared/components/layout';
 import { EntityEditModal, EntityViewModal } from '@shared/components/modals';
-import { useCampaign } from '@core/context';
+import { useCampaign, useAuth } from '@core/context';
 import { entityService, entityTemplateService } from '@core/services/api';
 import { useCharacterSheetPdf } from '@core/hooks';
-import type { LoreEntity, User, EntityCategory, Campaign, CreateLoreEntityInput, EntityTemplateSummary, FieldDefinition } from '@core/types';
-import { Screen, CampaignRole, VisibilityLevel } from '@core/types';
-
-interface GalleryPageProps {
-  user: User | null;
-  onNavigate: (screen: Screen) => void;
-  onLogout: () => void;
-}
+import type { LoreEntity, EntityCategory, CreateLoreEntityInput, EntityTemplateSummary, FieldDefinition } from '@core/types';
+import { CampaignRole, VisibilityLevel } from '@core/types';
 
 /**
  * Category info for sidebar navigation
@@ -49,45 +44,37 @@ const ENTITY_CATEGORIES: CategoryInfo[] = [
 ];
 
 /**
- * Map entity category to the corresponding generator screen
+ * Map entity category to the corresponding generator route
  */
-const CATEGORY_TO_SCREEN: Record<EntityCategory, Screen> = {
-  'solar_system': Screen.SOLAR_GEN,
-  'character': Screen.CHAR_GEN,
-  'npc': Screen.NPC_GEN,
-  'enemy': Screen.ENEMY_GEN,
-  'vehicle': Screen.VEHI_GEN,
-  'mission': Screen.MISSION_GEN,
-  'encounter': Screen.ENCOUNTER_GEN,
+const CATEGORY_TO_ROUTE: Record<EntityCategory, string> = {
+  'solar_system': '/gallery/solar-gen',
+  'character': '/gallery/char-gen',
+  'npc': '/gallery/npc-gen',
+  'enemy': '/gallery/enemy-gen',
+  'vehicle': '/gallery/vehi-gen',
+  'mission': '/gallery/mission-gen',
+  'encounter': '/gallery/encounter-gen',
 };
 
 /**
- * Map template entityTypeName to the corresponding generator screen.
+ * Map template entityTypeName to the corresponding generator route.
  * Handles common variations and naming conventions.
  * @param entityTypeName - The entity type name from the template
- * @returns The corresponding Screen or null if not found
+ * @returns The corresponding route or null if not found
  */
-const getScreenForTemplate = (entityTypeName: string): Screen | null => {
-  const mapping: Record<string, Screen> = {
-    'player_character': Screen.CHAR_GEN,
-    'character': Screen.CHAR_GEN,
-    'npc': Screen.NPC_GEN,
-    'non_player_character': Screen.NPC_GEN,
-    'actor': Screen.NPC_GEN,
-    'enemy': Screen.ENEMY_GEN,
-    'adversary': Screen.ENEMY_GEN,
-    'vehicle': Screen.VEHI_GEN,
-    'starship': Screen.VEHI_GEN,
-    'spacecraft': Screen.VEHI_GEN,
-    'solar_system': Screen.SOLAR_GEN,
-    'star_system': Screen.SOLAR_GEN,
-    'planet': Screen.SOLAR_GEN,
-    'mission': Screen.MISSION_GEN,
-    'quest': Screen.MISSION_GEN,
-    'encounter': Screen.ENCOUNTER_GEN,
-    'combat': Screen.ENCOUNTER_GEN,
+const getRouteForTemplate = (entityTypeName: string): string | null => {
+  const routeMap: Record<string, string> = {
+    'character': '/gallery/char-gen',
+    'npc': '/gallery/npc-gen',
+    'enemy': '/gallery/enemy-gen',
+    'vehicle': '/gallery/vehi-gen',
+    'mission': '/gallery/mission-gen',
+    'encounter': '/gallery/encounter-gen',
+    'solar_system': '/gallery/solar-gen',
+    'solarsystem': '/gallery/solar-gen',
+    'solar-system': '/gallery/solar-gen',
   };
-  return mapping[entityTypeName.toLowerCase()] || null;
+  return routeMap[entityTypeName.toLowerCase()] || null;
 };
 
 /**
@@ -125,7 +112,9 @@ const getIconForTemplate = (template: EntityTemplateSummary): string => {
   return icons[template.entityTypeName.toLowerCase()] || 'category';
 };
 
-export const GalleryPage: React.FC<GalleryPageProps> = ({ user, onNavigate, onLogout }) => {
+export const GalleryPage: React.FC = () => {
+  const navigate = useNavigate();
+  const { user, logout } = useAuth();
   const { 
     campaigns, 
     activeCampaign, 
@@ -640,9 +629,9 @@ export const GalleryPage: React.FC<GalleryPageProps> = ({ user, onNavigate, onLo
    * Navigate to the appropriate generator for the current category
    */
   const handleAddNew = () => {
-    const screen = CATEGORY_TO_SCREEN[displayCategory];
-    if (screen) {
-      onNavigate(screen);
+    const route = CATEGORY_TO_ROUTE[displayCategory];
+    if (route) {
+      navigate(route);
     }
   };
 
@@ -650,19 +639,7 @@ export const GalleryPage: React.FC<GalleryPageProps> = ({ user, onNavigate, onLo
    * Navigate to campaign creation/joining page
    */
   const handleManageCampaigns = () => {
-    onNavigate(Screen.CAMPAIGN_GEN);
-  };
-
-  /**
-   * Handle campaign selection
-   */
-  const handleSelectCampaign = async (campaign: Campaign) => {
-    try {
-      await selectCampaign(campaign.id);
-      setShowCampaignSelector(false);
-    } catch (error) {
-      console.error('Failed to select campaign:', error);
-    }
+    navigate('/campaigns/new');
   };
 
   const isLoading = isCampaignLoading || isLoadingEntities;
@@ -672,8 +649,6 @@ export const GalleryPage: React.FC<GalleryPageProps> = ({ user, onNavigate, onLo
       title="GALERÍA" 
       subtitle="Archivo de Entidades"
       icon="grid_view"
-      onLogout={onLogout}
-      onNavigate={onNavigate}
       gameSystemId={activeCampaign?.gameSystemId}
       hideCampaignSelector={false}
       // actions={
@@ -776,7 +751,7 @@ export const GalleryPage: React.FC<GalleryPageProps> = ({ user, onNavigate, onLo
                   <button 
                     onClick={() => {
                       setShowCampaignSelector(false);
-                      onNavigate(Screen.CAMPAIGN_SETTINGS);
+                      navigate(`/campaigns/${activeCampaign.id}`);
                     }}
                     className="w-full bg-cyan-500/10 border border-cyan-500/50 py-2 text-[10px] text-cyan-500 uppercase font-bold hover:bg-cyan-500/30 transition-colors mb-2 flex items-center justify-center gap-2"
                   >
@@ -790,7 +765,7 @@ export const GalleryPage: React.FC<GalleryPageProps> = ({ user, onNavigate, onLo
                   <button 
                     onClick={() => {
                       setShowCampaignSelector(false);
-                      onNavigate(Screen.GAME_SYSTEMS);
+                      navigate('/game-systems');
                     }}
                     className="w-full bg-purple-500/10 border border-purple-500/50 py-2 text-[10px] text-purple-400 uppercase font-bold hover:bg-purple-500/30 transition-colors mb-2 flex items-center justify-center gap-2"
                   >
@@ -976,16 +951,16 @@ export const GalleryPage: React.FC<GalleryPageProps> = ({ user, onNavigate, onLo
                 </div>
               ) : (
                 confirmedTemplates.map((template) => {
-                  const screen = getScreenForTemplate(template.entityTypeName);
+                  const route = getRouteForTemplate(template.entityTypeName);
                   const icon = getIconForTemplate(template);
                   
-                  // Skip templates that don't have a corresponding generator screen
-                  if (!screen) return null;
+                  // Skip templates that don't have a corresponding generator route
+                  if (!route) return null;
                   
                   return (
                     <button
                       key={template.id}
-                      onClick={() => onNavigate(screen)}
+                      onClick={() => navigate(route)}
                       disabled={!activeCampaignId}
                       className="group flex items-center gap-3 p-3 border border-cyan-500/30 hover:border-cyan-500 hover:bg-cyan-500/10 bg-surface-dark transition-all disabled:opacity-50"
                       title={`Generar ${template.displayName}`}
@@ -1011,7 +986,7 @@ export const GalleryPage: React.FC<GalleryPageProps> = ({ user, onNavigate, onLo
               </div>
               <div className="flex flex-col gap-2">
                 <button
-                  onClick={() => onNavigate(Screen.ADMIN_USERS)}
+                  onClick={() => navigate('/admin/users')}
                   className="group flex items-center gap-3 p-3 border border-red-500/30 hover:border-red-500 hover:bg-red-500/10 bg-surface-dark transition-all"
                 >
                   <span className="material-icons text-xl text-red-500/60 group-hover:text-red-400">admin_panel_settings</span>
@@ -1020,7 +995,7 @@ export const GalleryPage: React.FC<GalleryPageProps> = ({ user, onNavigate, onLo
                   </span>
                 </button>
                 <button
-                  onClick={() => onNavigate(Screen.ADMIN_CAMPAIGNS)}
+                  onClick={() => navigate('/admin/campaigns')}
                   className="group flex items-center gap-3 p-3 border border-red-500/30 hover:border-red-500 hover:bg-red-500/10 bg-surface-dark transition-all"
                 >
                   <span className="material-icons text-xl text-red-500/60 group-hover:text-red-400">shield</span>
@@ -1029,7 +1004,7 @@ export const GalleryPage: React.FC<GalleryPageProps> = ({ user, onNavigate, onLo
                   </span>
                 </button>
                 <button
-                  onClick={() => onNavigate(Screen.TEMPLATES)}
+                  onClick={() => navigate('/templates')}
                   className="group flex items-center gap-3 p-3 border border-red-500/30 hover:border-red-500 hover:bg-red-500/10 bg-surface-dark transition-all"
                 >
                   <span className="material-icons text-xl text-red-500/60 group-hover:text-red-400">description</span>
@@ -1038,7 +1013,34 @@ export const GalleryPage: React.FC<GalleryPageProps> = ({ user, onNavigate, onLo
                   </span>
                 </button>
                 <button
-                  onClick={() => onNavigate(Screen.GAME_SYSTEMS)}
+                  onClick={() => navigate('/game-systems')}
+                  className="group flex items-center gap-3 p-3 border border-red-500/30 hover:border-red-500 hover:bg-red-500/10 bg-surface-dark transition-all"
+                >
+                  <span className="material-icons text-xl text-red-500/60 group-hover:text-red-400">admin_panel_settings</span>
+                  <span className="hidden md:inline text-xs font-bold tracking-widest text-red-500/70 group-hover:text-red-400">
+                    USUARIOS
+                  </span>
+                </button>
+                <button
+                  onClick={() => navigate('/admin/campaigns')}
+                  className="group flex items-center gap-3 p-3 border border-red-500/30 hover:border-red-500 hover:bg-red-500/10 bg-surface-dark transition-all"
+                >
+                  <span className="material-icons text-xl text-red-500/60 group-hover:text-red-400">shield</span>
+                  <span className="hidden md:inline text-xs font-bold tracking-widest text-red-500/70 group-hover:text-red-400">
+                    CAMPAÑAS
+                  </span>
+                </button>
+                <button
+                  onClick={() => navigate('/templates')}
+                  className="group flex items-center gap-3 p-3 border border-red-500/30 hover:border-red-500 hover:bg-red-500/10 bg-surface-dark transition-all"
+                >
+                  <span className="material-icons text-xl text-red-500/60 group-hover:text-red-400">description</span>
+                  <span className="hidden md:inline text-xs font-bold tracking-widest text-red-500/70 group-hover:text-red-400">
+                    PLANTILLAS
+                  </span>
+                </button>
+                <button
+                  onClick={() => navigate('/game-systems')}
                   className="group flex items-center gap-3 p-3 border border-red-500/30 hover:border-red-500 hover:bg-red-500/10 bg-surface-dark transition-all"
                 >
                   <span className="material-icons text-xl text-red-500/60 group-hover:text-red-400">sports_esports</span>

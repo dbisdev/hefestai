@@ -5,24 +5,23 @@
  */
 
 import React, { useState, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { TerminalLayout } from '@shared/components/layout';
 import { Button } from '@shared/components/ui';
 import { useAuth, useCampaign } from '@core/context';
 import { gameSystemService } from '@core/services/api';
 import type { GameSystem } from '@core/types';
-import { Screen } from '@core/types';
 
 interface CampaignGeneratorPageProps {
   onBack: () => void;
-  onNavigate?: (screen: Screen) => void;
-  onLogout?: () => void;
 }
 
 /**
  * Campaign Generator Page Component
  * Provides UI for creating new campaigns or joining existing ones via invite code
  */
-export const CampaignGeneratorPage: React.FC<CampaignGeneratorPageProps> = ({ onBack, onNavigate, onLogout }) => {
+export const CampaignGeneratorPage: React.FC<CampaignGeneratorPageProps> = ({ onBack }) => {
+  const navigate = useNavigate();
   const { isMaster } = useAuth();
   const { createCampaign, joinCampaign, isLoading } = useCampaign();
   
@@ -169,8 +168,6 @@ export const CampaignGeneratorPage: React.FC<CampaignGeneratorPageProps> = ({ on
       title="CONTROL DE CAMPAÑAS" 
       subtitle="Sistema de Gestion de Campañas"
       icon="campaign"
-      onLogout={onLogout}
-      onNavigate={onNavigate}
       hideCampaignSelector={true}
     >
       <div className="flex flex-col lg:flex-row gap-8 h-full font-mono">

@@ -5,20 +5,17 @@
  */
 
 import React, { useState, useEffect, useCallback } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { AdminLayout } from '@shared/components/layout';
 import { Button } from '@shared/components/ui';
 import { useAuth } from '@core/context';
 import { adminUserService } from '@core/services/api';
 import type { AdminUser, CreateUserRequest, UpdateUserRequest } from '@core/types';
-import { AdminUserRole, AdminUserRoleLabels, AdminUserRoleColors, Screen } from '@core/types';
+import { AdminUserRole, AdminUserRoleLabels, AdminUserRoleColors } from '@core/types';
 
 interface AdminUsersPageProps {
-  /** Handler for navigating to other screens */
-  onNavigate: (screen: Screen) => void;
   /** Handler for returning to gallery */
   onBack: () => void;
-  /** Handler for logging out */
-  onLogout?: () => void;
 }
 
 /**
@@ -29,7 +26,8 @@ interface AdminUsersPageProps {
  * - Edit existing users (role, status, password)
  * - Delete (soft delete) users
  */
-export const AdminUsersPage: React.FC<AdminUsersPageProps> = ({ onNavigate, onBack, onLogout }) => {
+export const AdminUsersPage: React.FC<AdminUsersPageProps> = ({ onBack }) => {
+  const navigate = useNavigate();
   const { user: currentUser } = useAuth();
   
   // Data state
@@ -290,10 +288,8 @@ role: AdminUserRole.Player,
   if (!isAdmin) {
     return (
       <AdminLayout 
-        activeScreen={Screen.ADMIN_USERS} 
-        onNavigate={onNavigate} 
+        activeScreen="ADMIN_USERS"
         onBack={onBack}
-        onLogout={onLogout}
       >
         <div className="flex flex-col items-center justify-center h-full text-danger/60">
           <span className="material-icons text-6xl mb-4">lock</span>
@@ -306,10 +302,8 @@ role: AdminUserRole.Player,
 
   return (
     <AdminLayout 
-      activeScreen={Screen.ADMIN_USERS} 
-      onNavigate={onNavigate} 
+      activeScreen="ADMIN_USERS"
       onBack={onBack}
-      onLogout={onLogout}
     >
       <div className="flex flex-col lg:flex-row h-full gap-6">
         {/* Left Column - Users List */}

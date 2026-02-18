@@ -5,6 +5,7 @@
  */
 
 import React, { useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { TerminalLayout } from '@shared/components/layout';
 import { Button, ImageSourceSelector } from '@shared/components/ui';
 import type { ImageSourceMode } from '@shared/components/ui';
@@ -12,12 +13,9 @@ import { aiService, entityService } from '@core/services/api';
 import { useCampaign } from '@core/context';
 import { parseJsonResponse } from '@core/utils';
 import type { SystemData, PlanetData } from '@core/types';
-import { Screen } from '@core/types';
 
 interface SolarSystemGeneratorPageProps {
   onBack: () => void;
-  onNavigate?: (screen: Screen) => void;
-  onLogout?: () => void;
 }
 
 const SYSTEM_PLACEHOLDER_IMAGE = "https://images.unsplash.com/photo-1464802686167-b939a6910659?q=80&w=400&auto=format&fit=crop";
@@ -28,7 +26,8 @@ const SPECTRAL_CLASSES = [
   { value: 'O', label: 'Blue Giant' },
 ];
 
-export const SolarSystemGeneratorPage: React.FC<SolarSystemGeneratorPageProps> = ({ onBack, onNavigate, onLogout }) => {
+export const SolarSystemGeneratorPage: React.FC<SolarSystemGeneratorPageProps> = ({ onBack }) => {
+  const navigate = useNavigate();
   const { activeCampaignId, activeCampaign } = useCampaign();
   
   const [spectralClass, setSpectralClass] = useState('G');
@@ -131,8 +130,6 @@ export const SolarSystemGeneratorPage: React.FC<SolarSystemGeneratorPageProps> =
       title="GENERADOR SOLAR" 
       subtitle="Sintetizador de Mapas Estelares"
       icon="public"
-      onLogout={onLogout}
-      onNavigate={onNavigate}
       gameSystemId={activeCampaign?.gameSystemId}
       hideCampaignSelector={false}
     >

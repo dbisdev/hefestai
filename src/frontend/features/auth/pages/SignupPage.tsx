@@ -4,7 +4,8 @@
  * Uses homepage panel style for consistency
  */
 
-import React, { useState } from 'react';
+import React, { useState, useCallback } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { GridBackground } from '@shared/components/layout';
 import { Input, Button } from '@shared/components/ui';
 import { ErrorMessage } from '@shared/components/feedback';
@@ -12,12 +13,8 @@ import { validateEmail, validatePassword, validateDisplayName, validateInviteCod
 import { useAuth } from '@core/context/AuthContext';
 import type { UserRole } from '@core/types';
 
-interface SignupPageProps {
-  onSignupSuccess: () => void;
-  onBack: () => void;
-}
-
-export const SignupPage: React.FC<SignupPageProps> = ({ onSignupSuccess, onBack }) => {
+export const SignupPage: React.FC = () => {
+  const navigate = useNavigate();
   const { register } = useAuth();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
@@ -28,7 +25,7 @@ export const SignupPage: React.FC<SignupPageProps> = ({ onSignupSuccess, onBack 
   const [loading, setLoading] = useState(false);
   const [validationErrors, setValidationErrors] = useState<Record<string, string>>({});
 
-  const handleSubmit = async (e: React.FormEvent) => {
+  const handleSubmit = useCallback(async (e: React.FormEvent) => {
     e.preventDefault();
     setError('');
     setValidationErrors({});
@@ -56,7 +53,6 @@ export const SignupPage: React.FC<SignupPageProps> = ({ onSignupSuccess, onBack 
 
     setLoading(true);
     try {
-      // Use AuthContext register to update global state
       await register({
         email,
         password,
@@ -64,14 +60,18 @@ export const SignupPage: React.FC<SignupPageProps> = ({ onSignupSuccess, onBack 
         role,
         inviteCode: role === 'PLAYER' && inviteCode ? inviteCode : undefined,
       });
-      onSignupSuccess();
+      // Navigation is handled by AnimatedRoutes based on auth state
     } catch (err: unknown) {
       const message = err instanceof Error ? err.message : 'Error de registro';
       setError(message);
     } finally {
       setLoading(false);
     }
-  };
+  }, [register, email, password, displayName, role, inviteCode]);
+
+  const handleBack = useCallback(() => {
+    navigate('/');
+  }, [navigate]);
 
   return (
     <div className="flex items-center justify-center min-h-screen bg-background-dark relative p-6">
@@ -81,6 +81,15 @@ export const SignupPage: React.FC<SignupPageProps> = ({ onSignupSuccess, onBack 
         {/* Panel with homepage style */}
         <div className="bg-surface-dark/40 border border-primary/10 p-8 flex flex-col gap-6 group hover:border-primary/40 transition-all clip-tech-br backdrop-blur-sm shadow-[0_0_30px_rgba(37,244,106,0.1)] font-mono">
           
+          {/* Back to Home Button */}
+          <button 
+            onClick={handleBack}
+            className="flex items-center gap-1 text-primary/50 hover:text-primary text-[10px] uppercase transition-colors self-start"
+          >
+            <span className="material-icons text-sm">arrow_back</span>
+            VOLVER_AL_INICIO
+          </button>
+
           {/* Header with icon */}
           <div className="flex items-center gap-4">
             <div className="w-14 h-14 border border-primary/20 flex items-center justify-center bg-primary/5 group-hover:bg-primary/20 transition-all shrink-0">
@@ -200,7 +209,7 @@ export const SignupPage: React.FC<SignupPageProps> = ({ onSignupSuccess, onBack 
           {/* Back Button */}
           <div className="pt-4 border-t border-primary/10 text-center">
             <button 
-              onClick={onBack}
+              onClick={() => navigate('/login')}
               className="text-primary/50 text-[10px] uppercase hover:text-primary transition-colors font-bold flex items-center gap-1 justify-center w-full"
             >
               <span className="material-icons text-sm">arrow_back</span>

@@ -5,6 +5,7 @@
  */
 
 import React, { useState, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { TerminalLayout } from '@shared/components/layout';
 import { Button, ImageSourceSelector, DynamicStatsPanel } from '@shared/components/ui';
 import type { ImageSourceMode } from '@shared/components/ui';
@@ -12,12 +13,9 @@ import { aiService, entityService, entityTemplateService } from '@core/services/
 import { useCampaign } from '@core/context';
 import { parseJsonResponse } from '@core/utils';
 import type { CharacterData, FieldDefinition } from '@core/types';
-import { Screen } from '@core/types';
 
 interface CharacterGeneratorPageProps {
   onBack: () => void;
-  onNavigate?: (screen: Screen) => void;
-  onLogout?: () => void;
 }
 
 const UNKNOWN_CHAR_IMAGE = "https://images.unsplash.com/photo-1683322001857-f4d932a40672?q=80&w=400&auto=format&fit=crop";
@@ -44,7 +42,8 @@ const ROLE_OPTIONS = [
 
 const MORPHOLOGY_OPTIONS = ['MASCULINE', 'FEMININE', 'NEUTRAL'] as const;
 
-export const CharacterGeneratorPage: React.FC<CharacterGeneratorPageProps> = ({ onBack, onNavigate, onLogout }) => {
+export const CharacterGeneratorPage: React.FC<CharacterGeneratorPageProps> = ({ onBack }) => {
+  const navigate = useNavigate();
   const { activeCampaignId, activeCampaign } = useCampaign();
   
   const [logs, setLogs] = useState([
@@ -225,8 +224,6 @@ export const CharacterGeneratorPage: React.FC<CharacterGeneratorPageProps> = ({ 
       title="SYNTH_PERSONAJE" 
       subtitle="Sintetizador Biométrico"
       icon="face"
-      onLogout={onLogout}
-      onNavigate={onNavigate}
       gameSystemId={activeCampaign?.gameSystemId}
       hideCampaignSelector={false}
     >

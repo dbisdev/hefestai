@@ -5,26 +5,16 @@
  * Cyberpunk terminal aesthetics with clean, minimal animations.
  */
 
-import React from 'react';
+import React, { useCallback } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { TerminalLayout } from '@shared/components/layout';
-import { Screen } from '@core/types';
-
-/**
- * Props for the MasterHubPage component
- */
-interface MasterHubPageProps {
-  /** Handler for navigating to other screens */
-  onNavigate: (screen: Screen) => void;
-  /** Handler for logging out */
-  onLogout: () => void;
-}
 
 /**
  * Hub panel configuration for navigation cards
  */
 interface HubPanel {
-  /** Screen identifier for navigation */
-  id: Screen;
+  /** Route path for navigation */
+  path: string;
   /** Display title */
   title: string;
   /** Secondary description */
@@ -43,7 +33,7 @@ interface HubPanel {
  */
 const HUB_PANELS: HubPanel[] = [
   {
-    id: Screen.CAMPAIGN_LIST,
+    path: '/campaigns',
     title: 'Campañas',
     subtitle: 'Gestión de crónicas y sesiones activas',
     icon: 'auto_stories',
@@ -51,7 +41,7 @@ const HUB_PANELS: HubPanel[] = [
     description: 'Crea y administra tus hilos narrativos. Controla el progreso de los operativos en tiempo real.'
   },
   {
-    id: Screen.INVITATIONS,
+    path: '/invitations',
     title: 'Invitaciones',
     subtitle: 'Códigos de acceso y unión a campañas',
     icon: 'mail',
@@ -59,7 +49,7 @@ const HUB_PANELS: HubPanel[] = [
     description: 'Únete a campañas usando códigos de acceso. Comparte tu código de Master con nuevos jugadores.'
   },
   {
-    id: Screen.GAME_SYSTEMS,
+    path: '/game-systems',
     title: 'Sistemas de Juego',
     subtitle: 'Configuración de reglas y mecánicas',
     icon: 'settings_suggest',
@@ -67,7 +57,7 @@ const HUB_PANELS: HubPanel[] = [
     description: 'Ajusta los parámetros del motor de juego. Extrae y define entidades para el generador de IA.'
   },
   {
-    id: Screen.GALLERY,
+    path: '/gallery',
     title: 'Galería de Entidades',
     subtitle: 'Archivo central de activos sintetizados',
     icon: 'grid_view',
@@ -79,20 +69,19 @@ const HUB_PANELS: HubPanel[] = [
 /**
  * MasterHubPage Component
  * Provides a hub interface for Master users to navigate to main sections.
- * Features:
- * - 3 large navigation panels with responsive layout
- * - Clean terminal aesthetic
- * - Scrollable content for mobile devices
- * - Minimal hover animations for performance
  */
-export const MasterHubPage: React.FC<MasterHubPageProps> = ({ onNavigate, onLogout }) => {
+export const MasterHubPage: React.FC = () => {
+  const navigate = useNavigate();
+
+  const handleNavigate = useCallback((path: string) => {
+    navigate(path);
+  }, [navigate]);
+
   return (
     <TerminalLayout 
       title="NÚCLEO DE MANDO" 
       subtitle="Hub Central"
       icon="hub"
-      onLogout={onLogout}
-      onNavigate={onNavigate}
       hideBackToHub={true}
     >
       <div className="h-full overflow-y-auto custom-scrollbar px-4 md:px-10 py-6 md:py-0">
@@ -113,8 +102,8 @@ export const MasterHubPage: React.FC<MasterHubPageProps> = ({ onNavigate, onLogo
           <div className="grid grid-cols-1 md:grid-cols-4 gap-6 w-full max-w-7xl mb-12">
             {HUB_PANELS.map((panel, index) => (
               <button
-                key={panel.id}
-                onClick={() => onNavigate(panel.id)}
+                key={panel.path}
+                onClick={() => handleNavigate(panel.path)}
                 className={`group relative bg-surface-dark border ${panel.color} p-6 text-left transition-all hover:scale-[1.02] hover:border-primary/60 hover:shadow-[0_0_20px_rgba(37,244,106,0.2)] clip-tech-br flex flex-col md:min-h-[280px] min-h-[220px] overflow-hidden cursor-pointer`}
                 style={{ animationDelay: `${index * 50}ms` }}
               >

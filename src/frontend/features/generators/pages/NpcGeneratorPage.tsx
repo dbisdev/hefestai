@@ -5,6 +5,7 @@
  */
 
 import React, { useState, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { TerminalLayout } from '@shared/components/layout';
 import { Button, ImageSourceSelector, DynamicStatsPanel } from '@shared/components/ui';
 import type { ImageSourceMode } from '@shared/components/ui';
@@ -12,12 +13,9 @@ import { aiService, entityService, entityTemplateService } from '@core/services/
 import { useCampaign } from '@core/context';
 import { parseJsonResponse } from '@core/utils';
 import type { NpcData, FieldDefinition } from '@core/types';
-import { Screen } from '@core/types';
 
 interface NpcGeneratorPageProps {
   onBack: () => void;
-  onNavigate?: (screen: Screen) => void;
-  onLogout?: () => void;
 }
 
 const UNKNOWN_NPC_IMAGE = "https://images.unsplash.com/photo-1683322001857-f4d932a40672?q=80&w=400&auto=format&fit=crop";
@@ -63,7 +61,8 @@ const SPECIES_OPTIONS = [
   { value: 'clone', label: 'Clon' },
 ];
 
-export const NpcGeneratorPage: React.FC<NpcGeneratorPageProps> = ({ onBack, onNavigate, onLogout }) => {
+export const NpcGeneratorPage: React.FC<NpcGeneratorPageProps> = ({ onBack }) => {
+  const navigate = useNavigate();
   const { activeCampaignId, activeCampaign } = useCampaign();
   const [logs, setLogs] = useState([
     '> Actor database initialized...',
@@ -238,8 +237,6 @@ export const NpcGeneratorPage: React.FC<NpcGeneratorPageProps> = ({ onBack, onNa
       title="SYNTH_ACTOR" 
       subtitle="Generador de NPCs"
       icon="groups"
-      onLogout={onLogout}
-      onNavigate={onNavigate}
       gameSystemId={activeCampaign?.gameSystemId}
       hideCampaignSelector={false}
     >

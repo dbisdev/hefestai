@@ -5,21 +5,17 @@
  */
 
 import React, { useState, useEffect, useCallback } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { TerminalLayout, AdminLayout } from '@shared/components/layout';
 import { Button } from '@shared/components/ui';
 import { ManualUploadModal } from '@shared/components/modals';
 import { useAuth } from '@core/context';
 import { gameSystemService } from '@core/services/api';
 import type { GameSystem, CreateGameSystemRequest, UpdateGameSystemRequest } from '@core/types';
-import { Screen } from '@core/types';
 
 interface GameSystemsPageProps {
-  /** Handler for navigating to other screens (used by Admin layout) */
-  onNavigate?: (screen: Screen) => void;
   /** Handler for returning to gallery */
   onBack: () => void;
-  /** Handler for logging out */
-  onLogout?: () => void;
 }
 
 /**
@@ -27,7 +23,8 @@ interface GameSystemsPageProps {
  * Provides UI for creating and managing game systems (tabletop RPG rule sets)
  * Only accessible to Master or Admin users
  */
-export const GameSystemsPage: React.FC<GameSystemsPageProps> = ({ onNavigate, onBack, onLogout }) => {
+export const GameSystemsPage: React.FC<GameSystemsPageProps> = ({ onBack }) => {
+  const navigate = useNavigate();
   const { user } = useAuth();
   
   const [gameSystems, setGameSystems] = useState<GameSystem[]>([]);
@@ -282,7 +279,7 @@ export const GameSystemsPage: React.FC<GameSystemsPageProps> = ({ onNavigate, on
   const isAdmin = user?.role === 'ADMIN';
   
   // Determine which layout to use
-  const useAdminLayout = isAdmin && onNavigate;
+  const useAdminLayout = isAdmin;
 
   // Content for access denied
   const accessDeniedContent = (
@@ -296,10 +293,8 @@ export const GameSystemsPage: React.FC<GameSystemsPageProps> = ({ onNavigate, on
   if (!isMasterOrAdmin) {
     return useAdminLayout ? (
       <AdminLayout 
-        activeScreen={Screen.GAME_SYSTEMS} 
-        onNavigate={onNavigate} 
+        activeScreen="GAME_SYSTEMS"
         onBack={onBack}
-        onLogout={onLogout}
       >
         {accessDeniedContent}
       </AdminLayout>
@@ -308,8 +303,6 @@ export const GameSystemsPage: React.FC<GameSystemsPageProps> = ({ onNavigate, on
         title="SISTEMAS" 
         subtitle="Gestion de sistemas de juego"
         icon="sports_esports"
-        onLogout={onLogout}
-        onNavigate={onNavigate}
         hideCampaignSelector={true}
       >
         {accessDeniedContent}
@@ -771,10 +764,8 @@ export const GameSystemsPage: React.FC<GameSystemsPageProps> = ({ onNavigate, on
     <>
       {useAdminLayout ? (
         <AdminLayout 
-          activeScreen={Screen.GAME_SYSTEMS} 
-          onNavigate={onNavigate} 
+          activeScreen="GAME_SYSTEMS"
           onBack={onBack}
-          onLogout={onLogout}
         >
           {mainContent}
         </AdminLayout>
@@ -783,8 +774,6 @@ export const GameSystemsPage: React.FC<GameSystemsPageProps> = ({ onNavigate, on
           title="SISTEMAS" 
           subtitle="Gestion de sistemas de juego"
           icon="sports_esports"
-          onLogout={onLogout}
-          onNavigate={onNavigate}
           hideCampaignSelector={true}
         >
           {mainContent}

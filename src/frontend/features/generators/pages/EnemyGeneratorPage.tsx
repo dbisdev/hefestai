@@ -5,6 +5,7 @@
  */
 
 import React, { useState, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { TerminalLayout } from '@shared/components/layout';
 import { Button, ImageSourceSelector, DynamicStatsPanel } from '@shared/components/ui';
 import type { ImageSourceMode } from '@shared/components/ui';
@@ -12,12 +13,9 @@ import { aiService, entityService, entityTemplateService } from '@core/services/
 import { useCampaign } from '@core/context';
 import { parseJsonResponse } from '@core/utils';
 import type { EnemyData, FieldDefinition } from '@core/types';
-import { Screen } from '@core/types';
 
 interface EnemyGeneratorPageProps {
   onBack: () => void;
-  onNavigate?: (screen: Screen) => void;
-  onLogout?: () => void;
 }
 
 const UNKNOWN_ENEMY_IMAGE = "https://images.unsplash.com/photo-1614728263952-84ea256f9679?q=80&w=400&auto=format&fit=crop";
@@ -61,7 +59,8 @@ const BEHAVIOR_OPTIONS = [
   { value: 'berserker', label: 'Berserker - Furia descontrolada' },
 ];
 
-export const EnemyGeneratorPage: React.FC<EnemyGeneratorPageProps> = ({ onBack, onNavigate, onLogout }) => {
+export const EnemyGeneratorPage: React.FC<EnemyGeneratorPageProps> = ({ onBack }) => {
+  const navigate = useNavigate();
   const { activeCampaignId, activeCampaign } = useCampaign();
   const [logs, setLogs] = useState([
     '> Threat analysis system online...',
@@ -245,8 +244,6 @@ export const EnemyGeneratorPage: React.FC<EnemyGeneratorPageProps> = ({ onBack, 
       title="SYNTH_AMENAZA" 
       subtitle="Analizador de Hostiles"
       icon="pest_control"
-      onLogout={onLogout}
-      onNavigate={onNavigate}
       gameSystemId={activeCampaign?.gameSystemId}
       hideCampaignSelector={false}
     >

@@ -8,10 +8,10 @@
  */
 
 import React, { useState, useCallback } from 'react';
+import { useNavigate, useLocation } from 'react-router-dom';
 import DiceRoller from '../../../components/DiceRoller';
 import RuleQuery from '../../../components/RuleQuery';
 import { useAuth, useCampaign } from '@core/context';
-import { Screen } from '@core/types';
 import { CampaignRole } from '@core/types/campaign.types';
 
 /**
@@ -26,10 +26,6 @@ interface TerminalLayoutProps {
   subtitle?: string;
   /** Material icon name for the section */
   icon?: string;
-  /** Handler for logging out */
-  onLogout?: () => void;
-  /** Handler for navigation (required for back to hub) */
-  onNavigate?: (screen: Screen) => void;
   /** Additional action buttons for header */
   actions?: React.ReactNode;
   /** Optional game system ID for RAG rule queries */
@@ -40,6 +36,8 @@ interface TerminalLayoutProps {
   hideCampaignSelector?: boolean;
   /** Hide back to hub button */
   hideBackToHub?: boolean;
+  /** Hide back button (shows browser history back) */
+  hideBackButton?: boolean;
 }
 
 /**
@@ -57,19 +55,21 @@ export const TerminalLayout: React.FC<TerminalLayoutProps> = ({
   title, 
   subtitle,
   icon = 'terminal',
-  onLogout, 
-  onNavigate,
   actions,
   gameSystemId,
   gameSystemName,
   hideCampaignSelector = true,
-  hideBackToHub = false
+  hideBackToHub = false,
+  hideBackButton = false
 }) => {
   const [showDice, setShowDice] = useState(false);
   const [showRuleQuery, setShowRuleQuery] = useState(false);
   const [showCampaignSelector, setShowCampaignSelector] = useState(false);
+  
+  const navigate = useNavigate();
+  const location = useLocation();
 
-  const { user } = useAuth();
+  const { user, logout } = useAuth();
   const { campaigns, activeCampaign, selectCampaign, isLoading: campaignsLoading } = useCampaign();
 
   /**
@@ -91,15 +91,21 @@ export const TerminalLayout: React.FC<TerminalLayoutProps> = ({
    * Navigate back to hub based on user role
    */
   const handleBackToHub = useCallback(() => {
-    if (!onNavigate) return;
     if (user?.role === 'ADMIN') {
-      onNavigate(Screen.ADMIN_USERS);
+      navigate('/admin/users');
     } else if (user?.role === 'MASTER') {
-      onNavigate(Screen.MASTER_HUB);
+      navigate('/hub');
     } else {
-      onNavigate(Screen.GALLERY);
+      navigate('/gallery');
     }
-  }, [onNavigate, user?.role]);
+  }, [navigate, user?.role]);
+
+  /**
+   * Handle browser back navigation
+   */
+  const handleBack = useCallback(() => {
+    navigate(-1);
+  }, [navigate]);
 
   /**
    * Get display text for user role
@@ -195,8 +201,20 @@ export const TerminalLayout: React.FC<TerminalLayoutProps> = ({
           {/* Additional Actions */}
           {actions}
 
+          {/* Back Button - Visible in all pages with browser history */}
+          {!hideBackButton && (
+            <button 
+              onClick={handleBack}
+              className="flex items-center gap-2 border border-primary/40 px-2 md:px-3 py-1 text-xs uppercase hover:bg-primary/20 transition-all text-primary font-bold"
+              aria-label="Volver atrás"
+            >
+              <span className="material-icons text-sm">arrow_back</span>
+              <span className="hidden sm:inline">VOLVER</span>
+            </button>
+          )}
+
           {/* Back to Hub Button */}
-          {!hideBackToHub && onNavigate && (
+          {!hideBackToHub && (
             <button 
               onClick={handleBackToHub}
               className="flex items-center gap-2 border  px-2 md:px-3 py-1 text-xs uppercase border-cyan-500/30 hover:border-cyan-500 hover:bg-cyan-500/40 transition-all font-bold text-cyan-500 group-hover:text-cyan-400"
@@ -207,17 +225,19 @@ export const TerminalLayout: React.FC<TerminalLayoutProps> = ({
             </button>
           )}
           
-          {/* Logout Button */}
-          {onLogout && (
-            <button 
-              onClick={onLogout}
-              className="flex items-center gap-2 border border-red-500/60 px-2 md:px-3 py-1 text-xs uppercase hover:bg-red-500 hover:text-black transition-colors text-red-500 font-bold"
-              aria-label="Cerrar sesión"
-            >
-              <span className="material-icons text-sm">logout</span>
-              <span className="hidden md:inline">LOGOUT</span>
-            </button>
-          )}
+          {/* Logout Button - Always visible */}
+          <button 
+            onClick={async () => {
+              await logout();
+              // Use window.location to force full navigation
+              window.location.replace('/');
+            }}
+            className="flex items-center gap-2 border border-red-500/60 px-2 md:px-3 py-1 text-xs uppercase hover:bg-red-500 hover:text-black transition-colors text-red-500 font-bold"
+            aria-label="Cerrar sesión"
+          >
+            <span className="material-icons text-sm">logout</span>
+            <span className="hidden md:inline">LOGOUT</span>
+          </button>
         </div>
       </header>
 
@@ -284,39 +304,39 @@ export const TerminalLayout: React.FC<TerminalLayoutProps> = ({
 
             {/* Campaign Management Actions */}
             <div className="p-2 border-t border-primary/20 flex gap-2">
-              {onNavigate && (
-                <>
+              <>
+                <button
+                  onClick={() => {
+                    setShowCampaignSelector(false);
+                    navigate('/campaigns/new');
+                  }}
+                  className="flex-1 p-2 text-[10px] text-primary/60 hover:text-primary hover:bg-primary/10 transition-colors uppercase tracking-wider text-center"
+                >
+                  + NUEVA
+                </button>
+                <button
+                  onClick={() => {
+                    setShowCampaignSelector(false);
+                    if (activeCampaign) {
+                      navigate(`/campaigns/${activeCampaign.id}/invitations`);
+                    }
+                  }}
+                  className="flex-1 p-2 text-[10px] text-primary/60 hover:text-primary hover:bg-primary/10 transition-colors uppercase tracking-wider text-center"
+                >
+                  UNIRSE
+                </button>
+                {activeCampaign && user?.role === 'MASTER' && (
                   <button
                     onClick={() => {
                       setShowCampaignSelector(false);
-                      onNavigate(Screen.CAMPAIGN_GEN);
+                      navigate(`/campaigns/${activeCampaign.id}`);
                     }}
                     className="flex-1 p-2 text-[10px] text-primary/60 hover:text-primary hover:bg-primary/10 transition-colors uppercase tracking-wider text-center"
                   >
-                    + NUEVA
+                    CONFIGURAR
                   </button>
-                  <button
-                    onClick={() => {
-                      setShowCampaignSelector(false);
-                      onNavigate(Screen.INVITATIONS);
-                    }}
-                    className="flex-1 p-2 text-[10px] text-primary/60 hover:text-primary hover:bg-primary/10 transition-colors uppercase tracking-wider text-center"
-                  >
-                    UNIRSE
-                  </button>
-                  {activeCampaign && user?.role === 'MASTER' && (
-                    <button
-                      onClick={() => {
-                        setShowCampaignSelector(false);
-                        onNavigate(Screen.CAMPAIGN_SETTINGS);
-                      }}
-                      className="flex-1 p-2 text-[10px] text-primary/60 hover:text-primary hover:bg-primary/10 transition-colors uppercase tracking-wider text-center"
-                    >
-                      CONFIGURAR
-                    </button>
-                  )}
-                </>
-              )}
+                )}
+              </>
             </div>
           </div>
         </>

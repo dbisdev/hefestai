@@ -4,56 +4,38 @@
  * Uses homepage panel style for consistency
  */
 
-import React, { useState } from 'react';
+import React, { useState, useCallback } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { GridBackground } from '@shared/components/layout';
 import { Input, Button } from '@shared/components/ui';
 import { ErrorMessage } from '@shared/components/feedback';
-import { validateEmail, validatePassword } from '@core/utils';
 import { useAuth } from '@core/context/AuthContext';
 
-interface LoginPageProps {
-  onLoginSuccess: () => void;
-  onGoSignup: () => void;
-  /** Optional callback to navigate back to home page */
-  onBack?: () => void;
-}
-
-export const LoginPage: React.FC<LoginPageProps> = ({ onLoginSuccess, onGoSignup, onBack }) => {
+export const LoginPage: React.FC = () => {
+  const navigate = useNavigate();
   const { login, error: authError, isLoading: authLoading, clearError } = useAuth();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
-  //const [validationErrors, setValidationErrors] = useState<Record<string, string>>({});
 
-  const handleLogin = async (e: React.FormEvent) => {
+  const handleLogin = useCallback(async (e: React.FormEvent) => {
     e.preventDefault();
     clearError();
-    // setValidationErrors({});
-
-    // // Client-side validation (OWASP A03 - Input Validation)
-    // const emailValidation = validateEmail(email);
-    // const passwordValidation = validatePassword(password);
-
-    // const errors: Record<string, string> = {};
-    // if (!emailValidation.isValid) {
-    //   errors.email = emailValidation.errors[0];
-    // }
-    // if (!passwordValidation.isValid) {
-    //   errors.password = passwordValidation.errors[0];
-    // }
-
-    // if (Object.keys(errors).length > 0) {
-    //   setValidationErrors(errors);
-    //   return;
-    // }
 
     try {
-      // Use AuthContext login to update global state
       await login({ email, password });
-      onLoginSuccess();
+      // Navigation is handled by AnimatedRoutes based on auth state
     } catch {
       // Error is handled by AuthContext and will be displayed via authError
     }
-  };
+  }, [login, email, password, clearError]);
+
+  const handleGoSignup = useCallback(() => {
+    navigate('/signup');
+  }, [navigate]);
+
+  const handleBack = useCallback(() => {
+    navigate('/');
+  }, [navigate]);
 
   return (
     <div className="flex items-center justify-center min-h-screen bg-background-dark relative p-6">
@@ -64,15 +46,13 @@ export const LoginPage: React.FC<LoginPageProps> = ({ onLoginSuccess, onGoSignup
         <div className="bg-surface-dark/40 border border-primary/10 p-8 flex flex-col gap-6 group hover:border-primary/40 transition-all clip-tech-br backdrop-blur-sm shadow-[0_0_30px_rgba(37,244,106,0.1)] font-mono">
           
           {/* Back to Home Button */}
-          {onBack && (
-            <button 
-              onClick={onBack}
-              className="flex items-center gap-1 text-primary/50 hover:text-primary text-[10px] uppercase transition-colors self-start"
-            >
-              <span className="material-icons text-sm">arrow_back</span>
-              VOLVER_AL_INICIO
-            </button>
-          )}
+          <button 
+            onClick={handleBack}
+            className="flex items-center gap-1 text-primary/50 hover:text-primary text-[10px] uppercase transition-colors self-start"
+          >
+            <span className="material-icons text-sm">arrow_back</span>
+            VOLVER_AL_INICIO
+          </button>
           
           {/* Header with icon */}
           <div className="flex items-center gap-4">
@@ -98,7 +78,6 @@ export const LoginPage: React.FC<LoginPageProps> = ({ onLoginSuccess, onGoSignup
               value={email}
               onChange={(e) => setEmail(e.target.value)}
               placeholder="USER_ID@omega.sys"
-              //error={validationErrors.email}
               autoComplete="email"
             />
 
@@ -109,7 +88,6 @@ export const LoginPage: React.FC<LoginPageProps> = ({ onLoginSuccess, onGoSignup
               value={password}
               onChange={(e) => setPassword(e.target.value)}
               placeholder="••••••••"
-              //error={validationErrors.password}
               autoComplete="current-password"
             />
 
@@ -133,7 +111,7 @@ export const LoginPage: React.FC<LoginPageProps> = ({ onLoginSuccess, onGoSignup
               ¿No tienes credenciales?
             </p>
             <button 
-              onClick={onGoSignup}
+              onClick={handleGoSignup}
               className="text-primary text-xs uppercase hover:text-white transition-colors underline underline-offset-4 font-bold"
             >
               CREAR_NUEVO_REGISTRO

@@ -11,32 +11,16 @@
  */
 
 import React, { useState, useEffect, useCallback } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { TerminalLayout } from '@shared/components/layout';
 import { Button } from '@shared/components/ui';
 import { useAuth, useCampaign } from '@core/context';
 import { gameSystemService, campaignService } from '@core/services/api';
 import type { Campaign, GameSystem, UpdateCampaignInput, CampaignMember } from '@core/types';
-import { Screen, CampaignRole } from '@core/types';
+import { CampaignRole } from '@core/types';
 
-interface CampaignListPageProps {
-  /** Handler for navigating to other screens */
-  onNavigate: (screen: Screen) => void;
-  /** Handler for logging out */
-  onLogout: () => void;
-}
-
-/**
- * CampaignListPage Component
- * 
- * Provides a comprehensive view of all user campaigns with management capabilities.
- * Features:
- * - Campaign list with selectable items (GameSystemsPage style)
- * - Selected campaign details in sidebar
- * - Inline edit form for campaign settings
- * - Quick actions (activate, edit, leave/delete)
- * - Create new campaign navigation
- */
-export const CampaignListPage: React.FC<CampaignListPageProps> = ({ onNavigate, onLogout }) => {
+export const CampaignListPage: React.FC = () => {
+  const navigate = useNavigate();
   const { isMaster } = useAuth();
   const { 
     campaigns, 
@@ -223,7 +207,7 @@ export const CampaignListPage: React.FC<CampaignListPageProps> = ({ onNavigate, 
     try {
       await selectCampaign(campaignId);
       addLog('[SUCCESS] Campaña activada.');
-      onNavigate(Screen.GALLERY);
+      navigate('/gallery');
     } catch (err) {
       const message = err instanceof Error ? err.message : 'Error al activar';
       addLog(`ERROR: ${message}`);
@@ -357,8 +341,6 @@ export const CampaignListPage: React.FC<CampaignListPageProps> = ({ onNavigate, 
       title="CAMPAÑAS"
       subtitle="Gestión de campañas"
       icon="auto_stories"
-      onLogout={onLogout}
-      onNavigate={onNavigate}
       hideCampaignSelector={true}
     >
       <div className="flex flex-col lg:flex-row h-full gap-6">
@@ -379,7 +361,7 @@ export const CampaignListPage: React.FC<CampaignListPageProps> = ({ onNavigate, 
                 {/* Only Masters can create new campaigns */}
                 {isMaster && (
                   <Button 
-                    onClick={() => onNavigate(Screen.CAMPAIGN_GEN)}
+                    onClick={() => navigate('/campaigns/new')}
                     variant="primary"
                     size="sm"
                   >
@@ -389,7 +371,7 @@ export const CampaignListPage: React.FC<CampaignListPageProps> = ({ onNavigate, 
                 {/* Players see a "Join Campaign" button instead */}
                 {!isMaster && (
                   <Button 
-                    onClick={() => onNavigate(Screen.INVITATIONS)}
+                    onClick={() => navigate('/campaigns/invitations')}
                     variant="secondary"
                     size="sm"
                   >
@@ -736,7 +718,7 @@ export const CampaignListPage: React.FC<CampaignListPageProps> = ({ onNavigate, 
                   <Button
                     onClick={async () => {
                       await selectCampaign(selectedCampaign.id);
-                      onNavigate(Screen.CAMPAIGN_SETTINGS);
+                      navigate(`/campaigns/${selectedCampaign.id}`);
                     }}
                     variant="secondary"
                     size="sm"

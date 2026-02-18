@@ -5,21 +5,12 @@
  */
 
 import React, { useState, useCallback } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { AdminLayout } from '@shared/components/layout';
 import { Button } from '@shared/components/ui';
 import { useAuth } from '@core/context';
 import { documentService } from '@core/services/api';
 import type { GenerateMissingEmbeddingsResult } from '@core/services/api/document.service';
-import { Screen } from '@core/types';
-
-interface AdminSystemPageProps {
-  /** Handler for navigating to other screens */
-  onNavigate: (screen: Screen) => void;
-  /** Handler for returning to gallery */
-  onBack: () => void;
-  /** Handler for logging out */
-  onLogout?: () => void;
-}
 
 /**
  * Admin System Page Component
@@ -27,7 +18,8 @@ interface AdminSystemPageProps {
  * - Generate missing embeddings for RAG documents
  * - Future: Database maintenance, cache clearing, etc.
  */
-export const AdminSystemPage: React.FC<AdminSystemPageProps> = ({ onNavigate, onBack, onLogout }) => {
+export const AdminSystemPage: React.FC = () => {
+  const navigate = useNavigate();
   const { user: currentUser } = useAuth();
   
   // UI state
@@ -93,28 +85,18 @@ export const AdminSystemPage: React.FC<AdminSystemPageProps> = ({ onNavigate, on
   
   if (!isAdmin) {
     return (
-      <AdminLayout 
-        activeScreen={Screen.ADMIN_SYSTEM} 
-        onNavigate={onNavigate} 
-        onBack={onBack}
-        onLogout={onLogout}
-      >
+      <AdminLayout activePath="/admin/system">
         <div className="flex flex-col items-center justify-center h-full text-danger/60">
           <span className="material-icons text-6xl mb-4">lock</span>
           <p className="text-sm uppercase tracking-widest">Acceso restringido a Administradores</p>
-          <Button onClick={onBack} className="mt-4">VOLVER</Button>
+          <Button onClick={() => navigate(-1)} className="mt-4">VOLVER</Button>
         </div>
       </AdminLayout>
     );
   }
 
   return (
-    <AdminLayout 
-      activeScreen={Screen.ADMIN_SYSTEM} 
-      onNavigate={onNavigate} 
-      onBack={onBack}
-      onLogout={onLogout}
-    >
+    <AdminLayout activePath="/admin/system">
       <div className="flex flex-col lg:flex-row h-full gap-6">
         {/* Left Column - Operations */}
         <div className="w-full lg:w-1/2 flex flex-col gap-4 overflow-hidden">
