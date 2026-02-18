@@ -15,9 +15,12 @@ import type { UserRole } from '@core/types';
 
 export const SignupPage: React.FC = () => {
   const navigate = useNavigate();
-  const { register } = useAuth();
+  const { register, clearError } = useAuth();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
+  const [confirmPassword, setConfirmPassword] = useState('');
+  const [showPassword, setShowPassword] = useState(false);
+  const [showConfirmPassword, setShowConfirmPassword] = useState(false);
   const [displayName, setDisplayName] = useState('');
   const [role, setRole] = useState<UserRole>('PLAYER');
   const [inviteCode, setInviteCode] = useState('');
@@ -39,6 +42,11 @@ export const SignupPage: React.FC = () => {
     if (!emailValidation.isValid) errors.email = emailValidation.errors[0];
     if (!passwordValidation.isValid) errors.password = passwordValidation.errors[0];
     if (!displayNameValidation.isValid) errors.displayName = displayNameValidation.errors[0];
+
+    // Validate password match
+    if (password !== confirmPassword) {
+      errors.confirmPassword = 'Las contraseñas no coinciden';
+    }
 
     // Validate invite code for players
     if (role === 'PLAYER' && inviteCode) {
@@ -67,10 +75,16 @@ export const SignupPage: React.FC = () => {
     } finally {
       setLoading(false);
     }
-  }, [register, email, password, displayName, role, inviteCode]);
+  }, [register, email, password, confirmPassword, displayName, role, inviteCode]);
 
   const handleBack = useCallback(() => {
     navigate('/');
+  }, [navigate]);
+
+  const handleGoLogin = useCallback(() => {
+    setError('');
+    setValidationErrors({});
+    navigate('/login');
   }, [navigate]);
 
   return (
@@ -150,16 +164,53 @@ export const SignupPage: React.FC = () => {
               autoComplete="email"
             />
 
-            <Input
-              label="Código de Acceso"
-              type="password"
-              required
-              value={password}
-              onChange={(e) => setPassword(e.target.value)}
-              placeholder="••••••••"
-              error={validationErrors.password}
-              autoComplete="new-password"
-            />
+            <div className="relative">
+              <Input
+                label="Contraseña"
+                type={showPassword ? 'text' : 'password'}
+                required
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+                placeholder="••••••••"
+                error={validationErrors.password}
+                autoComplete="new-password"
+                className="pr-10"
+              />
+              <button
+                type="button"
+                onClick={() => setShowPassword(!showPassword)}
+                className="absolute right-3 top-[26px] text-primary/50 hover:text-primary transition-colors p-0.5"
+                aria-label={showPassword ? 'Ocultar contraseña' : 'Mostrar contraseña'}
+              >
+                <span className="material-icons text-sm">
+                  {showPassword ? 'visibility_off' : 'visibility'}
+                </span>
+              </button>
+            </div>
+
+            <div className="relative">
+              <Input
+                label="Confirmar Contraseña"
+                type={showConfirmPassword ? 'text' : 'password'}
+                required
+                value={confirmPassword}
+                onChange={(e) => setConfirmPassword(e.target.value)}
+                placeholder="••••••••"
+                error={validationErrors.confirmPassword}
+                autoComplete="new-password"
+                className="pr-10"
+              />
+              <button
+                type="button"
+                onClick={() => setShowConfirmPassword(!showConfirmPassword)}
+                className="absolute right-3 top-[26px] text-primary/50 hover:text-primary transition-colors p-0.5"
+                aria-label={showConfirmPassword ? 'Ocultar contraseña' : 'Mostrar contraseña'}
+              >
+                <span className="material-icons text-sm">
+                  {showConfirmPassword ? 'visibility_off' : 'visibility'}
+                </span>
+              </button>
+            </div>
 
             <Input
               label="Nombre de Operativo"
@@ -209,7 +260,7 @@ export const SignupPage: React.FC = () => {
           {/* Back Button */}
           <div className="pt-4 border-t border-primary/10 text-center">
             <button 
-              onClick={() => navigate('/login')}
+              onClick={handleGoLogin}
               className="text-primary/50 text-[10px] uppercase hover:text-primary transition-colors font-bold flex items-center gap-1 justify-center w-full"
             >
               <span className="material-icons text-sm">arrow_back</span>

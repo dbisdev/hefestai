@@ -30,8 +30,9 @@ export const LoginPage: React.FC = () => {
   }, [login, email, password, clearError]);
 
   const handleGoSignup = useCallback(() => {
+    clearError();
     navigate('/signup');
-  }, [navigate]);
+  }, [navigate, clearError]);
 
   const handleBack = useCallback(() => {
     navigate('/');
@@ -82,7 +83,7 @@ export const LoginPage: React.FC = () => {
             />
 
             <Input
-              label="Código de Acceso"
+              label="Contraseña"
               type="password"
               required
               value={password}
