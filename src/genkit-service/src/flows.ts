@@ -167,11 +167,15 @@ Focus on the most important information and maintain accuracy.`;
 
     const summary = response.text;
 
+    const compressionRatio = summary.length > 0 
+      ? Number((input.text.length / summary.length).toFixed(2))
+      : 0;
+
     return {
       summary,
       originalLength: input.text.length,
       summaryLength: summary.length,
-      compressionRatio: Number((input.text.length / summary.length).toFixed(2)),
+      compressionRatio,
       usage: response.usage
         ? {
             promptTokens: response.usage.inputTokens || 0,
@@ -194,6 +198,14 @@ export const embeddingsFlow = ai.defineFlow(
     outputSchema: EmbeddingsResponseSchema,
   },
   async (input: EmbeddingsRequest): Promise<EmbeddingsResponse> => {
+    if (!input.texts || input.texts.length === 0) {
+      return {
+        embeddings: [],
+        model: input.model || 'gemini-embedding-001',
+        dimensions: 0,
+      };
+    }
+
     const embeddings: number[][] = [];
     
     // Process texts individually to generate embeddings
@@ -317,7 +329,7 @@ export const imageGenerateFlow = ai.defineFlow(
       });
 
       // Extract image from response.media
-      if (response.media?.contentType?.startsWith('image/')) {
+      if (response.media?.contentType?.startsWith('image/') && response.media?.url) {
         const base64Data = response.media.url.includes('base64,')
           ? response.media.url.split('base64,')[1]
           : response.media.url;
@@ -335,9 +347,9 @@ export const imageGenerateFlow = ai.defineFlow(
       // Check message content for image data as fallback
       if (response.message?.content) {
         for (const part of response.message.content) {
-          if ('media' in part && part.media) {
+          if ('media' in part && part.media && 'url' in part.media) {
             const mediaPart = part.media as { url: string; contentType?: string };
-            if (mediaPart.contentType?.startsWith('image/')) {
+            if (mediaPart.contentType?.startsWith('image/') && mediaPart.url) {
               const base64Data = mediaPart.url.includes('base64,')
                 ? mediaPart.url.split('base64,')[1]
                 : mediaPart.url;

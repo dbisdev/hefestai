@@ -62,7 +62,7 @@ export const entityService = {
     if (options.visibility !== undefined) params.append('visibility', options.visibility.toString());
     if (options.search) params.append('search', options.search);
     if (options.page !== undefined) params.append('page', options.page.toString());
-    if (options.pageSize !== undefined) params.append('pageSize', options.pageSize.toString());
+    if (options.pageSize !== undefined) params.append('pageSize', Math.min(options.pageSize, 100).toString());
     
     const queryString = params.toString();
     const url = buildEntityUrl(campaignId) + (queryString ? `?${queryString}` : '');

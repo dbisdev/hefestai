@@ -144,11 +144,21 @@ public class LoreEntity : SoftDeletableEntity
             Attributes?.Dispose();
             Attributes = attributes;
         }
+        else
+        {
+            Attributes?.Dispose();
+            Attributes = null;
+        }
 
         if (metadata != null)
         {
             Metadata?.Dispose();
             Metadata = metadata;
+        }
+        else
+        {
+            Metadata?.Dispose();
+            Metadata = null;
         }
     }
 

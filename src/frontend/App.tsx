@@ -34,11 +34,23 @@ const AppContent: React.FC = () => {
   const { user, isLoading, logout } = useAuth();
   const [displayScreen, setDisplayScreen] = useState<Screen>(Screen.HOME);
   const [transitionStage, setTransitionStage] = useState<'idle' | 'out' | 'in'>('idle');
+  const previousUserRef = React.useRef<string | null>(null);
+
+  // Reset redirect flag when user logs out
+  useEffect(() => {
+    if (previousUserRef.current && !user) {
+      // User logged out
+      previousUserRef.current = null;
+    } else if (user && !previousUserRef.current) {
+      // User just logged in (was null, now has value)
+      previousUserRef.current = user.id;
+    }
+  }, [user]);
 
   // Redirect to appropriate screen if already authenticated
   // Admin users go to admin panel, Master users go to hub, Players go to gallery
   useEffect(() => {
-    if (user && (displayScreen === Screen.HOME || displayScreen === Screen.LOGIN)) {
+    if (user && (displayScreen === Screen.HOME || displayScreen === Screen.LOGIN || displayScreen === Screen.SIGNUP)) {
       if (user.role === 'ADMIN') {
         setDisplayScreen(Screen.ADMIN_USERS);
       } else if (user.role === 'MASTER') {

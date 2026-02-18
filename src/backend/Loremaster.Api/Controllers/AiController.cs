@@ -677,7 +677,7 @@ Example format:
                     
                     if (styleContext.Any())
                     {
-                        imagePromptContext = $" Art style based on: {string.Join(" ", styleContext.Take(2).Select(c => c.Content.Substring(0, Math.Min(200, c.Content.Length))))}";
+                        imagePromptContext = $" Art style based on: {string.Join(" ", styleContext.Take(2).Select(c => c.Content?.Substring(0, Math.Min(200, c.Content.Length)) ?? ""))}";
                     }
                 }
 
@@ -859,7 +859,7 @@ Example format:
                     
                     if (styleContext.Any())
                     {
-                        imagePromptContext = $" Art style based on: {string.Join(" ", styleContext.Take(2).Select(c => c.Content.Substring(0, Math.Min(200, c.Content.Length))))}";
+                        imagePromptContext = $" Art style based on: {string.Join(" ", styleContext.Take(2).Select(c => c.Content?.Substring(0, Math.Min(200, c.Content.Length)) ?? ""))}";
                     }
                 }
 
@@ -1063,7 +1063,7 @@ Example format:
                     
                     if (styleContext.Any())
                     {
-                        imagePromptContext = $" Art style based on: {string.Join(" ", styleContext.Take(2).Select(c => c.Content.Substring(0, Math.Min(200, c.Content.Length))))}";
+                        imagePromptContext = $" Art style based on: {string.Join(" ", styleContext.Take(2).Select(c => c.Content?.Substring(0, Math.Min(200, c.Content.Length)) ?? ""))}";
                     }
                 }
 
@@ -1239,7 +1239,7 @@ Example format:
                     
                     if (styleContext.Any())
                     {
-                        imagePromptContext = $" Art style based on: {string.Join(" ", styleContext.Take(2).Select(c => c.Content.Substring(0, Math.Min(200, c.Content.Length))))}";
+                        imagePromptContext = $" Art style based on: {string.Join(" ", styleContext.Take(2).Select(c => c.Content?.Substring(0, Math.Min(200, c.Content.Length)) ?? ""))}";
                     }
                 }
 
@@ -1414,7 +1414,7 @@ Example format:
                     
                     if (styleContext.Any())
                     {
-                        imagePromptContext = $" Art style based on: {string.Join(" ", styleContext.Take(2).Select(c => c.Content.Substring(0, Math.Min(200, c.Content.Length))))}";
+                        imagePromptContext = $" Art style based on: {string.Join(" ", styleContext.Take(2).Select(c => c.Content?.Substring(0, Math.Min(200, c.Content.Length)) ?? ""))}";
                     }
                 }
 
@@ -1589,7 +1589,7 @@ Example format:
                     
                     if (styleContext.Any())
                     {
-                        imagePromptContext = $" Art style based on: {string.Join(" ", styleContext.Take(2).Select(c => c.Content.Substring(0, Math.Min(200, c.Content.Length))))}";
+                        imagePromptContext = $" Art style based on: {string.Join(" ", styleContext.Take(2).Select(c => c.Content?.Substring(0, Math.Min(200, c.Content.Length)) ?? ""))}";
                     }
                 }
 
@@ -1764,7 +1764,7 @@ Example format:
                     
                     if (styleContext.Any())
                     {
-                        imagePromptContext = $" Art style based on: {string.Join(" ", styleContext.Take(2).Select(c => c.Content.Substring(0, Math.Min(200, c.Content.Length))))}";
+                        imagePromptContext = $" Art style based on: {string.Join(" ", styleContext.Take(2).Select(c => c.Content?.Substring(0, Math.Min(200, c.Content.Length)) ?? ""))}";
                     }
                 }
 
