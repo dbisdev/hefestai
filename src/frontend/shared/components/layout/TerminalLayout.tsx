@@ -9,8 +9,8 @@
 
 import React, { useState, useCallback } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
-import DiceRoller from '../../../components/DiceRoller';
-import RuleQuery from '../../../components/RuleQuery';
+import DiceRoller from '@components/DiceRoller';
+import RuleQuery from '@components/RuleQuery';
 import { useAuth, useCampaign } from '@core/context';
 import { CampaignRole } from '@core/types/campaign.types';
 

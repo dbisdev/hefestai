@@ -5,9 +5,9 @@
  */
 
 import React, { createContext, useContext, useState, useEffect, useCallback, useMemo } from 'react';
-import { campaignService } from '../services/api';
+import { campaignService } from '@core/services/api';
 import { useAuth } from './AuthContext';
-import type { Campaign, CampaignDetail, CampaignRole, UpdateCampaignInput, UpdateCampaignStatusInput } from '../types';
+import type { Campaign, CampaignDetail, CampaignRole, UpdateCampaignInput, UpdateCampaignStatusInput } from '@core/types';
 
 interface CampaignState {
   /** List of all campaigns the user is a member of */

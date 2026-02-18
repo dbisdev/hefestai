@@ -32,6 +32,7 @@ export default defineConfig(({ mode }) => {
       resolve: {
         alias: {
           '@': path.resolve(__dirname, '.'),
+          '@components': path.resolve(__dirname, './components'),
           '@core': path.resolve(__dirname, './core'),
           '@features': path.resolve(__dirname, './features'),
           '@shared': path.resolve(__dirname, './shared'),

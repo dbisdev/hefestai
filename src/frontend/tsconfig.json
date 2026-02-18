@@ -21,6 +21,7 @@
     "jsx": "react-jsx",
     "paths": {
       "@/*": ["./*"],
+      "@components/*": ["./components/*"],
       "@core/*": ["./core/*"],
       "@features/*": ["./features/*"],
       "@shared/*": ["./shared/*"]

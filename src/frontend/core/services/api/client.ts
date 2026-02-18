@@ -4,9 +4,9 @@
  * OWASP compliant: Handles auth tokens, validates responses
  */
 
-import { API_BASE, API_TIMEOUT } from '../../config/constants';
-import { tokenService } from '../storage/token.service';
-import type { RequestConfig, ApiError } from '../../types';
+import { API_BASE, API_TIMEOUT } from '@core/config/constants';
+import { tokenService } from '@core/services/storage/token.service';
+import type { RequestConfig, ApiError } from '@core/types';
 
 /**
  * Custom error class for API errors

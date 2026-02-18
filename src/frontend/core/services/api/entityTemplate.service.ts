@@ -17,8 +17,8 @@ import type {
   UpdateTemplateResult,
   DeleteTemplateResult,
   FieldDefinition,
-} from '../../types';
-import { TemplateStatus } from '../../types';
+  TemplateStatus,
+} from '@core/types';
 
 /**
  * Service for managing entity templates.

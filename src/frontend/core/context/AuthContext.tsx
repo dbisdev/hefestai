@@ -5,9 +5,9 @@
  */
 
 import React, { createContext, useContext, useState, useEffect, useCallback, useMemo } from 'react';
-import { authService } from '../services/api';
-import { tokenService } from '../services/storage/token.service';
-import type { User, LoginCredentials, RegisterCredentials, AuthState } from '../types';
+import { authService } from '@core/services/api';
+import { tokenService } from '@core/services/storage/token.service';
+import type { User, LoginCredentials, RegisterCredentials, AuthState } from '@core/types';
 
 interface AuthContextValue extends AuthState {
   login: (credentials: LoginCredentials) => Promise<void>;

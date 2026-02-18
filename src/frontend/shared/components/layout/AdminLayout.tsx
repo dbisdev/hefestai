@@ -6,7 +6,7 @@
 
 import React, { useState } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
-import DiceRoller from '../../../components/DiceRoller';
+import DiceRoller from '@components/DiceRoller';
 import { useAuth } from '@core/context';
 
 /** Navigation item definition for admin sidebar */

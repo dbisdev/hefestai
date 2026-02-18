@@ -11,7 +11,7 @@ import type {
   CreateUserRequest,
   UpdateUserRequest,
   AdminUpdateCampaignRequest,
-} from '../../types';
+} from '@core/types';
 
 /**
  * Service for admin user management operations.

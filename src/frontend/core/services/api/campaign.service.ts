@@ -14,7 +14,7 @@ import type {
   UpdateMemberRoleInput,
   UpdateCampaignStatusInput,
   JoinCodeResponse,
-} from '../../types';
+} from '@core/types';
 
 export const campaignService = {
   /**

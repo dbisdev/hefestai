@@ -10,7 +10,7 @@ import type {
   CreateGameSystemRequest, 
   UpdateGameSystemRequest,
   UpdateGameSystemStatusRequest 
-} from '../../types';
+} from '@core/types';
 
 export const gameSystemService = {
   /**

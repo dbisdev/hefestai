@@ -4,8 +4,8 @@
  * OWASP A02: Cryptographic Failures - Proper token handling
  */
 
-import { TOKEN_KEY, REFRESH_TOKEN_KEY, USER_KEY } from '../../config/constants';
-import type { User } from '../../types';
+import { TOKEN_KEY, REFRESH_TOKEN_KEY, USER_KEY } from '@core/config/constants';
+import type { User } from '@core/types';
 
 /**
  * Token storage service

@@ -19,7 +19,7 @@ import type {
   MissionGenerationResponse,
   EncounterGenerationParams,
   EncounterGenerationResponse,
-} from '../../types';
+} from '@core/types';
 
 export interface GeneratedCharacter {
   characterJson: string;

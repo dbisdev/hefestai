@@ -4,7 +4,7 @@
  */
 
 import { httpClient } from './client';
-import { tokenService } from '../storage/token.service';
+import { tokenService } from '@core/services/storage/token.service';
 import type { 
   User, 
   UserRole,
@@ -12,7 +12,7 @@ import type {
   CurrentUserResponse,
   LoginCredentials,
   RegisterCredentials 
-} from '../../types';
+} from '@core/types';
 
 /**
  * Map API response to User object

@@ -4,8 +4,8 @@
  */
 
 import { useState, useCallback } from 'react';
-import { TRANSITION_OUT_DURATION, TRANSITION_IN_DURATION } from '../config/constants';
-import type { Screen, TransitionStage } from '../types';
+import { TRANSITION_OUT_DURATION, TRANSITION_IN_DURATION } from '@core/config/constants';
+import type { Screen, TransitionStage } from '@core/types';
 
 interface UseTransitionResult {
   currentScreen: Screen;

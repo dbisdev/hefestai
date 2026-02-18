@@ -12,7 +12,7 @@ import type {
   ChangeVisibilityInput,
   TransferOwnershipInput,
   EntityCategory,
-} from '../../types';
+} from '@core/types';
 
 /**
  * Paginated result from the backend
