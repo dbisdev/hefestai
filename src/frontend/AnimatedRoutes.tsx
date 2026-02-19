@@ -230,8 +230,8 @@ export const AnimatedRoutes: React.FC<AnimatedRoutesProps> = ({ isAuthenticated,
                 : <AdminSystemPage />
           } />
           
-          {/* Catch all */}
-          <Route path="*" element={<Navigate to="/" replace />} />
+          {/* Catch all - v7 uses /* instead of * */}
+          <Route path="/*" element={<Navigate to="/" replace />} />
         </Routes>
     </div>
   );
