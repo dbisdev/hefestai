@@ -67,13 +67,13 @@ export const SolarSystemGeneratorPage: React.FC<SolarSystemGeneratorPageProps> =
 
       // Handle image based on selected mode
       if (imageMode === 'upload' && uploadedImageData) {
-        // Use uploaded image
-        setSystemImage(`data:image/png;base64,${uploadedImageData}`);
+        // Use uploaded image (already compressed to WebP)
+        setSystemImage(`data:image/webp;base64,${uploadedImageData}`);
       } else if (imageMode === 'generate') {
-        if (result.imageBase64) {
-          setSystemImage(`data:image/png;base64,${result.imageBase64}`);
-        } else if (result.imageUrl) {
+        if (result.imageUrl) {
           setSystemImage(result.imageUrl);
+        } else if (result.imageBase64) {
+          setSystemImage(`data:image/webp;base64,${result.imageBase64}`);
         } else {
           setSystemImage(SYSTEM_PLACEHOLDER_IMAGE);
         }

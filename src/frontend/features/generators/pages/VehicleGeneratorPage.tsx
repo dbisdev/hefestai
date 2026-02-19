@@ -114,15 +114,15 @@ export const VehicleGeneratorPage: React.FC<VehicleGeneratorPageProps> = ({ onBa
 
       // Handle image based on selected mode
       if (imageMode === 'upload' && uploadedImageData) {
-        // Use uploaded image
-        setVehicleImage(`data:image/png;base64,${uploadedImageData}`);
+        // Use uploaded image (already compressed to WebP)
+        setVehicleImage(`data:image/webp;base64,${uploadedImageData}`);
         addLog('Using uploaded image.');
       } else if (imageMode === 'generate') {
-        if (result.imageBase64) {
-          setVehicleImage(`data:image/png;base64,${result.imageBase64}`);
-          addLog('Visual synthesis complete.');
-        } else if (result.imageUrl) {
+        if (result.imageUrl) {
           setVehicleImage(result.imageUrl);
+          addLog('Visual synthesis complete.');
+        } else if (result.imageBase64) {
+          setVehicleImage(`data:image/webp;base64,${result.imageBase64}`);
           addLog('Visual synthesis complete.');
         } else {
           setVehicleImage(VEHICLE_PLACEHOLDER_IMAGE);

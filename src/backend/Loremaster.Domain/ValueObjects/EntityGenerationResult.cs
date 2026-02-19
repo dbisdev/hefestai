@@ -198,7 +198,7 @@ public sealed class EntityImageGenerationResult
         if (string.IsNullOrWhiteSpace(imageBase64))
             throw new ArgumentException("Image data cannot be empty", nameof(imageBase64));
 
-        var dataUrl = $"data:image/png;base64,{imageBase64}";
+        var dataUrl = $"data:image/webp;base64,{imageBase64}";
         
         return new EntityImageGenerationResult(
             success: true,

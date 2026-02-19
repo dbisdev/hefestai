@@ -129,16 +129,16 @@ export const MissionGeneratorPage: React.FC<MissionGeneratorPageProps> = ({ onBa
 
       // Handle image based on selected mode
       if (imageMode === 'upload' && uploadedImageData) {
-        // Use uploaded image
-        setMissionImage(`data:image/png;base64,${uploadedImageData}`);
+        // Use uploaded image (already compressed to WebP)
+        setMissionImage(`data:image/webp;base64,${uploadedImageData}`);
         addLog('USANDO IMAGEN CARGADA.');
       } else if (imageMode === 'generate') {
         addLog('GENERANDO REPRESENTACION VISUAL...');
-        if (result.imageBase64) {
-          setMissionImage(`data:image/png;base64,${result.imageBase64}`);
-          addLog('SINTESIS VISUAL COMPLETA.');
-        } else if (result.imageUrl) {
+        if (result.imageUrl) {
           setMissionImage(result.imageUrl);
+          addLog('SINTESIS VISUAL COMPLETA.');
+        } else if (result.imageBase64) {
+          setMissionImage(`data:image/webp;base64,${result.imageBase64}`);
           addLog('SINTESIS VISUAL COMPLETA.');
         } else {
           setMissionImage(MISSION_PLACEHOLDER_IMAGE);

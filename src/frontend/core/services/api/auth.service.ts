@@ -24,8 +24,6 @@ function mapUserFromResponse(data: AuthResponse | CurrentUserResponse): User {
     username: data.displayName || data.email,
     email: data.email,
     role: data.role.toUpperCase() as UserRole,
-    masterId: data.masterId,
-    invitationCode: data.invitationCode,
   };
 }
 

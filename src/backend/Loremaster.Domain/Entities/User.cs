@@ -71,12 +71,6 @@ public class User : SoftDeletableEntity
             MasterId = masterId,
             IsActive = true
         };
-        
-        // Generate invitation code for Masters
-        if (role == UserRole.Master)
-        {
-            user.InvitationCode = GenerateInvitationCode();
-        }
 
         return user;
     }
@@ -107,11 +101,6 @@ public class User : SoftDeletableEntity
             AvatarUrl = avatarUrl?.Trim(),
             IsActive = true
         };
-
-        if (role == UserRole.Master)
-        {
-            user.InvitationCode = GenerateInvitationCode();
-        }
 
         return user;
     }

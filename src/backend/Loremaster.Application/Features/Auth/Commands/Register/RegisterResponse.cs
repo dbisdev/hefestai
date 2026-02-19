@@ -6,7 +6,5 @@ public record RegisterResponse(
     string? DisplayName,
     string Role,
     string AccessToken,
-    string RefreshToken,
-    string? InvitationCode,
-    string? MasterId
+    string RefreshToken
 );

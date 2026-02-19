@@ -141,16 +141,16 @@ export const EncounterGeneratorPage: React.FC<EncounterGeneratorPageProps> = ({ 
 
       // Handle image based on selected mode
       if (imageMode === 'upload' && uploadedImageData) {
-        // Use uploaded image
-        setEncounterImage(`data:image/png;base64,${uploadedImageData}`);
+        // Use uploaded image (already compressed to WebP)
+        setEncounterImage(`data:image/webp;base64,${uploadedImageData}`);
         addLog('USANDO IMAGEN CARGADA.');
       } else if (imageMode === 'generate') {
         addLog('GENERANDO REPRESENTACION VISUAL...');
-        if (result.imageBase64) {
-          setEncounterImage(`data:image/png;base64,${result.imageBase64}`);
-          addLog('SINTESIS VISUAL COMPLETA.');
-        } else if (result.imageUrl) {
+        if (result.imageUrl) {
           setEncounterImage(result.imageUrl);
+          addLog('SINTESIS VISUAL COMPLETA.');
+        } else if (result.imageBase64) {
+          setEncounterImage(`data:image/webp;base64,${result.imageBase64}`);
           addLog('SINTESIS VISUAL COMPLETA.');
         } else {
           setEncounterImage(ENCOUNTER_PLACEHOLDER_IMAGE);

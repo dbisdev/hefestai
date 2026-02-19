@@ -38,9 +38,7 @@ public class GetCurrentUserQueryHandler : IRequestHandler<GetCurrentUserQuery, C
             user.DisplayName,
             user.Role.ToString(),
             user.CreatedAt,
-            user.LastLoginAt,
-            user.InvitationCode,
-            user.MasterId?.ToString()
+            user.LastLoginAt
         );
     }
 }

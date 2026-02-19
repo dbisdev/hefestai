@@ -137,16 +137,16 @@ export const CharacterGeneratorPage: React.FC<CharacterGeneratorPageProps> = ({ 
 
       // Handle image based on selected mode
       if (imageMode === 'upload' && uploadedImageData) {
-        // Use uploaded image
-        setCharImage(`data:image/png;base64,${uploadedImageData}`);
+        // Use uploaded image (already compressed to WebP)
+        setCharImage(`data:image/webp;base64,${uploadedImageData}`);
         addLog('USING UPLOADED IMAGE.');
       } else if (imageMode === 'generate') {
         addLog('GENERATING VISUAL REPRESENTATION...');
-        if (result.imageBase64) {
-          setCharImage(`data:image/png;base64,${result.imageBase64}`);
-          addLog('VISUAL SYNTHESIS COMPLETE.');
-        } else if (result.imageUrl) {
+        if (result.imageUrl) {
           setCharImage(result.imageUrl);
+          addLog('VISUAL SYNTHESIS COMPLETE.');
+        } else if (result.imageBase64) {
+          setCharImage(`data:image/webp;base64,${result.imageBase64}`);
           addLog('VISUAL SYNTHESIS COMPLETE.');
         } else {
           addLog('WARNING: VISUAL RENDER FAILED. USING PLACEHOLDER.');

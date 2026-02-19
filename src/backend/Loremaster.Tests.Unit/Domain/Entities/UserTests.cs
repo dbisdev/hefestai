@@ -40,7 +40,7 @@ public class UserTests
     }
 
     [Fact]
-    public void Create_WithMasterRole_ShouldGenerateInvitationCode()
+    public void Create_WithMasterRole_ShouldCreateMasterUser()
     {
         // Arrange & Act
         var user = User.Create("master@example.com", "hash", "Master", UserRole.Master);
@@ -48,8 +48,6 @@ public class UserTests
         // Assert
         user.Role.Should().Be(UserRole.Master);
         user.IsMaster.Should().BeTrue();
-        user.InvitationCode.Should().NotBeNullOrEmpty();
-        user.InvitationCode.Should().HaveLength(8);
     }
 
     [Theory]
@@ -199,11 +197,10 @@ public class UserTests
     }
 
     [Fact]
-    public void ChangeRole_ToMaster_ShouldGenerateInvitationCode()
+    public void ChangeRole_ToMaster_ShouldUpdateRole()
     {
         // Arrange
         var user = User.Create("test@example.com", "hash", "Test User");
-        user.InvitationCode.Should().BeNull(); // Player has no invitation code
 
         // Act
         user.ChangeRole(UserRole.Master);
@@ -211,7 +208,6 @@ public class UserTests
         // Assert
         user.Role.Should().Be(UserRole.Master);
         user.IsMaster.Should().BeTrue();
-        user.InvitationCode.Should().NotBeNullOrEmpty();
     }
 
     [Fact]
@@ -346,34 +342,6 @@ public class UserTests
 
         // Assert
         player.MasterId.Should().Be(masterId);
-    }
-
-    [Fact]
-    public void RegenerateInvitationCode_ForMaster_ShouldGenerateNewCode()
-    {
-        // Arrange
-        var master = User.Create("master@example.com", "hash", "Master", UserRole.Master);
-        var originalCode = master.InvitationCode;
-
-        // Act
-        master.RegenerateInvitationCode();
-
-        // Assert
-        master.InvitationCode.Should().NotBe(originalCode);
-        master.InvitationCode.Should().HaveLength(8);
-    }
-
-    [Fact]
-    public void RegenerateInvitationCode_ForNonMaster_ShouldThrow()
-    {
-        // Arrange
-        var player = User.Create("player@example.com", "hash", "Player", UserRole.Player);
-
-        // Act
-        var act = () => player.RegenerateInvitationCode();
-
-        // Assert
-        act.Should().Throw<InvalidOperationException>();
     }
 
     #endregion

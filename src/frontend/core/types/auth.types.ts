@@ -10,8 +10,6 @@ export interface User {
   username: string;
   email?: string;
   role: UserRole;
-  masterId?: string;
-  invitationCode?: string;
 }
 
 export interface AuthState {
@@ -41,8 +39,6 @@ export interface AuthResponse {
   role: string;
   accessToken: string;
   refreshToken: string;
-  invitationCode?: string;
-  masterId?: string;
 }
 
 export interface CurrentUserResponse {
@@ -52,6 +48,4 @@ export interface CurrentUserResponse {
   role: string;
   createdAt: string;
   lastLoginAt?: string;
-  invitationCode?: string;
-  masterId?: string;
 }

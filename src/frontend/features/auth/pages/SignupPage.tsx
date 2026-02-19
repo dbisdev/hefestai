@@ -48,8 +48,8 @@ export const SignupPage: React.FC = () => {
       errors.confirmPassword = 'Las contraseñas no coinciden';
     }
 
-    // Validate invite code for players
-    if (role === 'PLAYER' && inviteCode) {
+    // Validate invite code for players (optional - only if provided)
+    if (role === 'PLAYER' && inviteCode && inviteCode.trim()) {
       const inviteValidation = validateInviteCode(inviteCode);
       if (!inviteValidation.isValid) errors.inviteCode = inviteValidation.errors[0];
     }
@@ -224,21 +224,20 @@ export const SignupPage: React.FC = () => {
               autoComplete="username"
             />
 
-            {/* Invite Code (only for Players) */}
+            {/* Invite Code (optional - for joining a campaign during registration) */}
             {role === 'PLAYER' && (
               <div className="space-y-3 animate-glitch-in">
                 <Input
-                  label="Código de Invitación del Maestro"
+                  label="Código de Campaña (Opcional)"
                   type="text"
-                  required
                   value={inviteCode}
                   onChange={(e) => setInviteCode(e.target.value)}
-                  placeholder="INV-CODE-XXX"
+                  placeholder="CÓDIGO-CAMPAÑA"
                   error={validationErrors.inviteCode}
                   className="uppercase font-bold"
                 />
                 <p className="text-primary/40 text-[8px] uppercase leading-relaxed">
-                  Solicita el código a tu Game Master para unirte a su partida
+                  Ingresa el código de campaña para unirte directamente, o déjalo vacío para unirte más tarde
                 </p>
               </div>
             )}

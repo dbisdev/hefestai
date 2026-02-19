@@ -285,7 +285,7 @@ public class EntityGenerationResultTests
         // Assert
         result.Success.Should().BeTrue();
         result.ImageBase64.Should().Be(base64Data);
-        result.ImageDataUrl.Should().StartWith("data:image/png;base64,");
+        result.ImageDataUrl.Should().StartWith("data:image/webp;base64,");
         result.ErrorMessage.Should().BeNull();
     }
 
@@ -394,7 +394,7 @@ public class EntityGenerationResultTests
         var bestUrl = result.GetBestUrl();
 
         // Assert - falls back to data URL
-        bestUrl.Should().StartWith("data:image/png;base64,");
+        bestUrl.Should().StartWith("data:image/webp;base64,");
     }
 
     [Fact]

@@ -6,7 +6,5 @@ public record CurrentUserResponse(
     string? DisplayName,
     string Role,
     DateTime CreatedAt,
-    DateTime? LastLoginAt,
-    string? InvitationCode,
-    string? MasterId
+    DateTime? LastLoginAt
 );

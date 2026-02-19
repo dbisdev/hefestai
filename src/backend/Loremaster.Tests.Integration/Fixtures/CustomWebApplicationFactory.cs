@@ -93,34 +93,33 @@ public class AuthenticatedHttpClientFactory
 
     /// <summary>
     /// Creates an authenticated HTTP client by registering a new user or logging in an existing one.
-    /// For Player role, automatically creates a Master first to get the required invitation code.
+    /// Players can now register without a campaign code, but optionally can join one during registration.
     /// </summary>
     /// <param name="email">The email address for the test user.</param>
     /// <param name="password">The password for the test user.</param>
     /// <param name="role">The role for the test user (default: Master).</param>
+    /// <param name="joinCode">Optional campaign join code to join during registration.</param>
     /// <returns>A tuple containing the authenticated client, access token, and user ID.</returns>
     public async Task<(HttpClient Client, string AccessToken, string UserId)> CreateAuthenticatedClientAsync(
         string email = "test@example.com",
         string password = "TestPassword123!",
-        string role = "Master")
+        string role = "Master",
+        string? joinCode = null)
     {
         var client = _factory.CreateClient();
 
         // Generate display name from email prefix for easier test identification
         var displayName = email.Split('@')[0];
 
-        string? inviteCode = null;
-        
-        // Players require an invitation code from a Master
-        if (role == "Player")
+        // Build the register request - inviteCode is now optional for joining a campaign
+        var registerRequest = new
         {
-            inviteCode = await GetOrCreateMasterInvitationCodeAsync(client, email);
-        }
-
-        // Build the register request
-        object registerRequest = role == "Player" 
-            ? new { Email = email, Password = password, DisplayName = displayName, Role = role, InviteCode = inviteCode }
-            : new { Email = email, Password = password, DisplayName = displayName, Role = role };
+            Email = email,
+            Password = password,
+            DisplayName = displayName,
+            Role = role,
+            InviteCode = joinCode
+        };
         
         var registerResponse = await client.PostAsJsonAsync("/api/auth/register", registerRequest);
 
@@ -155,59 +154,59 @@ public class AuthenticatedHttpClientFactory
     }
 
     /// <summary>
-    /// Creates a Master user (if needed) and returns their invitation code for Player registration.
+    /// Creates a Master user with a campaign and returns the campaign's join code.
+    /// Use this when you need to test Player joining functionality.
     /// </summary>
-    private async Task<string> GetOrCreateMasterInvitationCodeAsync(HttpClient client, string playerEmail)
+    public async Task<string> CreateMasterWithCampaignAsync(HttpClient client, string campaignName = "Test Campaign")
     {
-        // Create a unique Master email based on the player email to avoid collisions
-        var masterEmail = $"master-for-{playerEmail}";
+        var masterEmail = $"master-{Guid.NewGuid()}@test.com";
         var masterPassword = "MasterPassword123!";
-        var masterDisplayName = "TestMaster";
         
+        // Register Master
         var registerRequest = new
         {
             Email = masterEmail,
             Password = masterPassword,
-            DisplayName = masterDisplayName,
+            DisplayName = "TestMaster",
             Role = "Master"
         };
         
         var registerResponse = await client.PostAsJsonAsync("/api/auth/register", registerRequest);
+        registerResponse.EnsureSuccessStatusCode();
         
-        if (registerResponse.IsSuccessStatusCode)
-        {
-            var result = await registerResponse.Content.ReadFromJsonAsync<RegisterResponse>();
-            return result!.InvitationCode!;
-        }
+        var registerResult = await registerResponse.Content.ReadFromJsonAsync<AuthResponse>();
+        var masterToken = registerResult!.AccessToken;
         
-        // Master might already exist, try login
-        var loginResponse = await client.PostAsJsonAsync("/api/auth/login", new
+        // Set authorization for campaign creation
+        client.DefaultRequestHeaders.Authorization = 
+            new System.Net.Http.Headers.AuthenticationHeaderValue("Bearer", masterToken);
+        
+        // Create a game system first
+        var gameSystemResponse = await client.PostAsJsonAsync("/api/game-systems", new
         {
-            Email = masterEmail,
-            Password = masterPassword
+            Name = "Test RPG System",
+            Description = "A test game system"
         });
+        gameSystemResponse.EnsureSuccessStatusCode();
+        var gameSystem = await gameSystemResponse.Content.ReadFromJsonAsync<GameSystemResponse>();
         
-        if (loginResponse.IsSuccessStatusCode)
+        // Create a campaign
+        var campaignResponse = await client.PostAsJsonAsync("/api/campaigns", new
         {
-            var loginResult = await loginResponse.Content.ReadFromJsonAsync<AuthResponse>();
-            // Set authorization to get current user info with invitation code
-            client.DefaultRequestHeaders.Authorization = 
-                new System.Net.Http.Headers.AuthenticationHeaderValue("Bearer", loginResult!.AccessToken);
-            
-            var meResponse = await client.GetAsync("/api/auth/me");
-            if (meResponse.IsSuccessStatusCode)
-            {
-                var meResult = await meResponse.Content.ReadFromJsonAsync<CurrentUserResponse>();
-                // Clear authorization header so player can register
-                client.DefaultRequestHeaders.Authorization = null;
-                return meResult!.InvitationCode!;
-            }
-        }
+            Name = campaignName,
+            Description = "A test campaign",
+            GameSystemId = gameSystem!.Id
+        });
+        campaignResponse.EnsureSuccessStatusCode();
+        var campaign = await campaignResponse.Content.ReadFromJsonAsync<CampaignResponse>();
         
-        throw new Exception($"Failed to create or login Master user for Player registration");
+        // Clear authorization
+        client.DefaultRequestHeaders.Authorization = null;
+        
+        return campaign!.JoinCode;
     }
 
     private record AuthResponse(Guid UserId, string Email, string AccessToken, string RefreshToken);
-    private record RegisterResponse(Guid UserId, string Email, string DisplayName, string Role, string AccessToken, string RefreshToken, string? InvitationCode, string? MasterId);
-    private record CurrentUserResponse(Guid Id, string Email, string DisplayName, string Role, string? InvitationCode, Guid? MasterId);
+    private record CampaignResponse(Guid Id, string Name, string JoinCode);
+    private record GameSystemResponse(Guid Id, string Name);
 }

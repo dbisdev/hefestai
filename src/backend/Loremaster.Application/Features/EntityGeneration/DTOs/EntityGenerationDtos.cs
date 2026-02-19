@@ -167,7 +167,7 @@ public record GenerateEntityImageResult
             Success = true,
             EntityId = entityId,
             ImageBase64 = imageBase64,
-            ImageDataUrl = $"data:image/png;base64,{imageBase64}",
+            ImageDataUrl = $"data:image/webp;base64,{imageBase64}",
             StoredImageUrl = storedImageUrl,
             GeneratedPrompt = generatedPrompt
         };

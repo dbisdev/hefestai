@@ -53,9 +53,7 @@ public class LoginCommandHandler : IRequestHandler<LoginCommand, LoginResponse>
             user.DisplayName,
             user.Role.ToString(),
             accessToken,
-            refreshToken,
-            user.InvitationCode,
-            user.MasterId?.ToString()
+            refreshToken
         );
     }
 }

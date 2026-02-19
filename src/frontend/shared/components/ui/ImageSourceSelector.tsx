@@ -69,7 +69,9 @@ const IMAGE_SOURCE_OPTIONS: ImageSourceOption[] = [
 ];
 
 const DEFAULT_MAX_FILE_SIZE = 5 * 1024 * 1024; // 5MB
-const DEFAULT_ACCEPTED_FORMATS = ['image/png', 'image/jpeg', 'image/webp', 'image/gif'];
+const DEFAULT_ACCEPTED_FORMATS = ['image/png', 'image/jpeg', 'image/webp'];
+const MAX_UPLOAD_WIDTH = 500;
+const COMPRESSION_QUALITY = 0.8;
 
 /**
  * ImageSourceSelector Component
@@ -122,12 +124,49 @@ export const ImageSourceSelector: React.FC<ImageSourceSelectorProps> = ({
       const reader = new FileReader();
       reader.onload = () => {
         const result = reader.result as string;
-        // Remove the data URL prefix to get pure base64
         const base64 = result.split(',')[1];
         resolve(base64);
       };
       reader.onerror = () => reject(new Error('Error al leer el archivo'));
       reader.readAsDataURL(file);
+    });
+  };
+
+  /**
+   * Compresses an image to WebP format using Canvas API
+   */
+  const compressImageToWebP = (file: File): Promise<string> => {
+    return new Promise((resolve, reject) => {
+      const img = new Image();
+      img.onload = () => {
+        const canvas = document.createElement('canvas');
+        let width = img.width;
+        let height = img.height;
+
+        // Resize if wider than max width while maintaining aspect ratio
+        if (width > MAX_UPLOAD_WIDTH) {
+          height = Math.round((height * MAX_UPLOAD_WIDTH) / width);
+          width = MAX_UPLOAD_WIDTH;
+        }
+
+        canvas.width = width;
+        canvas.height = height;
+
+        const ctx = canvas.getContext('2d');
+        if (!ctx) {
+          reject(new Error('Canvas not supported'));
+          return;
+        }
+
+        ctx.drawImage(img, 0, 0, width, height);
+
+        // Convert to WebP
+        const dataUrl = canvas.toDataURL('image/webp', COMPRESSION_QUALITY);
+        const base64 = dataUrl.split(',')[1];
+        resolve(base64);
+      };
+      img.onerror = () => reject(new Error('Error loading image'));
+      img.src = URL.createObjectURL(file);
     });
   };
 
@@ -144,11 +183,12 @@ export const ImageSourceSelector: React.FC<ImageSourceSelectorProps> = ({
     }
 
     try {
-      const base64 = await fileToBase64(file);
-      const dataUrl = `data:${file.type};base64,${base64}`;
+      // Compress and convert to WebP
+      const webpBase64 = await compressImageToWebP(file);
+      const webpDataUrl = `data:image/webp;base64,${webpBase64}`;
       
-      setPreviewUrl(dataUrl);
-      onImageUpload?.(base64);
+      setPreviewUrl(webpDataUrl);
+      onImageUpload?.(webpBase64);
     } catch (err) {
       setError('Error al procesar la imagen');
       console.error('File processing error:', err);
@@ -349,7 +389,7 @@ export const ImageSourceSelector: React.FC<ImageSourceSelectorProps> = ({
                 )}
               </p>
               <p className="text-[8px] text-primary/40">
-                PNG, JPG, WEBP, GIF • Máx. {formatFileSize(maxFileSizeBytes)}
+                PNG, JPG, WEBP • Máx. {formatFileSize(maxFileSizeBytes)}
               </p>
             </div>
           )}

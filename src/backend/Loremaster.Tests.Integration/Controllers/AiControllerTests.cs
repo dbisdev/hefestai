@@ -1,6 +1,6 @@
 using System.Net;
 using System.Net.Http.Json;
-using Loremaster.Tests.Integration.Controllers;
+using Loremaster.Tests.Integration.Fixtures;
 
 namespace Loremaster.Tests.Integration.Controllers;
 

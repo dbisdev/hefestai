@@ -6,7 +6,5 @@ public record LoginResponse(
     string? DisplayName,
     string Role,
     string AccessToken,
-    string RefreshToken,
-    string? InvitationCode,
-    string? MasterId
+    string RefreshToken
 );

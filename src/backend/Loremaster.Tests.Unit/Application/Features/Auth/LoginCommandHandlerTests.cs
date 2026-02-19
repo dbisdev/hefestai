@@ -84,43 +84,6 @@ public class LoginCommandHandlerTests
     }
 
     [Fact]
-    public async Task Handle_WithMasterUser_ShouldReturnInvitationCode()
-    {
-        // Arrange
-        var master = User.Create("master@example.com", "hashed_password", "Master", UserRole.Master);
-        
-        var command = new LoginCommand(
-            Email: "master@example.com",
-            Password: "Password123");
-
-        _userRepositoryMock
-            .Setup(x => x.GetByEmailAsync(command.Email, It.IsAny<CancellationToken>()))
-            .ReturnsAsync(master);
-
-        _passwordHasherMock
-            .Setup(x => x.VerifyPassword(command.Password, master.PasswordHash))
-            .Returns(true);
-
-        _jwtTokenGeneratorMock
-            .Setup(x => x.GenerateRefreshToken())
-            .Returns("refresh_token");
-
-        _jwtTokenGeneratorMock
-            .Setup(x => x.GetRefreshTokenExpiryTime())
-            .Returns(DateTime.UtcNow.AddDays(7));
-
-        _jwtTokenGeneratorMock
-            .Setup(x => x.GenerateAccessToken(master))
-            .Returns("access_token");
-
-        // Act
-        var result = await _handler.Handle(command, CancellationToken.None);
-
-        // Assert
-        result.InvitationCode.Should().NotBeNullOrEmpty();
-    }
-
-    [Fact]
     public async Task Handle_ShouldUpdateLastLoginAt()
     {
         // Arrange

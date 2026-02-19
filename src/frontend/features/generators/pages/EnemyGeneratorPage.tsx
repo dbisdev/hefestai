@@ -152,16 +152,16 @@ export const EnemyGeneratorPage: React.FC<EnemyGeneratorPageProps> = ({ onBack }
 
       // Handle image based on selected mode
       if (imageMode === 'upload' && uploadedImageData) {
-        // Use uploaded image
-        setEnemyImage(`data:image/png;base64,${uploadedImageData}`);
+        // Use uploaded image (already compressed to WebP)
+        setEnemyImage(`data:image/webp;base64,${uploadedImageData}`);
         addLog('USANDO IMAGEN CARGADA.');
       } else if (imageMode === 'generate') {
         addLog('GENERANDO REPRESENTACION VISUAL...');
-        if (result.imageBase64) {
-          setEnemyImage(`data:image/png;base64,${result.imageBase64}`);
-          addLog('SINTESIS VISUAL COMPLETA.');
-        } else if (result.imageUrl) {
+        if (result.imageUrl) {
           setEnemyImage(result.imageUrl);
+          addLog('SINTESIS VISUAL COMPLETA.');
+        } else if (result.imageBase64) {
+          setEnemyImage(`data:image/webp;base64,${result.imageBase64}`);
           addLog('SINTESIS VISUAL COMPLETA.');
         } else {
           addLog('ADVERTENCIA: RENDER VISUAL FALLIDO. USANDO PLACEHOLDER.');

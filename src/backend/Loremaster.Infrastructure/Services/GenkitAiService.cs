@@ -4,6 +4,9 @@ using System.Text.Json.Serialization;
 using Loremaster.Application.Common.Interfaces;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Logging;
+using SixLabors.ImageSharp;
+using SixLabors.ImageSharp.Formats.Webp;
+using SixLabors.ImageSharp.Processing;
 
 namespace Loremaster.Infrastructure.Services;
 
@@ -100,9 +103,15 @@ public class GenkitAiService : IAiService
             var response = await SendRequestAsync<ImageGenerateRequest, ImageGenerateResponse>(
                 "/api/generate-image", request, cancellationToken);
 
-            // Convert new response format to existing result format
             var imageBase64 = response.Image?.Base64;
-            var mimeType = response.Image?.MimeType ?? "image/png";
+            
+            // Compress image to WebP at 80% quality with max 500px width
+            if (!string.IsNullOrEmpty(imageBase64))
+            {
+                imageBase64 = await CompressImageToWebPAsync(imageBase64, 80, 500);
+            }
+            
+            const string mimeType = "image/webp";
             
             // Create data URL if we have base64 data
             string? imageUrl = imageBase64 != null 
@@ -118,6 +127,68 @@ public class GenkitAiService : IAiService
         {
             _logger.LogWarning(ex, "Image generation failed");
             return new GenerateImageResult(null, null, false);
+        }
+    }
+
+    /// <summary>
+    /// Compresses an image to WebP format with specified quality and max width.
+    /// </summary>
+    /// <param name="base64Image">Base64 encoded image data</param>
+    /// <param name="quality">Compression quality (0-100)</param>
+    /// <param name="maxWidth">Maximum width in pixels</param>
+    /// <returns>Base64 encoded WebP image</returns>
+    private async Task<string> CompressImageToWebPAsync(string base64Image, int quality = 80, int maxWidth = 500)
+    {
+        try
+        {
+            // Remove data URL prefix if present
+            var imageData = base64Image.Contains(',') 
+                ? base64Image.Split(',')[1] 
+                : base64Image;
+            
+            var imageBytes = Convert.FromBase64String(imageData);
+            var originalSize = imageBytes.Length;
+            
+            _logger.LogInformation("Compressing image: {OriginalSize} bytes to WebP", originalSize);
+            
+            using var inputStream = new MemoryStream(imageBytes);
+            using var outputStream = new MemoryStream();
+            
+            using (var image = await Image.LoadAsync(inputStream))
+            {
+                _logger.LogInformation("Image loaded: {Width}x{Height}", image.Width, image.Height);
+                
+                // Resize if wider than maxWidth while maintaining aspect ratio
+                if (image.Width > maxWidth)
+                {
+                    var newHeight = (int)((double)image.Height * maxWidth / image.Width);
+                    _logger.LogInformation("Resizing to {Width}x{Height}", maxWidth, newHeight);
+                    image.Mutate(x => x.Resize(maxWidth, newHeight));
+                }
+                
+                // Encode to WebP with specified quality
+                var encoder = new WebpEncoder
+                {
+                    Quality = quality,
+                    FileFormat = WebpFileFormatType.Lossy
+                };
+                
+                await image.SaveAsync(outputStream, encoder);
+            }
+            
+            var result = Convert.ToBase64String(outputStream.ToArray());
+            var compressedSize = result.Length;
+            var savings = ((double)(originalSize - compressedSize) / originalSize * 100).ToString("F1");
+            
+            _logger.LogInformation("Image compressed: {OriginalSize} -> {CompressedSize} bytes ({Savings}% smaller)", 
+                originalSize, compressedSize, savings);
+            
+            return result;
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Image compression failed. Original size: {Size}", base64Image.Length);
+            throw; // Re-throw to let the caller handle the failure
         }
     }
 

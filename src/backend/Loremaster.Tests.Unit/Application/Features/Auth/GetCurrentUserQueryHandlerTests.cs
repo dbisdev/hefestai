@@ -89,48 +89,4 @@ public class GetCurrentUserQueryHandlerTests
             .WithMessage("*User*");
     }
 
-    [Fact]
-    public async Task Handle_ForMasterUser_ShouldReturnInvitationCode()
-    {
-        // Arrange
-        var userId = Guid.NewGuid();
-        var master = User.Create("master@example.com", "hash", "Master", UserRole.Master);
-
-        _currentUserServiceMock
-            .Setup(x => x.UserId)
-            .Returns(userId);
-
-        _userRepositoryMock
-            .Setup(x => x.GetByIdAsync(userId, It.IsAny<CancellationToken>()))
-            .ReturnsAsync(master);
-
-        // Act
-        var result = await _handler.Handle(new GetCurrentUserQuery(), CancellationToken.None);
-
-        // Assert
-        result.InvitationCode.Should().NotBeNullOrEmpty();
-    }
-
-    [Fact]
-    public async Task Handle_ForPlayerWithMaster_ShouldReturnMasterId()
-    {
-        // Arrange
-        var masterId = Guid.NewGuid();
-        var userId = Guid.NewGuid();
-        var player = User.Create("player@example.com", "hash", "Player", UserRole.Player, masterId);
-
-        _currentUserServiceMock
-            .Setup(x => x.UserId)
-            .Returns(userId);
-
-        _userRepositoryMock
-            .Setup(x => x.GetByIdAsync(userId, It.IsAny<CancellationToken>()))
-            .ReturnsAsync(player);
-
-        // Act
-        var result = await _handler.Handle(new GetCurrentUserQuery(), CancellationToken.None);
-
-        // Assert
-        result.MasterId.Should().Be(masterId.ToString());
-    }
 }
