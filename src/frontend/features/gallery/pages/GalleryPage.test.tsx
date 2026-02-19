@@ -9,8 +9,20 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { render, screen, within, waitFor, fireEvent } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
+import { BrowserRouter } from 'react-router-dom';
 import { GalleryPage } from '@features/gallery/pages/GalleryPage';
-import { Screen, OwnershipType, VisibilityLevel } from '@core/types';
+import { OwnershipType, VisibilityLevel } from '@core/types';
+
+// Mock useNavigate
+const mockNavigate = vi.fn();
+vi.mock('react-router-dom', async () => {
+  const actual = await vi.importActual('react-router-dom');
+  return {
+    ...actual,
+    useNavigate: () => mockNavigate,
+    useParams: () => ({}),
+  };
+});
 
 // Mock the dependencies
 vi.mock('@core/context', () => ({
@@ -46,6 +58,11 @@ vi.mock('@shared/components/layout', () => ({
       <main>{children}</main>
     </div>
   ),
+}));
+
+vi.mock('@shared/components/modals', () => ({
+  EntityEditModal: () => null,
+  EntityViewModal: () => null,
 }));
 
 // Import mocked modules to configure them
@@ -147,8 +164,13 @@ const mockEntities = [
 ];
 
 describe('GalleryPage', () => {
-  const mockOnNavigate = vi.fn();
-  const mockOnLogout = vi.fn();
+  const renderComponent = () => {
+    return render(
+      <BrowserRouter>
+        <GalleryPage />
+      </BrowserRouter>
+    );
+  };
 
   beforeEach(() => {
     vi.clearAllMocks();
@@ -184,26 +206,14 @@ describe('GalleryPage', () => {
 
   describe('Rendering', () => {
     it('renders the gallery page with title', async () => {
-      render(
-        <GalleryPage 
-          user={mockUser} 
-          onNavigate={mockOnNavigate} 
-          onLogout={mockOnLogout} 
-        />
-      );
+      renderComponent();
 
       // Title is passed to TerminalLayout which renders it in <h1>
       expect(screen.getByText('GALERÍA')).toBeInTheDocument();
     });
 
     it('renders category navigation', async () => {
-      render(
-        <GalleryPage 
-          user={mockUser} 
-          onNavigate={mockOnNavigate} 
-          onLogout={mockOnLogout} 
-        />
-      );
+      renderComponent();
 
       // Check category tabs exist
       const tablist = screen.getByRole('tablist', { name: /categorías de entidades/i });
@@ -219,13 +229,7 @@ describe('GalleryPage', () => {
         isLoading: true,
       });
 
-      render(
-        <GalleryPage 
-          user={mockUser} 
-          onNavigate={mockOnNavigate} 
-          onLogout={mockOnLogout} 
-        />
-      );
+      renderComponent();
 
       expect(screen.getByText(/recuperando registros/i)).toBeInTheDocument();
     });
@@ -237,13 +241,7 @@ describe('GalleryPage', () => {
         activeCampaignId: null,
       });
 
-      render(
-        <GalleryPage 
-          user={mockUser} 
-          onNavigate={mockOnNavigate} 
-          onLogout={mockOnLogout} 
-        />
-      );
+      renderComponent();
 
       expect(screen.getByText(/sin campaña seleccionada/i)).toBeInTheDocument();
     });
@@ -251,13 +249,7 @@ describe('GalleryPage', () => {
 
   describe('Accessibility - ARIA Attributes', () => {
     it('has proper tablist and tab roles for category navigation', async () => {
-      render(
-        <GalleryPage 
-          user={mockUser} 
-          onNavigate={mockOnNavigate} 
-          onLogout={mockOnLogout} 
-        />
-      );
+      renderComponent();
 
       const tablist = screen.getByRole('tablist');
       expect(tablist).toHaveAttribute('aria-label', 'Categorías de entidades');
@@ -271,13 +263,7 @@ describe('GalleryPage', () => {
     });
 
     it('has proper grid role for entity container', async () => {
-      render(
-        <GalleryPage 
-          user={mockUser} 
-          onNavigate={mockOnNavigate} 
-          onLogout={mockOnLogout} 
-        />
-      );
+      renderComponent();
 
       await waitFor(() => {
         const grid = screen.getByRole('grid');
@@ -287,13 +273,7 @@ describe('GalleryPage', () => {
     });
 
     it('has gridcell role for entity cards', async () => {
-      render(
-        <GalleryPage 
-          user={mockUser} 
-          onNavigate={mockOnNavigate} 
-          onLogout={mockOnLogout} 
-        />
-      );
+      renderComponent();
 
       await waitFor(() => {
         const gridcells = screen.getAllByRole('gridcell');
@@ -302,13 +282,7 @@ describe('GalleryPage', () => {
     });
 
     it('has live region for announcements', async () => {
-      render(
-        <GalleryPage 
-          user={mockUser} 
-          onNavigate={mockOnNavigate} 
-          onLogout={mockOnLogout} 
-        />
-      );
+      renderComponent();
 
       const liveRegion = screen.getByRole('status');
       expect(liveRegion).toHaveAttribute('aria-live', 'polite');
@@ -317,13 +291,7 @@ describe('GalleryPage', () => {
 
     it.skip('campaign selector button has aria-expanded and aria-haspopup', async () => {
       // NOTE: Campaign selector is now part of TerminalLayout, not GalleryPage
-      render(
-        <GalleryPage 
-          user={mockUser} 
-          onNavigate={mockOnNavigate} 
-          onLogout={mockOnLogout} 
-        />
-      );
+      renderComponent();
 
       const campaignButton = screen.getByRole('button', { name: /seleccionar campaña/i });
       expect(campaignButton).toHaveAttribute('aria-expanded', 'false');
@@ -336,13 +304,7 @@ describe('GalleryPage', () => {
       // NOTE: Campaign selector is now part of TerminalLayout, not GalleryPage
       const user = userEvent.setup();
       
-      render(
-        <GalleryPage 
-          user={mockUser} 
-          onNavigate={mockOnNavigate} 
-          onLogout={mockOnLogout} 
-        />
-      );
+      renderComponent();
 
       // Tab should move focus to campaign selector first (in header actions)
       await user.tab();
@@ -352,13 +314,7 @@ describe('GalleryPage', () => {
     it('allows arrow key navigation in category tabs', async () => {
       const user = userEvent.setup();
       
-      render(
-        <GalleryPage 
-          user={mockUser} 
-          onNavigate={mockOnNavigate} 
-          onLogout={mockOnLogout} 
-        />
-      );
+      renderComponent();
 
       // Focus on the first (selected) tab
       const tabs = screen.getAllByRole('tab');
@@ -381,13 +337,7 @@ describe('GalleryPage', () => {
     it('handles Home key to jump to first category', async () => {
       const user = userEvent.setup();
       
-      render(
-        <GalleryPage 
-          user={mockUser} 
-          onNavigate={mockOnNavigate} 
-          onLogout={mockOnLogout} 
-        />
-      );
+      renderComponent();
 
       const tabs = screen.getAllByRole('tab');
       // Focus on a tab that's not first
@@ -403,13 +353,7 @@ describe('GalleryPage', () => {
     it('handles End key to jump to last category', async () => {
       const user = userEvent.setup();
       
-      render(
-        <GalleryPage 
-          user={mockUser} 
-          onNavigate={mockOnNavigate} 
-          onLogout={mockOnLogout} 
-        />
-      );
+      renderComponent();
 
       const tabs = screen.getAllByRole('tab');
       tabs[0]?.focus();
@@ -425,13 +369,7 @@ describe('GalleryPage', () => {
       // NOTE: Campaign selector is now part of TerminalLayout, not GalleryPage
       const user = userEvent.setup();
       
-      render(
-        <GalleryPage 
-          user={mockUser} 
-          onNavigate={mockOnNavigate} 
-          onLogout={mockOnLogout} 
-        />
-      );
+      renderComponent();
 
       // Open campaign selector
       const campaignButton = screen.getByRole('button', { name: /seleccionar campaña/i });
@@ -452,13 +390,7 @@ describe('GalleryPage', () => {
     it('handles Enter/Space on entity cards', async () => {
       const user = userEvent.setup();
       
-      render(
-        <GalleryPage 
-          user={mockUser} 
-          onNavigate={mockOnNavigate} 
-          onLogout={mockOnLogout} 
-        />
-      );
+      renderComponent();
 
       await waitFor(() => {
         const gridcells = screen.getAllByRole('gridcell');
@@ -482,13 +414,7 @@ describe('GalleryPage', () => {
     it('filters entities by selected category', async () => {
       const user = userEvent.setup();
       
-      render(
-        <GalleryPage 
-          user={mockUser} 
-          onNavigate={mockOnNavigate} 
-          onLogout={mockOnLogout} 
-        />
-      );
+      renderComponent();
 
       // Wait for entities to load
       await waitFor(() => {
@@ -517,13 +443,7 @@ describe('GalleryPage', () => {
     it('announces category change to screen readers', async () => {
       const user = userEvent.setup();
       
-      render(
-        <GalleryPage 
-          user={mockUser} 
-          onNavigate={mockOnNavigate} 
-          onLogout={mockOnLogout} 
-        />
-      );
+      renderComponent();
 
       await waitFor(() => {
         expect(mockEntityService.getByCampaign).toHaveBeenCalled();
@@ -549,13 +469,7 @@ describe('GalleryPage', () => {
       // Mock window width for lg breakpoint (detail panel is hidden lg:flex)
       Object.defineProperty(window, 'innerWidth', { value: 1200, writable: true });
       
-      render(
-        <GalleryPage 
-          user={mockUser} 
-          onNavigate={mockOnNavigate} 
-          onLogout={mockOnLogout} 
-        />
-      );
+      renderComponent();
 
       await waitFor(() => {
         const gridcells = screen.getAllByRole('gridcell');
@@ -578,13 +492,7 @@ describe('GalleryPage', () => {
     it('closes detail panel with close button', async () => {
       const user = userEvent.setup();
       
-      render(
-        <GalleryPage 
-          user={mockUser} 
-          onNavigate={mockOnNavigate} 
-          onLogout={mockOnLogout} 
-        />
-      );
+      renderComponent();
 
       await waitFor(() => {
         const gridcells = screen.getAllByRole('gridcell');
@@ -612,13 +520,7 @@ describe('GalleryPage', () => {
     it('announces entity selection to screen readers', async () => {
       const user = userEvent.setup();
       
-      render(
-        <GalleryPage 
-          user={mockUser} 
-          onNavigate={mockOnNavigate} 
-          onLogout={mockOnLogout} 
-        />
-      );
+      renderComponent();
 
       await waitFor(() => {
         const gridcells = screen.getAllByRole('gridcell');
@@ -642,13 +544,7 @@ describe('GalleryPage', () => {
     it('opens campaign selector dialog', async () => {
       const user = userEvent.setup();
       
-      render(
-        <GalleryPage 
-          user={mockUser} 
-          onNavigate={mockOnNavigate} 
-          onLogout={mockOnLogout} 
-        />
-      );
+      renderComponent();
 
       const campaignButton = screen.getByRole('button', { name: /seleccionar campaña/i });
       await user.click(campaignButton);
@@ -660,13 +556,7 @@ describe('GalleryPage', () => {
     it('displays available campaigns in selector', async () => {
       const user = userEvent.setup();
       
-      render(
-        <GalleryPage 
-          user={mockUser} 
-          onNavigate={mockOnNavigate} 
-          onLogout={mockOnLogout} 
-        />
-      );
+      renderComponent();
 
       const campaignButton = screen.getByRole('button', { name: /seleccionar campaña/i });
       await user.click(campaignButton);
@@ -683,13 +573,7 @@ describe('GalleryPage', () => {
         isActiveCampaignMaster: true,
       });
 
-      render(
-        <GalleryPage 
-          user={mockMasterUser} 
-          onNavigate={mockOnNavigate} 
-          onLogout={mockOnLogout} 
-        />
-      );
+      renderComponent();
 
       expect(screen.getByRole('button', { name: /mostrar código de invitación/i })).toBeInTheDocument();
     });
@@ -700,13 +584,7 @@ describe('GalleryPage', () => {
         isActiveCampaignMaster: true,
       });
 
-      render(
-        <GalleryPage 
-          user={mockMasterUser} 
-          onNavigate={mockOnNavigate} 
-          onLogout={mockOnLogout} 
-        />
-      );
+      renderComponent();
 
       await waitFor(() => {
         const addButton = screen.getByRole('button', { name: /crear nueva entidad/i });
@@ -720,13 +598,7 @@ describe('GalleryPage', () => {
         isActiveCampaignMaster: false,
       });
 
-      render(
-        <GalleryPage 
-          user={mockUser} 
-          onNavigate={mockOnNavigate} 
-          onLogout={mockOnLogout} 
-        />
-      );
+      renderComponent();
 
       expect(screen.queryByRole('button', { name: /mostrar código de invitación/i })).not.toBeInTheDocument();
     });
@@ -739,13 +611,7 @@ describe('GalleryPage', () => {
         isActiveCampaignMaster: true,
       });
 
-      render(
-        <GalleryPage 
-          user={mockMasterUser} 
-          onNavigate={mockOnNavigate} 
-          onLogout={mockOnLogout} 
-        />
-      );
+      renderComponent();
 
       await waitFor(() => {
         const addButton = screen.getByRole('button', { name: /crear nueva entidad/i });
@@ -755,7 +621,7 @@ describe('GalleryPage', () => {
       const addButton = screen.getByRole('button', { name: /crear nueva entidad/i });
       await user.click(addButton);
 
-      expect(mockOnNavigate).toHaveBeenCalledWith(Screen.CHAR_GEN); // Default category is 'character'
+      expect(mockNavigate).toHaveBeenCalledWith('/generators/character');
     });
   });
 });

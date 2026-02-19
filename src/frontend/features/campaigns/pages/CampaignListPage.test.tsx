@@ -11,8 +11,19 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { render, screen, within, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
+import { BrowserRouter } from 'react-router-dom';
 import { CampaignListPage } from './CampaignListPage';
-import { Screen, CampaignRole } from '@core/types';
+import { CampaignRole } from '@core/types';
+
+// Mock useNavigate
+const mockNavigate = vi.fn();
+vi.mock('react-router-dom', async () => {
+  const actual = await vi.importActual('react-router-dom');
+  return {
+    ...actual,
+    useNavigate: () => mockNavigate,
+  };
+});
 
 // Mock dependencies
 vi.mock('@core/context', () => ({
@@ -65,6 +76,18 @@ vi.mock('@shared/components/ui', () => ({
       {children}
     </button>
   ),
+  TerminalLog: ({ logs }: { logs: string[] }) => (
+    <div data-testid="terminal-log">
+      {logs.map((log, i) => <p key={i}>{log}</p>)}
+    </div>
+  ),
+}));
+
+vi.mock('@core/hooks/useTerminalLog', () => ({
+  useTerminalLog: () => ({
+    logs: ['> Test log'],
+    addLog: vi.fn(),
+  }),
 }));
 
 // Import mocked modules
@@ -132,14 +155,20 @@ const mockActiveCampaignDetail = {
 };
 
 describe('CampaignListPage', () => {
-  const mockOnNavigate = vi.fn();
-  const mockOnLogout = vi.fn();
   const mockSelectCampaign = vi.fn();
   const mockLeaveCampaign = vi.fn();
   const mockUpdateCampaign = vi.fn();
   const mockUpdateCampaignStatus = vi.fn();
   const mockFetchCampaigns = vi.fn();
   const mockClearError = vi.fn();
+
+  const renderComponent = () => {
+    return render(
+      <BrowserRouter>
+        <CampaignListPage />
+      </BrowserRouter>
+    );
+  };
 
   beforeEach(() => {
     vi.clearAllMocks();
@@ -178,35 +207,20 @@ describe('CampaignListPage', () => {
 
   describe('Rendering', () => {
     it('renders the campaign list page with title', async () => {
-      render(
-        <CampaignListPage
-          onNavigate={mockOnNavigate}
-          onLogout={mockOnLogout}
-        />
-      );
+      renderComponent();
 
       expect(screen.getByText('CAMPAÑAS')).toBeInTheDocument();
       expect(screen.getByText('Mis Campañas')).toBeInTheDocument();
     });
 
     it('renders header with new campaign button', async () => {
-      render(
-        <CampaignListPage
-          onNavigate={mockOnNavigate}
-          onLogout={mockOnLogout}
-        />
-      );
+      renderComponent();
 
       expect(screen.getByText('+ NUEVA CAMPAÑA')).toBeInTheDocument();
     });
 
     it('renders filter tabs with correct counts', async () => {
-      render(
-        <CampaignListPage
-          onNavigate={mockOnNavigate}
-          onLogout={mockOnLogout}
-        />
-      );
+      renderComponent();
 
       // Check filter tabs exist
       expect(screen.getByText('TODAS')).toBeInTheDocument();
@@ -220,12 +234,7 @@ describe('CampaignListPage', () => {
     });
 
     it('renders campaign items in list style', async () => {
-      render(
-        <CampaignListPage
-          onNavigate={mockOnNavigate}
-          onLogout={mockOnLogout}
-        />
-      );
+      renderComponent();
 
       // Campaign names
       expect(screen.getByText('Dragon Hunt')).toBeInTheDocument();
@@ -238,24 +247,14 @@ describe('CampaignListPage', () => {
     });
 
     it('shows active campaign indicator badge', async () => {
-      render(
-        <CampaignListPage
-          onNavigate={mockOnNavigate}
-          onLogout={mockOnLogout}
-        />
-      );
+      renderComponent();
 
       // Active badge should be shown for the active campaign
       expect(screen.getByText('ACTIVA')).toBeInTheDocument();
     });
 
     it('displays game system names after loading', async () => {
-      render(
-        <CampaignListPage
-          onNavigate={mockOnNavigate}
-          onLogout={mockOnLogout}
-        />
-      );
+      renderComponent();
 
       await waitFor(() => {
         expect(screen.getAllByText(/Dungeons & Dragons 5e/i).length).toBeGreaterThan(0);
@@ -270,12 +269,7 @@ describe('CampaignListPage', () => {
         isLoading: true,
       });
 
-      render(
-        <CampaignListPage
-          onNavigate={mockOnNavigate}
-          onLogout={mockOnLogout}
-        />
-      );
+      renderComponent();
 
       expect(screen.getByText(/cargando campañas/i)).toBeInTheDocument();
     });
@@ -287,23 +281,13 @@ describe('CampaignListPage', () => {
         isLoading: false,
       });
 
-      render(
-        <CampaignListPage
-          onNavigate={mockOnNavigate}
-          onLogout={mockOnLogout}
-        />
-      );
+      renderComponent();
 
       expect(screen.getByText('No hay campañas')).toBeInTheDocument();
     });
 
     it('displays statistics sidebar when no campaign is selected', async () => {
-      render(
-        <CampaignListPage
-          onNavigate={mockOnNavigate}
-          onLogout={mockOnLogout}
-        />
-      );
+      renderComponent();
 
       expect(screen.getByText('Estadísticas')).toBeInTheDocument();
       expect(screen.getByText('Total')).toBeInTheDocument();
@@ -314,12 +298,7 @@ describe('CampaignListPage', () => {
     it('selects campaign when clicked and shows details in sidebar', async () => {
       const user = userEvent.setup();
 
-      render(
-        <CampaignListPage
-          onNavigate={mockOnNavigate}
-          onLogout={mockOnLogout}
-        />
-      );
+      renderComponent();
 
       // Click on a campaign to select it
       const campaignItem = screen.getByText('Night City Stories');
@@ -339,12 +318,7 @@ describe('CampaignListPage', () => {
         activeCampaign: null, // No active campaign so "ACTIVAR Y ENTRAR" shows
       });
 
-      render(
-        <CampaignListPage
-          onNavigate={mockOnNavigate}
-          onLogout={mockOnLogout}
-        />
-      );
+      renderComponent();
 
       // Click on a campaign to select it
       await user.click(screen.getByText('Dragon Hunt'));
@@ -360,12 +334,7 @@ describe('CampaignListPage', () => {
     it('hides statistics when campaign is selected', async () => {
       const user = userEvent.setup();
 
-      render(
-        <CampaignListPage
-          onNavigate={mockOnNavigate}
-          onLogout={mockOnLogout}
-        />
-      );
+      renderComponent();
 
       // Initially statistics visible
       expect(screen.getByText('Estadísticas')).toBeInTheDocument();
@@ -384,12 +353,7 @@ describe('CampaignListPage', () => {
     it('filters campaigns by master role', async () => {
       const user = userEvent.setup();
 
-      render(
-        <CampaignListPage
-          onNavigate={mockOnNavigate}
-          onLogout={mockOnLogout}
-        />
-      );
+      renderComponent();
 
       // Initially all campaigns visible
       expect(screen.getByText('Dragon Hunt')).toBeInTheDocument();
@@ -410,12 +374,7 @@ describe('CampaignListPage', () => {
     it('filters campaigns by player role', async () => {
       const user = userEvent.setup();
 
-      render(
-        <CampaignListPage
-          onNavigate={mockOnNavigate}
-          onLogout={mockOnLogout}
-        />
-      );
+      renderComponent();
 
       // Click player filter tab
       const filterTabs = screen.getAllByText('JUGADOR');
@@ -437,12 +396,7 @@ describe('CampaignListPage', () => {
         campaigns: [mockCampaigns[0], mockCampaigns[2]], // Only master campaigns
       });
 
-      render(
-        <CampaignListPage
-          onNavigate={mockOnNavigate}
-          onLogout={mockOnLogout}
-        />
-      );
+      renderComponent();
 
       // Click player filter tab
       const filterTabs = screen.getAllByText('JUGADOR');
@@ -457,17 +411,12 @@ describe('CampaignListPage', () => {
     it('navigates to campaign generator when "Nueva Campaña" is clicked', async () => {
       const user = userEvent.setup();
 
-      render(
-        <CampaignListPage
-          onNavigate={mockOnNavigate}
-          onLogout={mockOnLogout}
-        />
-      );
+      renderComponent();
 
       const newButton = screen.getByText('+ NUEVA CAMPAÑA');
       await user.click(newButton);
 
-      expect(mockOnNavigate).toHaveBeenCalledWith(Screen.CAMPAIGN_GEN);
+      expect(mockNavigate).toHaveBeenCalledWith('/campaigns/new');
     });
 
     it('activates campaign and navigates to gallery when "Activar y Entrar" is clicked', async () => {
@@ -479,12 +428,7 @@ describe('CampaignListPage', () => {
         activeCampaignId: null,
       });
 
-      render(
-        <CampaignListPage
-          onNavigate={mockOnNavigate}
-          onLogout={mockOnLogout}
-        />
-      );
+      renderComponent();
 
       // First select a campaign
       await user.click(screen.getByText('Dragon Hunt'));
@@ -501,19 +445,14 @@ describe('CampaignListPage', () => {
       });
 
       await waitFor(() => {
-        expect(mockOnNavigate).toHaveBeenCalledWith(Screen.GALLERY);
+        expect(mockNavigate).toHaveBeenCalledWith('/gallery');
       });
     });
 
     it('navigates to campaign settings when "Configuración Avanzada" is clicked', async () => {
       const user = userEvent.setup();
 
-      render(
-        <CampaignListPage
-          onNavigate={mockOnNavigate}
-          onLogout={mockOnLogout}
-        />
-      );
+      renderComponent();
 
       // Select a master campaign
       await user.click(screen.getByText('Dragon Hunt'));
@@ -527,19 +466,14 @@ describe('CampaignListPage', () => {
 
       await waitFor(() => {
         expect(mockSelectCampaign).toHaveBeenCalled();
-        expect(mockOnNavigate).toHaveBeenCalledWith(Screen.CAMPAIGN_SETTINGS);
+        expect(mockNavigate).toHaveBeenCalledWith(`/campaigns/${campaignId}/settings`);
       });
     });
 
     it('does not show edit/settings buttons for player campaigns', async () => {
       const user = userEvent.setup();
 
-      render(
-        <CampaignListPage
-          onNavigate={mockOnNavigate}
-          onLogout={mockOnLogout}
-        />
-      );
+      renderComponent();
 
       // Select a player campaign
       await user.click(screen.getByText('Night City Stories'));
@@ -560,12 +494,7 @@ describe('CampaignListPage', () => {
 
       const confirmSpy = vi.spyOn(window, 'confirm').mockReturnValue(true);
 
-      render(
-        <CampaignListPage
-          onNavigate={mockOnNavigate}
-          onLogout={mockOnLogout}
-        />
-      );
+      renderComponent();
 
       // Select a player campaign
       await user.click(screen.getByText('Night City Stories'));
@@ -589,12 +518,7 @@ describe('CampaignListPage', () => {
     it('shows ELIMINAR button for master campaigns', async () => {
       const user = userEvent.setup();
 
-      render(
-        <CampaignListPage
-          onNavigate={mockOnNavigate}
-          onLogout={mockOnLogout}
-        />
-      );
+      renderComponent();
 
       // Select a master campaign
       await user.click(screen.getByText('Dragon Hunt'));
@@ -609,12 +533,7 @@ describe('CampaignListPage', () => {
     it('shows edit form when EDITAR is clicked', async () => {
       const user = userEvent.setup();
 
-      render(
-        <CampaignListPage
-          onNavigate={mockOnNavigate}
-          onLogout={mockOnLogout}
-        />
-      );
+      renderComponent();
 
       // Select a master campaign
       await user.click(screen.getByText('Dragon Hunt'));
@@ -635,12 +554,7 @@ describe('CampaignListPage', () => {
     it('edit form shows campaign name input', async () => {
       const user = userEvent.setup();
 
-      render(
-        <CampaignListPage
-          onNavigate={mockOnNavigate}
-          onLogout={mockOnLogout}
-        />
-      );
+      renderComponent();
 
       // Select and edit
       await user.click(screen.getByText('Dragon Hunt'));
@@ -657,12 +571,7 @@ describe('CampaignListPage', () => {
     it('calls updateCampaign when saving changes', async () => {
       const user = userEvent.setup();
 
-      render(
-        <CampaignListPage
-          onNavigate={mockOnNavigate}
-          onLogout={mockOnLogout}
-        />
-      );
+      renderComponent();
 
       // Select and edit
       await user.click(screen.getByText('Dragon Hunt'));
@@ -691,12 +600,7 @@ describe('CampaignListPage', () => {
     it('closes edit form when CANCELAR is clicked', async () => {
       const user = userEvent.setup();
 
-      render(
-        <CampaignListPage
-          onNavigate={mockOnNavigate}
-          onLogout={mockOnLogout}
-        />
-      );
+      renderComponent();
 
       // Select and edit
       await user.click(screen.getByText('Dragon Hunt'));
@@ -725,12 +629,7 @@ describe('CampaignListPage', () => {
         error: 'Failed to load campaigns',
       });
 
-      render(
-        <CampaignListPage
-          onNavigate={mockOnNavigate}
-          onLogout={mockOnLogout}
-        />
-      );
+      renderComponent();
 
       expect(screen.getByText('Failed to load campaigns')).toBeInTheDocument();
     });
@@ -743,12 +642,7 @@ describe('CampaignListPage', () => {
         error: 'Failed to load campaigns',
       });
 
-      render(
-        <CampaignListPage
-          onNavigate={mockOnNavigate}
-          onLogout={mockOnLogout}
-        />
-      );
+      renderComponent();
 
       // Find close button within error container
       const errorContainer = screen.getByText('Failed to load campaigns').closest('div');
@@ -763,23 +657,13 @@ describe('CampaignListPage', () => {
 
   describe('Terminal Log Panel', () => {
     it('displays system log panel', async () => {
-      render(
-        <CampaignListPage
-          onNavigate={mockOnNavigate}
-          onLogout={mockOnLogout}
-        />
-      );
+      renderComponent();
 
       expect(screen.getByText('System Log')).toBeInTheDocument();
     });
 
     it('shows initial log messages', async () => {
-      render(
-        <CampaignListPage
-          onNavigate={mockOnNavigate}
-          onLogout={mockOnLogout}
-        />
-      );
+      renderComponent();
 
       expect(screen.getByText(/campaign registry system online/i)).toBeInTheDocument();
     });
@@ -787,35 +671,20 @@ describe('CampaignListPage', () => {
 
   describe('Campaign Status Indicators', () => {
     it('shows ONLINE status for active campaigns', async () => {
-      render(
-        <CampaignListPage
-          onNavigate={mockOnNavigate}
-          onLogout={mockOnLogout}
-        />
-      );
+      renderComponent();
 
       const onlineStatuses = screen.getAllByText('ONLINE');
       expect(onlineStatuses.length).toBeGreaterThan(0);
     });
 
     it('shows OFFLINE status for inactive campaigns', async () => {
-      render(
-        <CampaignListPage
-          onNavigate={mockOnNavigate}
-          onLogout={mockOnLogout}
-        />
-      );
+      renderComponent();
 
       expect(screen.getByText('OFFLINE')).toBeInTheDocument();
     });
 
     it('shows role indicator for each campaign', async () => {
-      render(
-        <CampaignListPage
-          onNavigate={mockOnNavigate}
-          onLogout={mockOnLogout}
-        />
-      );
+      renderComponent();
 
       // Should show MASTER and JUGADOR indicators
       const masterLabels = screen.getAllByText('MASTER');
@@ -828,12 +697,7 @@ describe('CampaignListPage', () => {
     });
 
     it('shows toggle button for master campaigns to change status', async () => {
-      render(
-        <CampaignListPage
-          onNavigate={mockOnNavigate}
-          onLogout={mockOnLogout}
-        />
-      );
+      renderComponent();
 
       // Toggle buttons should exist for master campaigns
       const toggleButtons = screen.getAllByTitle(/pausar campaña|activar campaña/i);
@@ -843,12 +707,7 @@ describe('CampaignListPage', () => {
 
   describe('Game System Loading', () => {
     it('calls gameSystemService.getAll on mount', async () => {
-      render(
-        <CampaignListPage
-          onNavigate={mockOnNavigate}
-          onLogout={mockOnLogout}
-        />
-      );
+      renderComponent();
 
       expect(mockGameSystemService.getAll).toHaveBeenCalled();
     });
@@ -859,12 +718,7 @@ describe('CampaignListPage', () => {
         () => new Promise(resolve => setTimeout(() => resolve(mockGameSystems), 100))
       );
 
-      render(
-        <CampaignListPage
-          onNavigate={mockOnNavigate}
-          onLogout={mockOnLogout}
-        />
-      );
+      renderComponent();
 
       // Initially shows loading placeholder (text contains "...")
       expect(screen.getAllByText(/\.\.\./i).length).toBeGreaterThan(0);
@@ -884,12 +738,7 @@ describe('CampaignListPage', () => {
         }],
       });
 
-      render(
-        <CampaignListPage
-          onNavigate={mockOnNavigate}
-          onLogout={mockOnLogout}
-        />
-      );
+      renderComponent();
 
       await waitFor(() => {
         expect(screen.getByText(/Sistema desconocido/i)).toBeInTheDocument();

@@ -267,13 +267,12 @@ export const AdminCampaignsPage: React.FC = () => {
   if (!isAdmin) {
     return (
       <AdminLayout 
-        activeScreen="ADMIN_CAMPAIGNS"
-        onBack={onBack}
+        activePath="/admin/campaigns"
       >
         <div className="flex flex-col items-center justify-center h-full text-danger/60">
           <span className="material-icons text-6xl mb-4">lock</span>
           <p className="text-sm uppercase tracking-widest">Acceso restringido a Administradores</p>
-          <Button onClick={onBack} className="mt-4">VOLVER</Button>
+          <Button onClick={() => navigate(-1)} className="mt-4">VOLVER</Button>
         </div>
       </AdminLayout>
     );
@@ -281,8 +280,7 @@ export const AdminCampaignsPage: React.FC = () => {
 
   return (
     <AdminLayout 
-      activeScreen="ADMIN_CAMPAIGNS"
-      onBack={onBack}
+      activePath="/admin/campaigns"
     >
       <div className="flex flex-col lg:flex-row h-full gap-6">
         {/* Left Column - Campaigns List */}

@@ -606,13 +606,12 @@ export const TemplatesPage: React.FC = () => {
   if (!isAdmin) {
     return (
       <AdminLayout 
-        activeScreen="TEMPLATES"
-        onBack={onBack}
+        activePath="/templates"
       >
         <div className="flex flex-col items-center justify-center h-full text-danger/60">
           <span className="material-icons text-6xl mb-4">lock</span>
           <p className="text-sm uppercase tracking-widest">Acceso restringido a Administradores</p>
-          <Button onClick={onBack} className="mt-4">VOLVER</Button>
+          <Button onClick={() => navigate(-1)} className="mt-4">VOLVER</Button>
         </div>
       </AdminLayout>
     );
@@ -620,8 +619,7 @@ export const TemplatesPage: React.FC = () => {
 
   return (
     <AdminLayout 
-      activeScreen="TEMPLATES"
-      onBack={onBack}
+      activePath="/templates"
     >
       <div className="flex flex-col lg:flex-row h-full gap-6">
         {/* Left Column - Game Systems & Templates List */}

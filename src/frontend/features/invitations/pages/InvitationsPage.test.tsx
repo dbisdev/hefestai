@@ -10,8 +10,20 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { render, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
+import { BrowserRouter } from 'react-router-dom';
 import { InvitationsPage } from './InvitationsPage';
-import { Screen, CampaignRole } from '@core/types';
+import { CampaignRole } from '@core/types';
+
+// Mock useNavigate
+const mockNavigate = vi.fn();
+vi.mock('react-router-dom', async () => {
+  const actual = await vi.importActual('react-router-dom');
+  return {
+    ...actual,
+    useNavigate: () => mockNavigate,
+    useParams: () => ({}),
+  };
+});
 
 // Mock campaign service
 const mockGetById = vi.fn();
@@ -25,6 +37,13 @@ vi.mock('@core/services/api', () => ({
 vi.mock('@core/context', () => ({
   useAuth: vi.fn(),
   useCampaign: vi.fn(),
+}));
+
+vi.mock('@core/hooks/useTerminalLog', () => ({
+  useTerminalLog: () => ({
+    logs: ['> Test log'],
+    addLog: vi.fn(),
+  }),
 }));
 
 vi.mock('@shared/components/layout', () => ({
@@ -64,6 +83,11 @@ vi.mock('@shared/components/ui', () => ({
     >
       {children}
     </button>
+  ),
+  TerminalLog: ({ logs }: { logs: string[] }) => (
+    <div data-testid="terminal-log">
+      {logs.map((log, i) => <p key={i}>{log}</p>)}
+    </div>
   ),
 }));
 
@@ -127,10 +151,16 @@ const mockPlayerUser = {
 };
 
 describe('InvitationsPage', () => {
-  const mockOnNavigate = vi.fn();
-  const mockOnLogout = vi.fn();
   const mockJoinCampaign = vi.fn();
   const mockClearError = vi.fn();
+
+  const renderComponent = () => {
+    return render(
+      <BrowserRouter>
+        <InvitationsPage />
+      </BrowserRouter>
+    );
+  };
 
   beforeEach(() => {
     vi.clearAllMocks();
@@ -192,24 +222,14 @@ describe('InvitationsPage', () => {
 
   describe('Rendering', () => {
     it('renders the invitations page with title', async () => {
-      render(
-        <InvitationsPage
-          onNavigate={mockOnNavigate}
-          onLogout={mockOnLogout}
-        />
-      );
+      renderComponent();
 
       expect(screen.getByText('INVITACIONES')).toBeInTheDocument();
       expect(screen.getByText('Centro de Invitaciones')).toBeInTheDocument();
     });
 
     it('renders join campaign section', async () => {
-      render(
-        <InvitationsPage
-          onNavigate={mockOnNavigate}
-          onLogout={mockOnLogout}
-        />
-      );
+      renderComponent();
 
       expect(screen.getByText('Unirse a una Campaña')).toBeInTheDocument();
       expect(screen.getByPlaceholderText('________')).toBeInTheDocument();
@@ -217,23 +237,13 @@ describe('InvitationsPage', () => {
     });
 
     it('renders view campaigns button in header', async () => {
-      render(
-        <InvitationsPage
-          onNavigate={mockOnNavigate}
-          onLogout={mockOnLogout}
-        />
-      );
+      renderComponent();
 
       expect(screen.getByRole('button', { name: 'VER MIS CAMPAÑAS' })).toBeInTheDocument();
     });
 
     it('renders terminal log section', async () => {
-      render(
-        <InvitationsPage
-          onNavigate={mockOnNavigate}
-          onLogout={mockOnLogout}
-        />
-      );
+      renderComponent();
 
       expect(screen.getByText('System Log')).toBeInTheDocument();
       expect(screen.getByText('> Sistema de invitaciones activo...')).toBeInTheDocument();
@@ -242,23 +252,13 @@ describe('InvitationsPage', () => {
 
   describe('Campaign Codes List (Master View)', () => {
     it('shows campaign codes section for Master users', async () => {
-      render(
-        <InvitationsPage
-          onNavigate={mockOnNavigate}
-          onLogout={mockOnLogout}
-        />
-      );
+      renderComponent();
 
       expect(screen.getByText('Codigos de Mis Campañas')).toBeInTheDocument();
     });
 
     it('displays list of master campaigns with codes', async () => {
-      render(
-        <InvitationsPage
-          onNavigate={mockOnNavigate}
-          onLogout={mockOnLogout}
-        />
-      );
+      renderComponent();
 
       // Wait for async campaign details to load
       await waitFor(() => {
@@ -275,12 +275,7 @@ describe('InvitationsPage', () => {
     });
 
     it('shows game system name for each campaign', async () => {
-      render(
-        <InvitationsPage
-          onNavigate={mockOnNavigate}
-          onLogout={mockOnLogout}
-        />
-      );
+      renderComponent();
 
       // Wait for async campaign details to load
       await waitFor(() => {
@@ -291,12 +286,7 @@ describe('InvitationsPage', () => {
     });
 
     it('shows copy button for each campaign code', async () => {
-      render(
-        <InvitationsPage
-          onNavigate={mockOnNavigate}
-          onLogout={mockOnLogout}
-        />
-      );
+      renderComponent();
 
       // Wait for async campaign details to load
       await waitFor(() => {
@@ -318,12 +308,7 @@ describe('InvitationsPage', () => {
         configurable: true,
       });
 
-      render(
-        <InvitationsPage
-          onNavigate={mockOnNavigate}
-          onLogout={mockOnLogout}
-        />
-      );
+      renderComponent();
 
       // Wait for async campaign details to load
       await waitFor(() => {
@@ -358,12 +343,7 @@ describe('InvitationsPage', () => {
         isAdmin: false,
       });
 
-      render(
-        <InvitationsPage
-          onNavigate={mockOnNavigate}
-          onLogout={mockOnLogout}
-        />
-      );
+      renderComponent();
 
       expect(screen.queryByText('Codigos de Mis Campañas')).not.toBeInTheDocument();
     });
@@ -389,12 +369,7 @@ describe('InvitationsPage', () => {
         clearError: mockClearError,
       });
 
-      render(
-        <InvitationsPage
-          onNavigate={mockOnNavigate}
-          onLogout={mockOnLogout}
-        />
-      );
+      renderComponent();
 
       expect(screen.getByText('No tienes campañas como Master')).toBeInTheDocument();
       expect(screen.getByRole('button', { name: /CREAR CAMPAÑA/i })).toBeInTheDocument();
@@ -419,12 +394,7 @@ describe('InvitationsPage', () => {
     });
 
     it('shows stats panel for Player users', async () => {
-      render(
-        <InvitationsPage
-          onNavigate={mockOnNavigate}
-          onLogout={mockOnLogout}
-        />
-      );
+      renderComponent();
 
       expect(screen.getByText('Tus Campañas')).toBeInTheDocument();
       expect(screen.getByText('Total Campañas')).toBeInTheDocument();
@@ -452,12 +422,7 @@ describe('InvitationsPage', () => {
         clearError: mockClearError,
       });
 
-      render(
-        <InvitationsPage
-          onNavigate={mockOnNavigate}
-          onLogout={mockOnLogout}
-        />
-      );
+      renderComponent();
 
       // Stats panel shows for players - should show 0
       const statsSection = screen.getByText('Tus Campañas').closest('div')!.parentElement!;
@@ -465,12 +430,7 @@ describe('InvitationsPage', () => {
     });
 
     it('shows player campaign list', async () => {
-      render(
-        <InvitationsPage
-          onNavigate={mockOnNavigate}
-          onLogout={mockOnLogout}
-        />
-      );
+      renderComponent();
 
       // Should show campaign where user is Player
       expect(screen.getByText('Night City Stories')).toBeInTheDocument();
@@ -482,12 +442,7 @@ describe('InvitationsPage', () => {
     it('allows entering a join code', async () => {
       const user = userEvent.setup();
 
-      render(
-        <InvitationsPage
-          onNavigate={mockOnNavigate}
-          onLogout={mockOnLogout}
-        />
-      );
+      renderComponent();
 
       const input = screen.getByPlaceholderText('________');
       await user.type(input, 'TEST1234');
@@ -498,12 +453,7 @@ describe('InvitationsPage', () => {
     it('converts join code to uppercase', async () => {
       const user = userEvent.setup();
 
-      render(
-        <InvitationsPage
-          onNavigate={mockOnNavigate}
-          onLogout={mockOnLogout}
-        />
-      );
+      renderComponent();
 
       const input = screen.getByPlaceholderText('________');
       await user.type(input, 'test1234');
@@ -514,12 +464,7 @@ describe('InvitationsPage', () => {
     it('calls joinCampaign when submit button is clicked', async () => {
       const user = userEvent.setup();
 
-      render(
-        <InvitationsPage
-          onNavigate={mockOnNavigate}
-          onLogout={mockOnLogout}
-        />
-      );
+      renderComponent();
 
       const input = screen.getByPlaceholderText('________');
       await user.type(input, 'TEST1234');
@@ -535,12 +480,7 @@ describe('InvitationsPage', () => {
     it('calls joinCampaign when Enter is pressed', async () => {
       const user = userEvent.setup();
 
-      render(
-        <InvitationsPage
-          onNavigate={mockOnNavigate}
-          onLogout={mockOnLogout}
-        />
-      );
+      renderComponent();
 
       const input = screen.getByPlaceholderText('________');
       await user.type(input, 'TEST1234{enter}');
@@ -554,12 +494,7 @@ describe('InvitationsPage', () => {
       const user = userEvent.setup();
       mockJoinCampaign.mockResolvedValue({ id: 'camp-1', name: 'Epic Adventure' });
 
-      render(
-        <InvitationsPage
-          onNavigate={mockOnNavigate}
-          onLogout={mockOnLogout}
-        />
-      );
+      renderComponent();
 
       const input = screen.getByPlaceholderText('________');
       await user.type(input, 'TEST1234');
@@ -576,12 +511,7 @@ describe('InvitationsPage', () => {
       const user = userEvent.setup();
       mockJoinCampaign.mockResolvedValue({ id: 'camp-1', name: 'Epic Adventure' });
 
-      render(
-        <InvitationsPage
-          onNavigate={mockOnNavigate}
-          onLogout={mockOnLogout}
-        />
-      );
+      renderComponent();
 
       const input = screen.getByPlaceholderText('________');
       await user.type(input, 'TEST1234');
@@ -595,12 +525,7 @@ describe('InvitationsPage', () => {
     });
 
     it('disables submit button when input is empty', async () => {
-      render(
-        <InvitationsPage
-          onNavigate={mockOnNavigate}
-          onLogout={mockOnLogout}
-        />
-      );
+      renderComponent();
 
       const submitButton = screen.getByRole('button', { name: 'UNIRSE A CAMPAÑA' });
       expect(submitButton).toBeDisabled();
@@ -609,12 +534,7 @@ describe('InvitationsPage', () => {
     it('shows error for invalid join code format', async () => {
       const user = userEvent.setup();
 
-      render(
-        <InvitationsPage
-          onNavigate={mockOnNavigate}
-          onLogout={mockOnLogout}
-        />
-      );
+      renderComponent();
 
       const input = screen.getByPlaceholderText('________');
       await user.type(input, 'ABC'); // Too short
@@ -633,12 +553,7 @@ describe('InvitationsPage', () => {
       const user = userEvent.setup();
       mockJoinCampaign.mockRejectedValue(new Error('Campaign not found'));
 
-      render(
-        <InvitationsPage
-          onNavigate={mockOnNavigate}
-          onLogout={mockOnLogout}
-        />
-      );
+      renderComponent();
 
       const input = screen.getByPlaceholderText('________');
       await user.type(input, 'INVALID1');
@@ -657,12 +572,7 @@ describe('InvitationsPage', () => {
       // Make joinCampaign slow
       mockJoinCampaign.mockImplementation(() => new Promise(resolve => setTimeout(resolve, 1000)));
 
-      render(
-        <InvitationsPage
-          onNavigate={mockOnNavigate}
-          onLogout={mockOnLogout}
-        />
-      );
+      renderComponent();
 
       const input = screen.getByPlaceholderText('________');
       await user.type(input, 'TEST1234');
@@ -681,17 +591,12 @@ describe('InvitationsPage', () => {
     it('navigates to campaign list when view campaigns button is clicked', async () => {
       const user = userEvent.setup();
 
-      render(
-        <InvitationsPage
-          onNavigate={mockOnNavigate}
-          onLogout={mockOnLogout}
-        />
-      );
+      renderComponent();
 
       const viewCampaignsButton = screen.getByRole('button', { name: 'VER MIS CAMPAÑAS' });
       await user.click(viewCampaignsButton);
 
-      expect(mockOnNavigate).toHaveBeenCalledWith(Screen.CAMPAIGN_LIST);
+      expect(mockNavigate).toHaveBeenCalledWith('/campaigns');
     });
 
     it('navigates to campaign list from stats panel (Player view)', async () => {
@@ -711,17 +616,12 @@ describe('InvitationsPage', () => {
 
       const user = userEvent.setup();
 
-      render(
-        <InvitationsPage
-          onNavigate={mockOnNavigate}
-          onLogout={mockOnLogout}
-        />
-      );
+      renderComponent();
 
       const viewButton = screen.getByRole('button', { name: /VER CAMPAÑAS/i });
       await user.click(viewButton);
 
-      expect(mockOnNavigate).toHaveBeenCalledWith(Screen.CAMPAIGN_LIST);
+      expect(mockNavigate).toHaveBeenCalledWith('/campaigns');
     });
 
     it('navigates to campaign generator from empty master state', async () => {
@@ -747,17 +647,12 @@ describe('InvitationsPage', () => {
 
       const user = userEvent.setup();
 
-      render(
-        <InvitationsPage
-          onNavigate={mockOnNavigate}
-          onLogout={mockOnLogout}
-        />
-      );
+      renderComponent();
 
       const createButton = screen.getByRole('button', { name: /CREAR CAMPAÑA/i });
       await user.click(createButton);
 
-      expect(mockOnNavigate).toHaveBeenCalledWith(Screen.CAMPAIGN_GEN);
+      expect(mockNavigate).toHaveBeenCalledWith('/campaigns/new');
     });
   });
 
@@ -766,12 +661,7 @@ describe('InvitationsPage', () => {
       const user = userEvent.setup();
       mockJoinCampaign.mockResolvedValue({ id: 'camp-1', name: 'Epic Adventure' });
 
-      render(
-        <InvitationsPage
-          onNavigate={mockOnNavigate}
-          onLogout={mockOnLogout}
-        />
-      );
+      renderComponent();
 
       const input = screen.getByPlaceholderText('________');
       await user.type(input, 'TEST1234');
@@ -788,12 +678,7 @@ describe('InvitationsPage', () => {
       const user = userEvent.setup();
       mockJoinCampaign.mockRejectedValue(new Error('Not found'));
 
-      render(
-        <InvitationsPage
-          onNavigate={mockOnNavigate}
-          onLogout={mockOnLogout}
-        />
-      );
+      renderComponent();
 
       const input = screen.getByPlaceholderText('________');
       await user.type(input, 'INVALID1');
@@ -816,12 +701,7 @@ describe('InvitationsPage', () => {
         configurable: true,
       });
 
-      render(
-        <InvitationsPage
-          onNavigate={mockOnNavigate}
-          onLogout={mockOnLogout}
-        />
-      );
+      renderComponent();
 
       // Wait for async campaign details to load
       await waitFor(() => {
@@ -859,23 +739,13 @@ describe('InvitationsPage', () => {
         clearError: mockClearError,
       });
 
-      render(
-        <InvitationsPage
-          onNavigate={mockOnNavigate}
-          onLogout={mockOnLogout}
-        />
-      );
+      renderComponent();
 
       expect(screen.getByText('Network error occurred')).toBeInTheDocument();
     });
 
     it('clears error on unmount', async () => {
-      const { unmount } = render(
-        <InvitationsPage
-          onNavigate={mockOnNavigate}
-          onLogout={mockOnLogout}
-        />
-      );
+      const { unmount } = renderComponent();
 
       unmount();
 
@@ -907,12 +777,7 @@ describe('InvitationsPage', () => {
 
       const user = userEvent.setup();
 
-      render(
-        <InvitationsPage
-          onNavigate={mockOnNavigate}
-          onLogout={mockOnLogout}
-        />
-      );
+      renderComponent();
 
       const input = screen.getByPlaceholderText('________');
       await user.type(input, 'TEST1234');
