@@ -725,7 +725,7 @@ export const GalleryPage: React.FC = () => {
                   {campaigns.map(campaign => (
                     <button
                       key={campaign.id}
-                      onClick={() => handleSelectCampaign(campaign)}
+                      onClick={() => selectCampaign(campaign.id)}
                       className={`w-full text-left p-2 border transition-all ${
                         activeCampaign?.id === campaign.id
                           ? 'border-primary bg-primary/20 text-primary'

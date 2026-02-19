@@ -39,7 +39,11 @@ const ROLE_OPTIONS = [
 
 const MORPHOLOGY_OPTIONS = ['MASCULINE', 'FEMININE', 'NEUTRAL'] as const;
 
-export const CharacterGeneratorPage: React.FC = () => {
+interface CharacterGeneratorPageProps {
+  onBack: () => void;
+}
+
+export const CharacterGeneratorPage: React.FC<CharacterGeneratorPageProps> = ({ onBack }) => {
   const navigate = useNavigate();
   const { user } = useAuth();
   const { activeCampaignId, activeCampaign } = useCampaign();

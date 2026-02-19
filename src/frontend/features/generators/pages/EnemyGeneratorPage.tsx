@@ -56,7 +56,11 @@ const BEHAVIOR_OPTIONS = [
   { value: 'berserker', label: 'Berserker - Furia descontrolada' },
 ];
 
-export const EnemyGeneratorPage: React.FC = () => {
+interface EnemyGeneratorPageProps {
+  onBack: () => void;
+}
+
+export const EnemyGeneratorPage: React.FC<EnemyGeneratorPageProps> = ({ onBack }) => {
   const navigate = useNavigate();
   const { activeCampaignId, activeCampaign } = useCampaign();
   const { logs, addLog } = useTerminalLog({

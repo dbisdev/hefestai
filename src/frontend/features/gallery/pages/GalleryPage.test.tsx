@@ -25,8 +25,10 @@ vi.mock('react-router-dom', async () => {
 });
 
 // Mock the dependencies
+const mockUseAuth = vi.fn();
 vi.mock('@core/context', () => ({
   useCampaign: vi.fn(),
+  useAuth: () => mockUseAuth(),
 }));
 
 vi.mock('@core/services/api', () => ({
@@ -36,6 +38,7 @@ vi.mock('@core/services/api', () => ({
   },
   entityTemplateService: {
     getByCampaign: vi.fn().mockResolvedValue([]),
+    getByGameSystem: vi.fn().mockResolvedValue([]),
     getById: vi.fn(),
   },
 }));
@@ -175,7 +178,22 @@ describe('GalleryPage', () => {
   beforeEach(() => {
     vi.clearAllMocks();
     
-    // Default mock setup
+    // Default mock setup for useAuth
+    mockUseAuth.mockReturnValue({
+      user: mockUser,
+      isAuthenticated: true,
+      isLoading: false,
+      error: null,
+      login: vi.fn(),
+      register: vi.fn(),
+      logout: vi.fn(),
+      clearError: vi.fn(),
+      isMaster: false,
+      isPlayer: true,
+      isAdmin: false,
+    });
+    
+    // Default mock setup for useCampaign
     mockUseCampaign.mockReturnValue({
       campaigns: [mockCampaign],
       activeCampaign: mockCampaign,

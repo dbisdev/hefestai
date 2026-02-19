@@ -231,6 +231,19 @@ try
         context.Response.Headers.Append("X-XSS-Protection", "1; mode=block");
         context.Response.Headers.Append("Referrer-Policy", "strict-origin-when-cross-origin");
         
+        // Content Security Policy
+        var csp = "default-src 'self'; " +
+                   "script-src 'self' 'unsafe-inline' 'unsafe-eval' https://cdn.jsdelivr.net; " +
+                   "style-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net; " +
+                   "img-src 'self' data: blob: https:; " +
+                   "font-src 'self' data:; " +
+                   "connect-src 'self' https://generativelanguage.googleapis.com; " +
+                   "frame-src 'none'; " +
+                   "object-src 'none'; " +
+                   "base-uri 'self';";
+        
+        context.Response.Headers.Append("Content-Security-Policy", csp);
+        
         if (!app.Environment.IsDevelopment())
         {
             context.Response.Headers.Append("Strict-Transport-Security", "max-age=31536000; includeSubDomains");

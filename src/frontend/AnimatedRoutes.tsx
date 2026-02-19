@@ -3,7 +3,7 @@
  * Wraps Routes with transition effects for smooth page changes
  */
 
-import { useLocation, Routes, Route, Navigate } from 'react-router-dom';
+import { useLocation, Routes, Route, Navigate, useNavigate } from 'react-router-dom';
 import { useEffect, useState } from 'react';
 
 // Import all page components directly
@@ -36,9 +36,12 @@ interface AnimatedRoutesProps {
 }
 
 export const AnimatedRoutes: React.FC<AnimatedRoutesProps> = ({ isAuthenticated, userRole }) => {
+  const navigate = useNavigate();
   const location = useLocation();
   const [transitionStage, setTransitionStage] = useState<'idle' | 'out' | 'in'>('idle');
   const [displayLocation, setDisplayLocation] = useState(location);
+
+  const handleGoBack = () => navigate('/');
 
   useEffect(() => {
     if (location.pathname !== displayLocation.pathname) {
@@ -66,7 +69,7 @@ export const AnimatedRoutes: React.FC<AnimatedRoutesProps> = ({ isAuthenticated,
 
   // Redirect to appropriate page based on auth state
   const getDefaultRoute = () => {
-    if (!isAuthenticated) return '/login';
+    if (!isAuthenticated) return '/';
     if (userRole === 'ADMIN') return '/admin/users';
     if (userRole === 'MASTER') return '/hub';
     return '/gallery';
@@ -88,20 +91,20 @@ export const AnimatedRoutes: React.FC<AnimatedRoutesProps> = ({ isAuthenticated,
           <Route path="/signup" element={
             isAuthenticated ? <Navigate to={getDefaultRoute()} replace /> : <SignupPage />
           } />
-          <Route path="/access-denied" element={<AccessDenied />} />
-          <Route path="/error" element={<ErrorScreen />} />
+          <Route path="/access-denied" element={<AccessDenied onBack={handleGoBack} />} />
+          <Route path="/error" element={<ErrorScreen onReboot={handleGoBack} />} />
           
           {/* Gallery - authenticated users */}
           <Route path="/gallery" element={
             requiresAuth(true) && !isAuthenticated 
-              ? <Navigate to="/login" state={{ from: location }} replace />
+              ? <Navigate to="/" replace />
               : <GalleryPage />
           } />
           
           {/* Master Hub - MASTER or ADMIN only */}
           <Route path="/hub" element={
             !isAuthenticated 
-              ? <Navigate to="/login" state={{ from: location }} replace />
+              ? <Navigate to="/" replace />
               : !hasRole(['MASTER', 'ADMIN'])
                 ? <Navigate to="/access-denied" replace />
                 : <MasterHubPage />
@@ -110,86 +113,86 @@ export const AnimatedRoutes: React.FC<AnimatedRoutesProps> = ({ isAuthenticated,
           {/* Campaign routes */}
           <Route path="/campaigns" element={
             !isAuthenticated 
-              ? <Navigate to="/login" state={{ from: location }} replace />
+              ? <Navigate to="/" replace />
               : <CampaignListPage />
           } />
           <Route path="/campaigns/new" element={
             !isAuthenticated 
-              ? <Navigate to="/login" state={{ from: location }} replace />
-              : <CampaignGeneratorPage />
+              ? <Navigate to="/" replace />
+              : <CampaignGeneratorPage onBack={handleGoBack} />
           } />
           <Route path="/campaigns/:campaignId" element={
             !isAuthenticated 
-              ? <Navigate to="/login" state={{ from: location }} replace />
-              : <CampaignSettingsPage />
+              ? <Navigate to="/" replace />
+              : <CampaignSettingsPage onBack={handleGoBack} />
           } />
           {/* Invitations - uses campaign ID from context or param */}
           <Route path="/invitations" element={
             !isAuthenticated 
-              ? <Navigate to="/login" state={{ from: location }} replace />
+              ? <Navigate to="/" replace />
               : <InvitationsPage />
           } />
           <Route path="/campaigns/:campaignId/invitations" element={
             !isAuthenticated 
-              ? <Navigate to="/login" state={{ from: location }} replace />
+              ? <Navigate to="/" replace />
               : <InvitationsPage />
           } />
           
           {/* Generator routes - MASTER or ADMIN only */}
           <Route path="/gallery/char-gen" element={
             !isAuthenticated 
-              ? <Navigate to="/login" state={{ from: location }} replace />
+              ? <Navigate to="/" replace />
               : !hasRole(['MASTER', 'ADMIN'])
                 ? <Navigate to="/access-denied" replace />
-                : <CharacterGeneratorPage />
+                : <CharacterGeneratorPage onBack={handleGoBack} />
           } />
           <Route path="/gallery/solar-gen" element={
             !isAuthenticated 
-              ? <Navigate to="/login" state={{ from: location }} replace />
+              ? <Navigate to="/" replace />
               : !hasRole(['MASTER', 'ADMIN'])
                 ? <Navigate to="/access-denied" replace />
-                : <SolarSystemGeneratorPage />
+                : <SolarSystemGeneratorPage onBack={handleGoBack} />
           } />
           <Route path="/gallery/vehi-gen" element={
             !isAuthenticated 
-              ? <Navigate to="/login" state={{ from: location }} replace />
+              ? <Navigate to="/" replace />
               : !hasRole(['MASTER', 'ADMIN'])
                 ? <Navigate to="/access-denied" replace />
-                : <VehicleGeneratorPage />
+                : <VehicleGeneratorPage onBack={handleGoBack} />
           } />
           <Route path="/gallery/npc-gen" element={
             !isAuthenticated 
-              ? <Navigate to="/login" state={{ from: location }} replace />
+              ? <Navigate to="/" replace />
               : !hasRole(['MASTER', 'ADMIN'])
                 ? <Navigate to="/access-denied" replace />
-                : <NpcGeneratorPage />
+                : <NpcGeneratorPage onBack={handleGoBack} />
           } />
           <Route path="/gallery/enemy-gen" element={
             !isAuthenticated 
-              ? <Navigate to="/login" state={{ from: location }} replace />
+              ? <Navigate to="/" replace />
               : !hasRole(['MASTER', 'ADMIN'])
                 ? <Navigate to="/access-denied" replace />
-                : <EnemyGeneratorPage />
+                : <EnemyGeneratorPage onBack={handleGoBack} />
           } />
           <Route path="/gallery/mission-gen" element={
             !isAuthenticated 
-              ? <Navigate to="/login" state={{ from: location }} replace />
+              ? <Navigate to="/" replace />
               : !hasRole(['MASTER', 'ADMIN'])
                 ? <Navigate to="/access-denied" replace />
-                : <MissionGeneratorPage />
+                : <MissionGeneratorPage onBack={handleGoBack} />
           } />
           <Route path="/gallery/encounter-gen" element={
             !isAuthenticated 
-              ? <Navigate to="/login" state={{ from: location }} replace />
+              ? <Navigate to="/" replace />
               : !hasRole(['MASTER', 'ADMIN'])
                 ? <Navigate to="/access-denied" replace />
-                : <EncounterGeneratorPage />
+                : <EncounterGeneratorPage onBack={handleGoBack} />
           } />
           
           {/* Game Systems - MASTER or ADMIN only */}
           <Route path="/game-systems" element={
             !isAuthenticated 
-              ? <Navigate to="/login" state={{ from: location }} replace />
+              ? <Navigate to="/" replace />
               : !hasRole(['MASTER', 'ADMIN'])
                 ? <Navigate to="/access-denied" replace />
                 : <GameSystemsPage />
@@ -198,7 +201,7 @@ export const AnimatedRoutes: React.FC<AnimatedRoutesProps> = ({ isAuthenticated,
           {/* Templates - ADMIN only */}
           <Route path="/templates" element={
             !isAuthenticated 
-              ? <Navigate to="/login" state={{ from: location }} replace />
+              ? <Navigate to="/" replace />
               : !hasRole(['ADMIN'])
                 ? <Navigate to="/access-denied" replace />
                 : <TemplatesPage />
@@ -207,21 +210,21 @@ export const AnimatedRoutes: React.FC<AnimatedRoutesProps> = ({ isAuthenticated,
           {/* Admin routes - ADMIN only */}
           <Route path="/admin/users" element={
             !isAuthenticated 
-              ? <Navigate to="/login" state={{ from: location }} replace />
+              ? <Navigate to="/" replace />
               : !hasRole(['ADMIN'])
                 ? <Navigate to="/access-denied" replace />
                 : <AdminUsersPage />
           } />
           <Route path="/admin/campaigns" element={
             !isAuthenticated 
-              ? <Navigate to="/login" state={{ from: location }} replace />
+              ? <Navigate to="/" replace />
               : !hasRole(['ADMIN'])
                 ? <Navigate to="/access-denied" replace />
                 : <AdminCampaignsPage />
           } />
           <Route path="/admin/system" element={
             !isAuthenticated 
-              ? <Navigate to="/login" state={{ from: location }} replace />
+              ? <Navigate to="/" replace />
               : !hasRole(['ADMIN'])
                 ? <Navigate to="/access-denied" replace />
                 : <AdminSystemPage />

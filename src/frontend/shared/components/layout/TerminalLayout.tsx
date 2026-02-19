@@ -229,7 +229,6 @@ export const TerminalLayout: React.FC<TerminalLayoutProps> = ({
           <button 
             onClick={async () => {
               await logout();
-              // Use window.location to force full navigation
               window.location.replace('/');
             }}
             className="flex items-center gap-2 border border-red-500/60 px-2 md:px-3 py-1 text-xs uppercase hover:bg-red-500 hover:text-black transition-colors text-red-500 font-bold"

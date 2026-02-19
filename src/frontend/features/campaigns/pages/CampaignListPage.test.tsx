@@ -26,8 +26,10 @@ vi.mock('react-router-dom', async () => {
 });
 
 // Mock dependencies
+const mockUseAuth = vi.fn();
 vi.mock('@core/context', () => ({
   useCampaign: vi.fn(),
+  useAuth: () => mockUseAuth(),
 }));
 
 vi.mock('@core/services/api', () => ({
@@ -173,7 +175,22 @@ describe('CampaignListPage', () => {
   beforeEach(() => {
     vi.clearAllMocks();
 
-    // Default mock setup
+    // Default mock setup for useAuth
+    mockUseAuth.mockReturnValue({
+      user: { id: 'user-123', username: 'testuser', email: 'test@example.com', role: 'MASTER' },
+      isAuthenticated: true,
+      isLoading: false,
+      error: null,
+      login: vi.fn(),
+      register: vi.fn(),
+      logout: vi.fn(),
+      clearError: vi.fn(),
+      isMaster: true,
+      isPlayer: false,
+      isAdmin: false,
+    });
+
+    // Default mock setup for useCampaign
     mockUseCampaign.mockReturnValue({
       campaigns: mockCampaigns,
       activeCampaign: mockActiveCampaignDetail,
@@ -466,7 +483,7 @@ describe('CampaignListPage', () => {
 
       await waitFor(() => {
         expect(mockSelectCampaign).toHaveBeenCalled();
-        expect(mockNavigate).toHaveBeenCalledWith(`/campaigns/${campaignId}/settings`);
+        expect(mockNavigate).toHaveBeenCalledWith('/campaigns/campaign-1/settings');
       });
     });
 

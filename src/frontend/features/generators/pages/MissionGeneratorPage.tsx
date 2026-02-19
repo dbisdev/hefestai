@@ -61,7 +61,11 @@ const ENVIRONMENT_OPTIONS = [
   { value: 'underground', label: 'Instalacion Subterranea' },
 ];
 
-export const MissionGeneratorPage: React.FC = () => {
+interface MissionGeneratorPageProps {
+  onBack: () => void;
+}
+
+export const MissionGeneratorPage: React.FC<MissionGeneratorPageProps> = ({ onBack }) => {
   const navigate = useNavigate();
   const { activeCampaignId, activeCampaign } = useCampaign();
   const { logs, addLog } = useTerminalLog({

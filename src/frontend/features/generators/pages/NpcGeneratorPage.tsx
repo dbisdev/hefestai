@@ -63,7 +63,7 @@ const SPECIES_OPTIONS = [
   { value: 'clone', label: 'Clon' },
 ];
 
-export const NpcGeneratorPage: React.FC = () => {
+export const NpcGeneratorPage: React.FC<NpcGeneratorPageProps> = ({ onBack }) => {
   const navigate = useNavigate();
   const { activeCampaignId, activeCampaign } = useCampaign();
   const { logs, addLog } = useTerminalLog({
