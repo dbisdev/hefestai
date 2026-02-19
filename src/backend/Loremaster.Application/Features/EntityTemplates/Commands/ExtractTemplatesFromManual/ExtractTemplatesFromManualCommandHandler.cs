@@ -101,6 +101,15 @@ Include ALL attributes, skills, derived stats, identity fields, gear from the ru
             throw new ArgumentException($"Game system with ID {request.GameSystemId} not found");
         }
 
+        // Verify user is Admin or owner of the game system
+        var isOwner = gameSystem.OwnerId == request.OwnerId;
+        if (!request.IsAdmin && !isOwner)
+        {
+            throw new UnauthorizedAccessException(
+                $"You don't have permission to extract templates from this game system. " +
+                $"Only the owner or an Admin can perform this action.");
+        }
+
         // Perform multiple semantic searches to capture different entity types
         var allResults = new Dictionary<Guid, DocumentSearchResult>();
         Guid? firstDocumentId = null;
@@ -109,14 +118,14 @@ Include ALL attributes, skills, derived stats, identity fields, gear from the ru
         {
             var queryEmbedding = await _embeddingService.GetEmbeddingAsync(searchQuery, cancellationToken);
             
-            // Admin users can search across all owners' documents for the game system
+            // Admin users and system owners can search across all owners' documents for the game system
             var searchResults = await _documentRepository.SemanticSearchAsync(
                 queryEmbedding,
-                request.OwnerId,
+                request.CurrentUserId,
                 limit: 8,  // 7 results per query category
                 threshold: 0.4f,  // Lower threshold to capture more content
                 gameSystemId: request.GameSystemId,
-                skipOwnerFilter: request.IsAdmin,
+                skipOwnerFilter: request.IsAdmin || request.IsSystemOwner,
                 cancellationToken: cancellationToken);
 
             foreach (var result in searchResults)
@@ -143,8 +152,8 @@ Include ALL attributes, skills, derived stats, identity fields, gear from the ru
         }
 
         _logger.LogInformation(
-            "Found {ChunkCount} unique document chunks for entity extraction",
-            allResults.Count);
+            "Found {ChunkCount} unique document chunks for entity extraction (IsAdmin: {IsAdmin}, IsSystemOwner: {IsSystemOwner})",
+            allResults.Count, request.IsAdmin, request.IsSystemOwner);
 
         // Build context from search results, sorted by similarity
         // Genkit API limit: max 10 context items
@@ -471,10 +480,53 @@ Include ALL attributes, skills, derived stats, identity fields, gear from the ru
         }
         catch (JsonException ex)
         {
-            _logger.LogWarning(ex, "Failed to parse RAG response as JSON: {Response}", 
-                ragResponse.Length > 500 ? ragResponse.Substring(0, 500) : ragResponse);
-            return new List<ExtractedEntityType>();
+            _logger.LogWarning(ex, "Failed to parse RAG response as JSON, attempting to extract partial data");
+            
+            // Try to extract individual entity type objects from the response
+            return TryExtractPartialData(ragResponse);
         }
+    }
+
+    /// <summary>
+    /// Attempts to extract entity types from a malformed JSON response.
+    /// </summary>
+    private List<ExtractedEntityType> TryExtractPartialData(string ragResponse)
+    {
+        var result = new List<ExtractedEntityType>();
+        
+        try
+        {
+            // Look for patterns like {"entityTypeName": "...", "displayName": "..."}
+            var regex = new System.Text.RegularExpressions.Regex(
+                @"\{[^{}]*""entityTypeName""\s*:\s*""([^""]+)""[^{}]*""displayName""\s*:\s*""([^""]+)""[^{}]*\}",
+                System.Text.RegularExpressions.RegexOptions.IgnoreCase);
+
+            var matches = regex.Matches(ragResponse);
+            
+            foreach (System.Text.RegularExpressions.Match match in matches)
+            {
+                if (match.Groups.Count >= 3)
+                {
+                    result.Add(new ExtractedEntityType
+                    {
+                        EntityTypeName = match.Groups[1].Value,
+                        DisplayName = match.Groups[2].Value,
+                        Fields = new List<ExtractedField>()
+                    });
+                }
+            }
+
+            if (result.Any())
+            {
+                _logger.LogInformation("Extracted {Count} entity types using fallback parsing", result.Count);
+            }
+        }
+        catch (Exception ex)
+        {
+            _logger.LogWarning(ex, "Fallback parsing also failed");
+        }
+        
+        return result;
     }
 
     /// <summary>

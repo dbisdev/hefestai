@@ -15,6 +15,7 @@ public record GameSystemDto
     public string? Description { get; init; }
     public List<string> SupportedEntityTypes { get; init; } = new();
     public bool IsActive { get; init; }
+    public Guid OwnerId { get; init; }
 
     /// <summary>
     /// Maps a GameSystem entity to a GameSystemDto.
@@ -32,7 +33,8 @@ public record GameSystemDto
             Version = gameSystem.Version,
             Description = gameSystem.Description,
             SupportedEntityTypes = gameSystem.SupportedEntityTypes,
-            IsActive = gameSystem.IsActive
+            IsActive = gameSystem.IsActive,
+            OwnerId = gameSystem.OwnerId
         };
     }
 }

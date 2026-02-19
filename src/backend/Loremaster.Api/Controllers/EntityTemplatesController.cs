@@ -6,6 +6,7 @@ using Loremaster.Application.Features.EntityTemplates.Commands.UpdateTemplate;
 using Loremaster.Application.Features.EntityTemplates.DTOs;
 using Loremaster.Application.Features.EntityTemplates.Queries.GetTemplateById;
 using Loremaster.Application.Features.EntityTemplates.Queries.GetTemplatesByGameSystem;
+using Loremaster.Application.Common.Interfaces;
 using Loremaster.Domain.Enums;
 using MediatR;
 using Microsoft.AspNetCore.Authorization;
@@ -29,10 +30,12 @@ namespace Loremaster.Api.Controllers;
 public class EntityTemplatesController : ControllerBase
 {
     private readonly IMediator _mediator;
+    private readonly IGameSystemRepository _gameSystemRepository;
 
-    public EntityTemplatesController(IMediator mediator)
+    public EntityTemplatesController(IMediator mediator, IGameSystemRepository gameSystemRepository)
     {
         _mediator = mediator;
+        _gameSystemRepository = gameSystemRepository;
     }
 
     /// <summary>
@@ -51,6 +54,7 @@ public class EntityTemplatesController : ControllerBase
         [FromRoute] Guid gameSystemId,
         [FromQuery] TemplateStatus? status = null,
         [FromQuery] bool confirmedOnly = false,
+        [FromQuery] bool includeAll = false,
         CancellationToken cancellationToken = default)
     {
         var userId = GetCurrentUserId();
@@ -59,7 +63,8 @@ public class EntityTemplatesController : ControllerBase
             gameSystemId, 
             userId, 
             status, 
-            confirmedOnly);
+            confirmedOnly,
+            includeAll);
         
         var result = await _mediator.Send(query, cancellationToken);
         return Ok(result);
@@ -83,8 +88,9 @@ public class EntityTemplatesController : ControllerBase
         CancellationToken cancellationToken = default)
     {
         var userId = GetCurrentUserId();
+        var isAdmin = IsCurrentUserAdmin();
         
-        var query = new GetTemplateByIdQuery(templateId, userId);
+        var query = new GetTemplateByIdQuery(templateId, gameSystemId, userId, isAdmin);
         var result = await _mediator.Send(query, cancellationToken);
         
         if (result == null)
@@ -121,20 +127,47 @@ public class EntityTemplatesController : ControllerBase
         var userId = GetCurrentUserId();
         var isAdmin = IsCurrentUserAdmin();
         
-        var command = new ExtractTemplatesFromManualCommand(
-            gameSystemId, 
-            userId,
-            request?.SourceDocumentId,
-            isAdmin);
+        // Check if user owns the game system
+        var gameSystem = await _gameSystemRepository.GetByIdAsync(gameSystemId, cancellationToken);
+        var isSystemOwner = gameSystem?.OwnerId == userId;
         
-        var result = await _mediator.Send(command, cancellationToken);
-        
-        if (!string.IsNullOrEmpty(result.ErrorMessage))
+        // Only Admin or system owner can extract templates
+        if (!isAdmin && !isSystemOwner)
         {
-            return BadRequest(result);
+            return StatusCode(StatusCodes.Status403Forbidden, new { error = "Only the system owner or an Admin can extract templates" });
         }
         
-        return Ok(result);
+        // Use the system owner's ID for the templates (not the current user's ID)
+        // This ensures templates belong to the system, not the person who extracted them
+        var templateOwnerId = gameSystem!.OwnerId;
+        
+        var command = new ExtractTemplatesFromManualCommand(
+            gameSystemId, 
+            templateOwnerId,  // Owner ID for templates (system owner)
+            userId,          // Current user ID for document search
+            request?.SourceDocumentId,
+            isAdmin,
+            isSystemOwner);
+        
+        try
+        {
+            var result = await _mediator.Send(command, cancellationToken);
+            
+            if (!string.IsNullOrEmpty(result.ErrorMessage))
+            {
+                return BadRequest(result);
+            }
+            
+            return Ok(result);
+        }
+        catch (UnauthorizedAccessException ex)
+        {
+            return StatusCode(StatusCodes.Status403Forbidden, new { error = ex.Message });
+        }
+        catch (ArgumentException ex)
+        {
+            return NotFound(new { error = ex.Message });
+        }
     }
 
     /// <summary>
@@ -162,6 +195,7 @@ public class EntityTemplatesController : ControllerBase
         
         var command = new UpdateTemplateCommand(
             templateId,
+            gameSystemId,
             userId,
             request.DisplayName,
             request.Description,
@@ -179,9 +213,17 @@ public class EntityTemplatesController : ControllerBase
         {
             return NotFound(ex.Message);
         }
+        catch (UnauthorizedAccessException ex)
+        {
+            return StatusCode(StatusCodes.Status403Forbidden, new { error = ex.Message });
+        }
         catch (InvalidOperationException ex)
         {
-            return BadRequest(ex.Message);
+            return BadRequest(new { error = ex.Message });
+        }
+        catch (Exception ex)
+        {
+            return BadRequest(new { error = ex.Message });
         }
     }
 
@@ -207,7 +249,8 @@ public class EntityTemplatesController : ControllerBase
         var userId = GetCurrentUserId();
         
         var command = new ConfirmTemplateCommand(
-            templateId, 
+            templateId,
+            gameSystemId,
             userId, 
             request?.Notes);
         
@@ -295,7 +338,7 @@ public class EntityTemplatesController : ControllerBase
     {
         var userId = GetCurrentUserId();
         
-        var command = new DeleteTemplateCommand(templateId, userId, force);
+        var command = new DeleteTemplateCommand(templateId, gameSystemId, userId, force);
         
         try
         {

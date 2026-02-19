@@ -7,10 +7,12 @@ namespace Loremaster.Application.Features.EntityTemplates.Commands.DeleteTemplat
 /// Templates can only be deleted if they are not being used by any entities.
 /// </summary>
 /// <param name="TemplateId">The template ID to delete.</param>
+/// <param name="GameSystemId">The game system ID for authorization.</param>
 /// <param name="OwnerId">The owner ID for authorization.</param>
 /// <param name="ForceDelete">If true, deletes even if entities exist using this template (they become orphaned).</param>
 public record DeleteTemplateCommand(
     Guid TemplateId,
+    Guid GameSystemId,
     Guid OwnerId,
     bool ForceDelete = false) : IRequest<DeleteTemplateResult>;
 

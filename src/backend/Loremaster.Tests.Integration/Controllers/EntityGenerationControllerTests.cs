@@ -38,6 +38,7 @@ public class EntityGenerationControllerTests : IClassFixture<CustomWebApplicatio
         var gameSystem = GameSystem.Create(
             code: code ?? $"gen-{Guid.NewGuid():N}"[..20],
             name: "Test Game System",
+            ownerId: Guid.NewGuid(),
             publisher: "Test Publisher",
             version: "1.0",
             description: "A test game system for generation"

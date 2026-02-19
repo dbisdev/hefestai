@@ -36,6 +36,7 @@ public class CampaignsControllerTests : IClassFixture<CustomWebApplicationFactor
         var gameSystem = GameSystem.Create(
             code: $"test-{Guid.NewGuid():N}".Substring(0, 20),
             name: "Test Game System",
+            ownerId: Guid.NewGuid(),
             publisher: "Test Publisher",
             version: "1.0",
             description: "A test game system for integration tests"

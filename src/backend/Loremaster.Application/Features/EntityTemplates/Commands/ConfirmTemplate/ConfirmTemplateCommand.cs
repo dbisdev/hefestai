@@ -6,10 +6,12 @@ namespace Loremaster.Application.Features.EntityTemplates.Commands.ConfirmTempla
 /// Command to confirm an entity template, making it available for entity creation.
 /// </summary>
 /// <param name="TemplateId">The template ID to confirm.</param>
+/// <param name="GameSystemId">The game system ID for authorization.</param>
 /// <param name="OwnerId">The owner ID for authorization.</param>
 /// <param name="Notes">Optional review notes.</param>
 public record ConfirmTemplateCommand(
     Guid TemplateId,
+    Guid GameSystemId,
     Guid OwnerId,
     string? Notes = null) : IRequest<ConfirmTemplateResult>;
 

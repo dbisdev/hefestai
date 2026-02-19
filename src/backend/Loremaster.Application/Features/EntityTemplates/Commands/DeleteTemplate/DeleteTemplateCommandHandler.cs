@@ -12,17 +12,20 @@ namespace Loremaster.Application.Features.EntityTemplates.Commands.DeleteTemplat
 public class DeleteTemplateCommandHandler : IRequestHandler<DeleteTemplateCommand, DeleteTemplateResult>
 {
     private readonly IEntityTemplateRepository _templateRepository;
+    private readonly IGameSystemRepository _gameSystemRepository;
     private readonly ILoreEntityRepository _entityRepository;
     private readonly IUnitOfWork _unitOfWork;
     private readonly ILogger<DeleteTemplateCommandHandler> _logger;
 
     public DeleteTemplateCommandHandler(
         IEntityTemplateRepository templateRepository,
+        IGameSystemRepository gameSystemRepository,
         ILoreEntityRepository entityRepository,
         IUnitOfWork unitOfWork,
         ILogger<DeleteTemplateCommandHandler> logger)
     {
         _templateRepository = templateRepository;
+        _gameSystemRepository = gameSystemRepository;
         _entityRepository = entityRepository;
         _unitOfWork = unitOfWork;
         _logger = logger;
@@ -53,10 +56,22 @@ public class DeleteTemplateCommandHandler : IRequestHandler<DeleteTemplateComman
             throw new ArgumentException($"Template with ID {request.TemplateId} not found");
         }
 
-        // Check ownership
-        if (!template.IsOwnedBy(request.OwnerId))
+        // Verify game system ownership
+        var gameSystem = await _gameSystemRepository.GetByIdAsync(
+            request.GameSystemId, cancellationToken);
+        
+        if (gameSystem == null)
         {
-            throw new UnauthorizedAccessException("You do not have permission to delete this template");
+            throw new ArgumentException($"Game system with ID {request.GameSystemId} not found");
+        }
+
+        // Check if user is Admin or owner of the game system
+        var isSystemOwner = gameSystem.OwnerId == request.OwnerId;
+        if (!isSystemOwner)
+        {
+            throw new UnauthorizedAccessException(
+                "You do not have permission to delete templates in this game system. " +
+                "Only the system owner can delete templates.");
         }
 
         // Check if any entities are using this template

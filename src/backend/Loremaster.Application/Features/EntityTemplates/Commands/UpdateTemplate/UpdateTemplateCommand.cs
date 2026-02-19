@@ -8,6 +8,7 @@ namespace Loremaster.Application.Features.EntityTemplates.Commands.UpdateTemplat
 /// Only allowed for templates in Draft or PendingReview status, unless IsAdmin is true.
 /// </summary>
 /// <param name="TemplateId">The template ID to update.</param>
+/// <param name="GameSystemId">The game system ID for authorization.</param>
 /// <param name="OwnerId">The owner ID for authorization.</param>
 /// <param name="DisplayName">New display name.</param>
 /// <param name="Description">New description.</param>
@@ -17,6 +18,7 @@ namespace Loremaster.Application.Features.EntityTemplates.Commands.UpdateTemplat
 /// <param name="IsAdmin">If true, allows updating confirmed templates (admin override).</param>
 public record UpdateTemplateCommand(
     Guid TemplateId,
+    Guid GameSystemId,
     Guid OwnerId,
     string DisplayName,
     string? Description = null,

@@ -12,15 +12,18 @@ namespace Loremaster.Application.Features.EntityTemplates.Commands.UpdateTemplat
 public class UpdateTemplateCommandHandler : IRequestHandler<UpdateTemplateCommand, UpdateTemplateResult>
 {
     private readonly IEntityTemplateRepository _templateRepository;
+    private readonly IGameSystemRepository _gameSystemRepository;
     private readonly IUnitOfWork _unitOfWork;
     private readonly ILogger<UpdateTemplateCommandHandler> _logger;
 
     public UpdateTemplateCommandHandler(
         IEntityTemplateRepository templateRepository,
+        IGameSystemRepository gameSystemRepository,
         IUnitOfWork unitOfWork,
         ILogger<UpdateTemplateCommandHandler> logger)
     {
         _templateRepository = templateRepository;
+        _gameSystemRepository = gameSystemRepository;
         _unitOfWork = unitOfWork;
         _logger = logger;
     }
@@ -33,18 +36,31 @@ public class UpdateTemplateCommandHandler : IRequestHandler<UpdateTemplateComman
             "Updating template {TemplateId} by user {UserId} (IsAdmin: {IsAdmin})",
             request.TemplateId, request.OwnerId, request.IsAdmin);
 
+        // Get template without owner filter - we'll check permissions after
         var template = await _templateRepository.GetByIdAsync(
-            request.TemplateId, request.OwnerId, cancellationToken);
+            request.TemplateId, cancellationToken);
 
         if (template == null)
         {
             throw new ArgumentException($"Template with ID {request.TemplateId} not found");
         }
 
-        // Admin can update any template, others can only update their own
-        if (!request.IsAdmin && !template.IsOwnedBy(request.OwnerId))
+        // Verify game system ownership
+        var gameSystem = await _gameSystemRepository.GetByIdAsync(
+            request.GameSystemId, cancellationToken);
+        
+        if (gameSystem == null)
         {
-            throw new UnauthorizedAccessException("You do not have permission to update this template");
+            throw new ArgumentException($"Game system with ID {request.GameSystemId} not found");
+        }
+
+        // Check if user is Admin or owner of the game system
+        var isSystemOwner = gameSystem.OwnerId == request.OwnerId;
+        if (!request.IsAdmin && !isSystemOwner)
+        {
+            throw new UnauthorizedAccessException(
+                "You do not have permission to update templates in this game system. " +
+                "Only the system owner or an Admin can update templates.");
         }
 
         // Update metadata (pass adminOverride flag)

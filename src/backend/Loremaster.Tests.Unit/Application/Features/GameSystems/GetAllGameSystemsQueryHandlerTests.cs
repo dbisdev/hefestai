@@ -95,9 +95,11 @@ public class GetAllGameSystemsQueryHandlerTests
 
     #region Helper Methods
 
+    private static readonly Guid TestOwnerId = Guid.NewGuid();
+
     private static GameSystem CreateGameSystem(string code, string name)
     {
-        return GameSystem.Create(code, name);
+        return GameSystem.Create(code, name, TestOwnerId);
     }
 
     private static GameSystem CreateGameSystemWithDetails(
@@ -107,7 +109,7 @@ public class GetAllGameSystemsQueryHandlerTests
         string? version = null, 
         string? description = null)
     {
-        return GameSystem.Create(code, name, publisher, version, description);
+        return GameSystem.Create(code, name, TestOwnerId, publisher, version, description);
     }
 
     #endregion

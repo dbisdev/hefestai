@@ -8,14 +8,18 @@ namespace Loremaster.Application.Features.EntityTemplates.Commands.ExtractTempla
 /// Analyzes uploaded manuals to detect entity types and their field schemas.
 /// </summary>
 /// <param name="GameSystemId">The game system to extract templates for.</param>
-/// <param name="OwnerId">The owner (Master) requesting extraction.</param>
+/// <param name="OwnerId">The owner ID for the templates (system owner).</param>
+/// <param name="CurrentUserId">The current user ID making the request (for document search).</param>
 /// <param name="SourceDocumentId">Optional specific document to analyze (null = all manuals).</param>
 /// <param name="IsAdmin">Whether the requesting user is an admin (allows searching all owners' documents).</param>
+/// <param name="IsSystemOwner">Whether the requesting user owns the game system (allows searching all documents in the system).</param>
 public record ExtractTemplatesFromManualCommand(
     Guid GameSystemId,
     Guid OwnerId,
+    Guid CurrentUserId,
     Guid? SourceDocumentId = null,
-    bool IsAdmin = false) : IRequest<ExtractTemplatesResult>;
+    bool IsAdmin = false,
+    bool IsSystemOwner = false) : IRequest<ExtractTemplatesResult>;
 
 /// <summary>
 /// Result of template extraction from manuals.

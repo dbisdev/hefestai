@@ -38,6 +38,7 @@ public class EntityTemplatesControllerTests : IClassFixture<CustomWebApplication
         var gameSystem = GameSystem.Create(
             code: code ?? $"test-{Guid.NewGuid():N}".Substring(0, 20),
             name: "Test Game System",
+            ownerId: Guid.NewGuid(),
             publisher: "Test Publisher",
             version: "1.0",
             description: "A test game system"

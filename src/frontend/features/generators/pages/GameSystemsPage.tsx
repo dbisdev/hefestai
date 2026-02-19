@@ -11,8 +11,8 @@ import { Button, TerminalLog } from '@shared/components/ui';
 import { ManualUploadModal } from '@shared/components/modals';
 import { useAuth } from '@core/context';
 import { useTerminalLog } from '@core/hooks/useTerminalLog';
-import { gameSystemService } from '@core/services/api';
-import type { GameSystem, CreateGameSystemRequest, UpdateGameSystemRequest } from '@core/types';
+import { gameSystemService, entityTemplateService, campaignService } from '@core/services/api';
+import type { GameSystem, CreateGameSystemRequest, UpdateGameSystemRequest, EntityTemplateSummary, Campaign } from '@core/types';
 
 /**
  * Game Systems Page Component
@@ -39,6 +39,11 @@ export const GameSystemsPage: React.FC = () => {
   const [showEditForm, setShowEditForm] = useState(false);
   const [showManualUpload, setShowManualUpload] = useState(false);
   const [selectedSystem, setSelectedSystem] = useState<GameSystem | null>(null);
+  
+  // Data for non-owned systems (read-only view)
+  const [confirmedTemplates, setConfirmedTemplates] = useState<EntityTemplateSummary[]>([]);
+  const [campaignsUsingSystem, setCampaignsUsingSystem] = useState<Campaign[]>([]);
+  const [isLoadingSystemData, setIsLoadingSystemData] = useState(false);
 
   // Form state for creating game system
   const [createForm, setCreateForm] = useState<CreateGameSystemRequest>({
@@ -86,6 +91,56 @@ export const GameSystemsPage: React.FC = () => {
   useEffect(() => {
     fetchGameSystems();
   }, [fetchGameSystems]);
+
+  // Check if current user owns the selected system
+  const isSystemOwnedByCurrentUser = useCallback((): boolean => {
+    if (!selectedSystem || !user) return false;
+    if (user.role === 'ADMIN') return true;
+    if (!selectedSystem.ownerId) return false;
+    return selectedSystem.ownerId === user.id;
+  }, [selectedSystem, user]);
+
+  // Load confirmed templates and campaigns when selected system changes
+  useEffect(() => {
+    if (!selectedSystem) {
+      setConfirmedTemplates([]);
+      setCampaignsUsingSystem([]);
+      return;
+    }
+
+    const isOwned = isSystemOwnedByCurrentUser();
+    
+    // Only load extra data if user doesn't own the system (read-only view)
+    if (!isOwned) {
+      setIsLoadingSystemData(true);
+      
+      const loadSystemData = async () => {
+        try {
+          // Load ALL confirmed templates for the game system (regardless of owner)
+          const templatesResult = await entityTemplateService.getByGameSystem(
+            selectedSystem.id,
+            undefined,
+            true // confirmedOnly = true
+          );
+          setConfirmedTemplates(templatesResult.templates);
+
+          // Load all campaigns and filter by gameSystemId
+          const allCampaigns = await campaignService.getAll();
+          const filtered = allCampaigns.filter(c => c.gameSystemId === selectedSystem.id);
+          setCampaignsUsingSystem(filtered);
+        } catch (error) {
+          console.error('Error loading system data:', error);
+        } finally {
+          setIsLoadingSystemData(false);
+        }
+      };
+
+      loadSystemData();
+    } else {
+      setConfirmedTemplates([]);
+      setCampaignsUsingSystem([]);
+    }
+  }, [selectedSystem, isSystemOwnedByCurrentUser]);
 
   /**
    * Validates the create form
@@ -706,28 +761,93 @@ export const GameSystemsPage: React.FC = () => {
                 )}
               </div>
               
-              {/* Edit Button */}
-              <Button
-                onClick={() => handleStartEdit(selectedSystem)}
-                variant="secondary"
-                size="sm"
-                className="w-full mt-4"
-                disabled={showEditForm}
-              >
-                <span className="material-icons text-sm mr-2">edit</span>
-                EDITAR
-              </Button>
-              
-              {/* Manual Upload Button */}
-              <Button
-                onClick={() => setShowManualUpload(true)}
-                variant="primary"
-                size="sm"
-                className="w-full mt-2"
-              >
-                <span className="material-icons text-sm mr-2">upload_file</span>
-                CARGAR MANUAL RAG
-              </Button>
+              {/* Action Buttons - Only for owners and Admins */}
+              {isSystemOwnedByCurrentUser() ? (
+                <>
+                  {/* Edit Button */}
+                  <Button
+                    onClick={() => handleStartEdit(selectedSystem)}
+                    variant="secondary"
+                    size="sm"
+                    className="w-full mt-4"
+                    disabled={showEditForm}
+                  >
+                    <span className="material-icons text-sm mr-2">edit</span>
+                    EDITAR
+                  </Button>
+                  
+                  {/* Manual Upload Button */}
+                  <Button
+                    onClick={() => setShowManualUpload(true)}
+                    variant="primary"
+                    size="sm"
+                    className="w-full mt-2"
+                  >
+                    <span className="material-icons text-sm mr-2">upload_file</span>
+                    CARGAR MANUAL RAG
+                  </Button>
+
+                  {/* Extract Entities Button - Only for Masters who own this system */}
+                  {user?.role === 'MASTER' && selectedSystem.ownerId === user.id && (
+                    <Button
+                      onClick={() => navigate(`/templates?gameSystemId=${selectedSystem.id}`)}
+                      variant="secondary"
+                      size="sm"
+                      className="w-full mt-2"
+                    >
+                      <span className="material-icons text-sm mr-2">auto_awesome</span>
+                      EXTRAER ENTIDADES
+                    </Button>
+                  )}
+                </>
+              ) : (
+                <>
+                  {/* Read-only view: Show confirmed templates and campaigns */}
+                  <div className="mt-4 space-y-3">
+                    {/* Confirmed Entities */}
+                    <div>
+                      <div className="text-xs text-primary/40 uppercase tracking-wider mb-1">
+                        Entidades Confirmadas ({confirmedTemplates.length})
+                      </div>
+                      {isLoadingSystemData ? (
+                        <div className="text-xs text-primary/40">Cargando...</div>
+                      ) : confirmedTemplates.length > 0 ? (
+                        <ul className="text-xs space-y-1 max-h-24 overflow-y-auto">
+                          {confirmedTemplates.map(t => (
+                            <li key={t.id} className="text-primary/70 flex items-center gap-1">
+                              <span className="material-icons text-[10px]">check_circle</span>
+                              {t.displayName}
+                            </li>
+                          ))}
+                        </ul>
+                      ) : (
+                        <div className="text-xs text-primary/40">Sin entidades confirmadas</div>
+                      )}
+                    </div>
+
+                    {/* Campaigns using this system */}
+                    <div>
+                      <div className="text-xs text-primary/40 uppercase tracking-wider mb-1">
+                        Campañas ({campaignsUsingSystem.length})
+                      </div>
+                      {isLoadingSystemData ? (
+                        <div className="text-xs text-primary/40">Cargando...</div>
+                      ) : campaignsUsingSystem.length > 0 ? (
+                        <ul className="text-xs space-y-1 max-h-24 overflow-y-auto">
+                          {campaignsUsingSystem.map(c => (
+                            <li key={c.id} className="text-cyan-400/70 flex items-center gap-1">
+                              <span className="material-icons text-[10px]">campaign</span>
+                              {c.name}
+                            </li>
+                          ))}
+                        </ul>
+                      ) : (
+                        <div className="text-xs text-primary/40">Sin campañas activas</div>
+                      )}
+                    </div>
+                  </div>
+                </>
+              )}
             </div>
             </>
           )}

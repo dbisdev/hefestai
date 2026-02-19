@@ -42,6 +42,14 @@ public interface IEntityTemplateRepository
     Task<IReadOnlyList<EntityTemplate>> GetAllConfirmedByGameSystemIdAsync(
         Guid gameSystemId,
         CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// Gets ALL templates for a game system, regardless of owner and status.
+    /// Used for Masters who own the game system to manage all templates.
+    /// </summary>
+    Task<IReadOnlyList<EntityTemplate>> GetAllByGameSystemIdAsync(
+        Guid gameSystemId,
+        CancellationToken cancellationToken = default);
     
     /// <summary>
     /// Gets templates by status for a game system.

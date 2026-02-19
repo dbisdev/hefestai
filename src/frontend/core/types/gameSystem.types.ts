@@ -17,6 +17,7 @@ export interface GameSystem {
   description?: string;
   supportedEntityTypes: string[];
   isActive?: boolean;
+  ownerId: string;
 }
 
 /**

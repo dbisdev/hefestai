@@ -1,8 +1,11 @@
 using System.Net;
 using System.Net.Http.Json;
+using Loremaster.Application.Common.Interfaces;
 using Loremaster.Domain.Entities;
+using Loremaster.Domain.Enums;
 using Loremaster.Infrastructure.Persistence;
 using Loremaster.Tests.Integration.Fixtures;
+using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
 
 namespace Loremaster.Tests.Integration.Controllers;
@@ -35,9 +38,12 @@ public class GameSystemsControllerTests : IClassFixture<CustomWebApplicationFact
         using var scope = _factory.Services.CreateScope();
         var dbContext = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
         
+        var ownerId = Guid.NewGuid();
+        
         var gameSystem = GameSystem.Create(
             code: code ?? $"test-{Guid.NewGuid():N}".Substring(0, 20),
             name: name,
+            ownerId: ownerId,
             publisher: "Test Publisher",
             version: "1.0",
             description: "A test game system"

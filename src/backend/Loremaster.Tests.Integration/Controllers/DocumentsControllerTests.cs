@@ -37,6 +37,7 @@ public class DocumentsControllerTests : IClassFixture<CustomWebApplicationFactor
         var gameSystem = GameSystem.Create(
             code: $"test-{Guid.NewGuid():N}".Substring(0, 20),
             name: name,
+            ownerId: Guid.NewGuid(),
             publisher: "Test Publisher",
             version: "1.0",
             description: "A test game system"

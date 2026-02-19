@@ -34,6 +34,11 @@ public class GetTemplatesByGameSystemQueryHandler
 
         var templates = request switch
         {
+            // IncludeAll: Get ALL templates for the game system (regardless of owner and status)
+            // This allows the system owner to manage all templates
+            { IncludeAll: true } => await _templateRepository.GetAllByGameSystemIdAsync(
+                request.GameSystemId, cancellationToken),
+
             // ConfirmedOnly: Get ALL confirmed templates for the game system (regardless of owner)
             // This allows any Master using a campaign with this game system to see available templates
             { ConfirmedOnly: true } => await _templateRepository.GetAllConfirmedByGameSystemIdAsync(

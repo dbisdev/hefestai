@@ -31,12 +31,14 @@ export const entityTemplateService = {
    * Backend endpoint: GET /api/game-systems/{gameSystemId}/templates
    * @param gameSystemId - The game system ID
    * @param status - Optional status filter
-   * @param confirmedOnly - If true, only return confirmed templates
+   * @param confirmedOnly - If true, only return confirmed templates (regardless of owner)
+   * @param includeAll - If true, return all templates regardless of owner and status (for system owners)
    */
   async getByGameSystem(
     gameSystemId: string,
     status?: TemplateStatus,
-    confirmedOnly?: boolean
+    confirmedOnly?: boolean,
+    includeAll?: boolean
   ): Promise<GetTemplatesResult> {
     const params = new URLSearchParams();
     if (status !== undefined) {
@@ -44,6 +46,9 @@ export const entityTemplateService = {
     }
     if (confirmedOnly) {
       params.append('confirmedOnly', 'true');
+    }
+    if (includeAll) {
+      params.append('includeAll', 'true');
     }
     const query = params.toString();
     const url = `/game-systems/${gameSystemId}/templates${query ? `?${query}` : ''}`;
@@ -120,26 +125,19 @@ export const entityTemplateService = {
     gameSystemId: string,
     sourceDocumentId?: string
   ): Promise<ExtractTemplatesResult> {
-    const body = sourceDocumentId ? { sourceDocumentId } : {};
+    // Only send body if sourceDocumentId is provided
+    if (sourceDocumentId) {
+      return httpClient.post<ExtractTemplatesResult>(
+        `/game-systems/${gameSystemId}/templates/extract`,
+        { sourceDocumentId },
+        { timeout: 120000 } // 2 minutes timeout for extraction
+      );
+    }
+    // Send empty object for request with no body
     return httpClient.post<ExtractTemplatesResult>(
       `/game-systems/${gameSystemId}/templates/extract`,
-      body
-    );
-  },
-
-  /**
-   * Create a new template manually
-   * Backend endpoint: POST /api/game-systems/{gameSystemId}/templates
-   * @param gameSystemId - The game system ID
-   * @param request - Template creation data
-   */
-  async create(
-    gameSystemId: string,
-    request: CreateTemplateRequest
-  ): Promise<CreateTemplateResult> {
-    return httpClient.post<CreateTemplateResult>(
-      `/game-systems/${gameSystemId}/templates`,
-      request
+      {},
+      { timeout: 120000 } // 2 minutes timeout for extraction
     );
   },
 

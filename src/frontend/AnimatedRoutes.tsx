@@ -41,7 +41,7 @@ export const AnimatedRoutes: React.FC<AnimatedRoutesProps> = ({ isAuthenticated,
   const [transitionStage, setTransitionStage] = useState<'idle' | 'out' | 'in'>('idle');
   const [displayLocation, setDisplayLocation] = useState(location);
 
-  const handleGoBack = () => navigate('/');
+  const handleGoBack = () => navigate('/gallery');
 
   useEffect(() => {
     if (location.pathname !== displayLocation.pathname) {
@@ -198,11 +198,11 @@ export const AnimatedRoutes: React.FC<AnimatedRoutesProps> = ({ isAuthenticated,
                 : <GameSystemsPage />
           } />
           
-          {/* Templates - ADMIN only */}
+          {/* Templates - ADMIN and MASTER (ownership check done in TemplatesPage) */}
           <Route path="/templates" element={
             !isAuthenticated 
               ? <Navigate to="/" replace />
-              : !hasRole(['ADMIN'])
+              : !hasRole(['ADMIN', 'MASTER'])
                 ? <Navigate to="/access-denied" replace />
                 : <TemplatesPage />
           } />

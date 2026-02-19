@@ -8,6 +8,8 @@ namespace Loremaster.Tests.Unit.Domain.Entities;
 /// </summary>
 public class GameSystemTests
 {
+    private static readonly Guid TestOwnerId = Guid.NewGuid();
+
     #region Create Tests
 
     [Fact]
@@ -17,6 +19,7 @@ public class GameSystemTests
         var gameSystem = GameSystem.Create(
             code: "DND5E",
             name: "Dungeons & Dragons 5th Edition",
+            ownerId: TestOwnerId,
             publisher: "Wizards of the Coast",
             version: "5.0");
 
@@ -27,6 +30,7 @@ public class GameSystemTests
         gameSystem.Publisher.Should().Be("Wizards of the Coast");
         gameSystem.Version.Should().Be("5.0");
         gameSystem.IsActive.Should().BeTrue();
+        gameSystem.OwnerId.Should().Be(TestOwnerId);
     }
 
     [Fact]
@@ -35,7 +39,8 @@ public class GameSystemTests
         // Arrange & Act
         var gameSystem = GameSystem.Create(
             code: "PATHFINDER",
-            name: "Pathfinder");
+            name: "Pathfinder",
+            ownerId: TestOwnerId);
 
         // Assert
         gameSystem.Code.Should().Be("pathfinder");
@@ -48,6 +53,7 @@ public class GameSystemTests
         var gameSystem = GameSystem.Create(
             code: "  SW5E  ",
             name: "  Star Wars 5E  ",
+            ownerId: TestOwnerId,
             publisher: "  SW5E Team  ");
 
         // Assert
@@ -66,6 +72,7 @@ public class GameSystemTests
         var gameSystem = GameSystem.Create(
             code: "TEST",
             name: "Test System",
+            ownerId: TestOwnerId,
             supportedEntityTypes: entityTypes);
 
         // Assert
@@ -76,7 +83,7 @@ public class GameSystemTests
     public void Create_WithoutSupportedEntityTypes_ShouldHaveEmptyList()
     {
         // Arrange & Act
-        var gameSystem = GameSystem.Create("TEST", "Test System");
+        var gameSystem = GameSystem.Create("TEST", "Test System", TestOwnerId);
 
         // Assert
         gameSystem.SupportedEntityTypes.Should().BeEmpty();
@@ -89,7 +96,7 @@ public class GameSystemTests
     public void Create_WithInvalidCode_ShouldThrowArgumentException(string? invalidCode)
     {
         // Act
-        var act = () => GameSystem.Create(invalidCode!, "Test System");
+        var act = () => GameSystem.Create(invalidCode!, "Test System", TestOwnerId);
 
         // Assert
         act.Should().Throw<ArgumentException>()
@@ -103,11 +110,22 @@ public class GameSystemTests
     public void Create_WithInvalidName_ShouldThrowArgumentException(string? invalidName)
     {
         // Act
-        var act = () => GameSystem.Create("TEST", invalidName!);
+        var act = () => GameSystem.Create("TEST", invalidName!, TestOwnerId);
 
         // Assert
         act.Should().Throw<ArgumentException>()
             .WithParameterName("name");
+    }
+
+    [Fact]
+    public void Create_WithEmptyOwnerId_ShouldThrowArgumentException()
+    {
+        // Act
+        var act = () => GameSystem.Create("TEST", "Test", Guid.Empty);
+
+        // Assert
+        act.Should().Throw<ArgumentException>()
+            .WithParameterName("ownerId");
     }
 
     #endregion
@@ -118,7 +136,7 @@ public class GameSystemTests
     public void Update_WithValidData_ShouldUpdateGameSystem()
     {
         // Arrange
-        var gameSystem = GameSystem.Create("TEST", "Original Name");
+        var gameSystem = GameSystem.Create("TEST", "Original Name", TestOwnerId);
 
         // Act
         gameSystem.Update(
@@ -136,7 +154,7 @@ public class GameSystemTests
     public void Update_ShouldTrimWhitespace()
     {
         // Arrange
-        var gameSystem = GameSystem.Create("TEST", "Original");
+        var gameSystem = GameSystem.Create("TEST", "Original", TestOwnerId);
 
         // Act
         gameSystem.Update("  Updated Name  ", "  Publisher  ");
@@ -150,7 +168,7 @@ public class GameSystemTests
     public void Update_WithSupportedEntityTypes_ShouldUpdateTypes()
     {
         // Arrange
-        var gameSystem = GameSystem.Create("TEST", "Test");
+        var gameSystem = GameSystem.Create("TEST", "Test", TestOwnerId);
         var newTypes = new List<string> { "character", "ship" };
 
         // Act
@@ -167,7 +185,7 @@ public class GameSystemTests
     public void Update_WithInvalidName_ShouldThrowArgumentException(string? invalidName)
     {
         // Arrange
-        var gameSystem = GameSystem.Create("TEST", "Test System");
+        var gameSystem = GameSystem.Create("TEST", "Test System", TestOwnerId);
 
         // Act
         var act = () => gameSystem.Update(invalidName!);
@@ -185,7 +203,7 @@ public class GameSystemTests
     public void Activate_ShouldSetActiveTrue()
     {
         // Arrange
-        var gameSystem = GameSystem.Create("TEST", "Test");
+        var gameSystem = GameSystem.Create("TEST", "Test", TestOwnerId);
         gameSystem.Deactivate();
 
         // Act
@@ -199,13 +217,45 @@ public class GameSystemTests
     public void Deactivate_ShouldSetActiveFalse()
     {
         // Arrange
-        var gameSystem = GameSystem.Create("TEST", "Test");
+        var gameSystem = GameSystem.Create("TEST", "Test", TestOwnerId);
 
         // Act
         gameSystem.Deactivate();
 
         // Assert
         gameSystem.IsActive.Should().BeFalse();
+    }
+
+    #endregion
+
+    #region Ownership Tests
+
+    [Fact]
+    public void TransferOwnership_ShouldUpdateOwnerId()
+    {
+        // Arrange
+        var newOwnerId = Guid.NewGuid();
+        var gameSystem = GameSystem.Create("TEST", "Test", TestOwnerId);
+
+        // Act
+        gameSystem.TransferOwnership(newOwnerId);
+
+        // Assert
+        gameSystem.OwnerId.Should().Be(newOwnerId);
+    }
+
+    [Fact]
+    public void TransferOwnership_WithEmptyId_ShouldThrowArgumentException()
+    {
+        // Arrange
+        var gameSystem = GameSystem.Create("TEST", "Test", TestOwnerId);
+
+        // Act
+        var act = () => gameSystem.TransferOwnership(Guid.Empty);
+
+        // Assert
+        act.Should().Throw<ArgumentException>()
+            .WithParameterName("newOwnerId");
     }
 
     #endregion

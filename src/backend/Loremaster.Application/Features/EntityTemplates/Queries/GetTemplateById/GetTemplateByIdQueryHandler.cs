@@ -28,26 +28,29 @@ public class GetTemplateByIdQueryHandler : IRequestHandler<GetTemplateByIdQuery,
         CancellationToken cancellationToken)
     {
         _logger.LogInformation(
-            "Getting template {TemplateId} for owner {OwnerId}",
-            request.TemplateId, request.OwnerId);
+            "Getting template {TemplateId} for owner {OwnerId} in game system {GameSystemId} (IsAdmin: {IsAdmin})",
+            request.TemplateId, request.OwnerId, request.GameSystemId, request.IsAdmin);
 
         // First try to get template owned by the requesting user
         var template = await _templateRepository.GetByIdAsync(
             request.TemplateId, request.OwnerId, cancellationToken);
 
-        // If not found, check if it's a confirmed template (can be read by any authenticated user)
-        // This allows Masters to view confirmed templates from Admin users
+        // If not found, check if user is Admin or if it's a confirmed template
         if (template == null)
         {
             var anyTemplate = await _templateRepository.GetByIdAsync(
                 request.TemplateId, cancellationToken);
             
-            if (anyTemplate?.Status == Domain.Enums.TemplateStatus.Confirmed)
+            if (anyTemplate != null)
             {
-                template = anyTemplate;
-                _logger.LogInformation(
-                    "Template {TemplateId} found as confirmed template from different owner",
-                    request.TemplateId);
+                // Admin can view any template, or user can view confirmed templates
+                if (request.IsAdmin || anyTemplate.Status == Domain.Enums.TemplateStatus.Confirmed)
+                {
+                    template = anyTemplate;
+                    _logger.LogInformation(
+                        "Template {TemplateId} found as {Status} template (IsAdmin: {IsAdmin})",
+                        request.TemplateId, anyTemplate.Status, request.IsAdmin);
+                }
             }
         }
 

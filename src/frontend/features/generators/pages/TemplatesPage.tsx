@@ -6,8 +6,8 @@
  */
 
 import React, { useState, useEffect, useCallback } from 'react';
-import { useNavigate } from 'react-router-dom';
-import { AdminLayout } from '@shared/components/layout';
+import { useNavigate, useSearchParams } from 'react-router-dom';
+import { AdminLayout, TerminalLayout } from '@shared/components/layout';
 import { Button, TerminalLog } from '@shared/components/ui';
 import { useAuth } from '@core/context';
 import { useTerminalLog } from '@core/hooks/useTerminalLog';
@@ -30,6 +30,8 @@ import { TemplateStatus, TemplateStatusLabels, FieldTypeLabels, FieldType } from
  */
 export const TemplatesPage: React.FC = () => {
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
+  const urlGameSystemId = searchParams.get('gameSystemId');
   const { user } = useAuth();
   const { logs, addLog } = useTerminalLog({
     maxLogs: 12,
@@ -77,9 +79,17 @@ export const TemplatesPage: React.FC = () => {
       setGameSystems(systems);
       addLog(`[SUCCESS] ${systems.length} sistemas cargados`);
       
-      // Auto-select first system if available and none selected
+      // Auto-select system based on URL param or first available
       if (systems.length > 0) {
-        setSelectedGameSystem(prev => prev ?? systems[0]);
+        let selected = null;
+        
+        // If URL has gameSystemId, try to select that system
+        if (urlGameSystemId) {
+          selected = systems.find(s => s.id === urlGameSystemId) || null;
+        }
+        
+        // If not found in URL or no URL param, select first
+        setSelectedGameSystem(selected ?? systems[0]);
       }
     } catch (error: unknown) {
       const message = error instanceof Error ? error.message : 'Error al cargar sistemas';
@@ -87,7 +97,7 @@ export const TemplatesPage: React.FC = () => {
     } finally {
       setIsLoadingGameSystems(false);
     }
-  }, [addLog]);
+  }, [addLog, urlGameSystemId]);
 
   /**
    * Fetches templates for the selected game system
@@ -95,7 +105,19 @@ export const TemplatesPage: React.FC = () => {
   const fetchTemplates = useCallback(async (gameSystemId: string) => {
     setIsLoadingTemplates(true);
     try {
-      const result = await entityTemplateService.getByGameSystem(gameSystemId);
+      // For Admins: get ALL templates (regardless of owner and status)
+      // For Masters who own the system: get ALL templates (regardless of owner and status)
+      // For other Masters: get only confirmed templates (regardless of owner)
+      const isAdmin = user?.role === 'ADMIN';
+      const isMasterUser = user?.role === 'MASTER';
+      const isOwner = selectedGameSystem?.ownerId === user?.id;
+      
+      const result = await entityTemplateService.getByGameSystem(
+        gameSystemId, 
+        undefined, 
+        isMasterUser && !isOwner, // confirmedOnly = true for Masters who don't own the system
+        isAdmin || (isMasterUser && isOwner)   // includeAll = true for Admin or Masters who own the system
+      );
       setTemplates(result.templates);
       setTemplateCounts({
         total: result.totalCount,
@@ -110,7 +132,7 @@ export const TemplatesPage: React.FC = () => {
     } finally {
       setIsLoadingTemplates(false);
     }
-  }, [addLog]);
+  }, [addLog, user, selectedGameSystem]);
 
   /**
    * Fetches full template details
@@ -600,27 +622,58 @@ export const TemplatesPage: React.FC = () => {
     return newlyExtractedIds.has(templateId);
   };
 
-  // Check if user is Admin
+  // Check if user is Admin or Master
   const isAdmin = user?.role === 'ADMIN';
+  const isMaster = user?.role === 'MASTER';
   
-  if (!isAdmin) {
+  // Determine if user has access to the selected system
+  // For Masters, they can only access their own systems
+  const canAccess = isAdmin || (isMaster && selectedGameSystem?.ownerId === user?.id);
+  
+  // Select layout based on role: AdminLayout for ADMIN, TerminalLayout for MASTER
+  const Layout = isAdmin ? AdminLayout : TerminalLayout;
+  const layoutProps = isAdmin ? { activePath: '/templates' } : {};
+  
+  // Wait for game systems to load before checking access
+  if (isLoadingGameSystems) {
     return (
-      <AdminLayout 
-        activePath="/templates"
-      >
+      <Layout>
+        <div className="flex items-center justify-center h-full">
+          <div className="text-primary animate-pulse">Cargando...</div>
+        </div>
+      </Layout>
+    );
+  }
+  
+  // Access denied for non-admin, non-master users
+  if (!isAdmin && !isMaster) {
+    return (
+      <Layout>
         <div className="flex flex-col items-center justify-center h-full text-danger/60">
           <span className="material-icons text-6xl mb-4">lock</span>
           <p className="text-sm uppercase tracking-widest">Acceso restringido a Administradores</p>
           <Button onClick={() => navigate(-1)} className="mt-4">VOLVER</Button>
         </div>
-      </AdminLayout>
+      </Layout>
+    );
+  }
+
+  // Access denied for Masters trying to access another Master's system
+  if (isMaster && !isAdmin && selectedGameSystem && selectedGameSystem.ownerId !== user?.id) {
+    return (
+      <Layout>
+        <div className="flex flex-col items-center justify-center h-full text-danger/60">
+          <span className="material-icons text-6xl mb-4">lock</span>
+          <p className="text-sm uppercase tracking-widest">No tienes acceso a este sistema</p>
+          <p className="text-xs text-primary/40 mt-2">Solo el propietario puede gestionar las entidades</p>
+          <Button onClick={() => navigate('/game-systems')} className="mt-4">VOLVER A SISTEMAS</Button>
+        </div>
+      </Layout>
     );
   }
 
   return (
-    <AdminLayout 
-      activePath="/templates"
-    >
+    <Layout>
       <div className="flex flex-col lg:flex-row h-full gap-6">
         {/* Left Column - Game Systems & Templates List */}
         <div className="w-full lg:w-1/3 flex flex-col gap-4 overflow-hidden">
@@ -635,7 +688,23 @@ export const TemplatesPage: React.FC = () => {
             
             {isLoadingGameSystems ? (
               <div className="text-primary/40 text-sm animate-pulse">Cargando sistemas...</div>
+            ) : isMaster && !isAdmin ? (
+              /* Master: show selected system as display only (read-only) */
+              <div className="bg-cyan-900/20 border border-cyan-500/30 p-3 rounded">
+                <div className="flex items-center gap-2">
+                  <span className="material-icons text-cyan-400 text-sm">check_circle</span>
+                  <span className="text-cyan-400 text-sm font-medium">
+                    {selectedGameSystem?.name}
+                  </span>
+                </div>
+                {selectedGameSystem?.code && (
+                  <div className="text-primary/40 text-xs mt-1 ml-6">
+                    {selectedGameSystem.code}
+                  </div>
+                )}
+              </div>
             ) : (
+              /* Admin: show combobox */
               <select
                 value={selectedGameSystem?.id || ''}
                 onChange={(e) => {
@@ -678,24 +747,6 @@ export const TemplatesPage: React.FC = () => {
                     <>
                       <span className="material-icons text-sm mr-2">auto_awesome</span>
                       EXTRAER DE MANUALES
-                    </>
-                  )}
-                </Button>
-                
-                <Button
-                  onClick={handleConfirmAll}
-                  disabled={isConfirmingAll || templateCounts.pending === 0}
-                  className="w-full text-xs"
-                >
-                  {isConfirmingAll ? (
-                    <>
-                      <span className="material-icons text-sm animate-spin mr-2">sync</span>
-                      CONFIRMANDO...
-                    </>
-                  ) : (
-                    <>
-                      <span className="material-icons text-sm mr-2">check_circle</span>
-                      CONFIRMAR TODAS ({templateCounts.pending})
                     </>
                   )}
                 </Button>
@@ -1466,6 +1517,6 @@ export const TemplatesPage: React.FC = () => {
           </div>
         </div>
       </div>
-    </AdminLayout>
+    </Layout>
   );
 };

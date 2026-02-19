@@ -39,8 +39,8 @@ export const AccessDenied: React.FC<AccessDeniedProps> = ({ onBack }) => {
           </h1>
 
           <div className="max-w-lg mb-8 border-l-2 border-danger/40 pl-6 text-left">
-            <p className="text-primary/90 text-lg font-light leading-relaxed">
-              <span className="font-bold text-danger">ERROR 403:</span> Sus credenciales biometricas no coinciden con los registros del personal autorizado para el <span className="text-white">Sector 7</span>. Protocolo de contencion iniciado.
+            <p className="text-primary/90 text-lg font-light leading-relaxed font-mono">
+              <span className="font-bold text-danger font-mono">ERROR 403:</span> Sus credenciales biometricas no coinciden con los registros del personal autorizado para el <span className="text-white">Sector 7</span>. Protocolo de contencion iniciado.
             </p>
           </div>
 

@@ -524,11 +524,14 @@ public class UploadManualCommandHandlerTests
 
     #region Helper Methods
 
+    private static readonly Guid TestOwnerId = Guid.NewGuid();
+
     private void SetupGameSystem()
     {
         var gameSystem = GameSystem.Create(
             code: "test-system",
             name: "Test Game System",
+            ownerId: TestOwnerId,
             publisher: "TestCorp",
             description: "A test game system for unit tests");
         _gameSystemRepositoryMock

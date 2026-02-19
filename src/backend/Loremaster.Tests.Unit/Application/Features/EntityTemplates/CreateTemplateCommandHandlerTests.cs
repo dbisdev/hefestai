@@ -294,11 +294,14 @@ public class CreateTemplateCommandHandlerTests
     /// <summary>
     /// Sets up a valid game system for testing.
     /// </summary>
+    private static readonly Guid TestOwnerId = Guid.NewGuid();
+
     private void SetupGameSystem()
     {
         var gameSystem = GameSystem.Create(
             "dnd5e",
             "Dungeons & Dragons 5th Edition",
+            TestOwnerId,
             "Wizards of the Coast");
 
         _gameSystemRepositoryMock

@@ -54,6 +54,11 @@ public class GameSystemConfiguration : IEntityTypeConfiguration<GameSystem>
             .HasDefaultValue(true)
             .IsRequired();
 
+        builder.Property(gs => gs.OwnerId)
+            .HasColumnName("owner_id")
+            .HasColumnType("uuid")
+            .IsRequired();
+
         builder.HasIndex(gs => gs.IsActive)
             .HasDatabaseName("ix_game_system_is_active")
             .HasFilter("is_active = true");
