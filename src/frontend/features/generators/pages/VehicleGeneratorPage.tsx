@@ -155,7 +155,7 @@ const data = parseJsonResponse<VehicleData>(result.vehicleJson);
       await entityService.create(activeCampaignId, {
         entityType: 'vehicle',
         name: editableVehi.name,
-        description: editableVehi.specs,
+        description: editableVehi.description,
         imageUrl: vehicleImage !== VEHICLE_PLACEHOLDER_IMAGE ? vehicleImage : undefined,
         attributes: {
           ...editableVehi.stats
@@ -207,13 +207,13 @@ const data = parseJsonResponse<VehicleData>(result.vehicleJson);
   };
 
   /**
-   * Handle specs change
+   * Handle description change
    */
-  const handleSpecsChange = (value: string | number) => {
+  const handleDescriptionChange = (value: string | number) => {
     if (editableVehi) {
       setEditableVehi({
         ...editableVehi,
-        specs: String(value)
+        description: String(value)
       });
     }
   };
@@ -321,15 +321,15 @@ const data = parseJsonResponse<VehicleData>(result.vehicleJson);
           </div>
           
           {/* Details Section - Below image, above stats */}
-          {editableVehi?.specs && (
+          {editableVehi?.description && (
             <div className="bg-surface-dark/50 border border-primary/20 p-3">
               <EditableField
-                value={editableVehi.specs}
-                label="Especificaciones"
+                value={editableVehi.description}
+                label="Description"
                 type="textarea"
                 rows={2}
                 variant="primary"
-                onChange={handleSpecsChange}
+                onChange={handleDescriptionChange}
                 disabled={!editableVehi}
               />
             </div>

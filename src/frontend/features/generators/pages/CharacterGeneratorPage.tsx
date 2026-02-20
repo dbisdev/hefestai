@@ -190,7 +190,7 @@ const handleSave = async () => {
       await entityService.create(activeCampaignId, {
         entityType: 'character',
         name: editableChar.name,
-        description: editableChar.bio,
+        description: editableChar.description,
         imageUrl: charImage !== UNKNOWN_CHAR_IMAGE ? charImage : undefined,
         attributes: {
           ...editableChar.stats
@@ -242,13 +242,13 @@ const handleSave = async () => {
   };
 
   /**
-   * Handle bio change
+   * Handle description change
    */
-  const handleBioChange = (value: string | number) => {
+  const handleDescriptionChange = (value: string | number) => {
     if (editableChar) {
       setEditableChar({
         ...editableChar,
-        bio: String(value)
+        description: String(value)
       });
     }
   };
@@ -397,16 +397,16 @@ const handleSave = async () => {
             )}
           </div>
 
-          {/* Bio Section - Below image, above stats */}
-          {editableChar?.bio && (
+          {/* Description Section - Below image, above stats */}
+          {editableChar?.description && (
             <div className="bg-surface-dark/50 border border-primary/20 p-3">
               <EditableField
-                value={editableChar.bio}
-                label="Bio"
+                value={editableChar.description}
+                label="Description"
                 type="textarea"
                 rows={3}
                 variant="primary"
-                onChange={handleBioChange}
+                onChange={handleDescriptionChange}
                 disabled={!editableChar}
                 className="text-sm"
               />

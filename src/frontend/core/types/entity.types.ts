@@ -129,7 +129,8 @@ export type DynamicStats = Record<string, unknown>;
  */
 export interface CharacterData {
   name: string;
-  bio: string;
+  /** Character description/backstory */
+  description: string;
   /** Dynamic stats that vary by game system */
   stats: DynamicStats;
   morphology?: string;
@@ -189,7 +190,8 @@ export interface SystemData {
  */
 export interface VehicleData {
   name: string;
-  specs: string;
+  /** Vehicle description/specifications */
+  description: string;
   /** Dynamic stats that vary by game system */
   stats: DynamicStats;
 }
@@ -202,7 +204,8 @@ export interface NpcData {
   name: string;
   occupation: string;
   personality: string;
-  background: string;
+  /** NPC background/description */
+  description: string;
   /** Dynamic stats that vary by game system */
   stats: DynamicStats;
 }

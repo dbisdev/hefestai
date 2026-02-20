@@ -538,9 +538,9 @@ public class AiController : ControllerBase
                 var fields = template.GetFieldDefinitions();
                 var statsJson = BuildExampleJsonFromTemplate(fields);
                 // Wrap template fields inside the standard structure
-                exampleJson = $@"{{""name"":""<Character Name>"",""bio"":""<2-3 paragraph backstory>"",""stats"":{statsJson}}}";
+                exampleJson = $@"{{""name"":""<Character Name>"",""description"":""<2-3 paragraph backstory>"",""stats"":{statsJson}}}";
                 fieldDescriptions = $@"- name: A unique character name fitting the setting
-- bio: A 2-3 paragraphs backstory based on the lore
+- description: A 2-3 paragraphs backstory based on the lore
 - stats: An object containing the following template fields:
 {BuildFieldDescriptions(fields)}";
                 _logger.LogDebug("Using template {TemplateId} with {FieldCount} fields for character generation", 
@@ -549,7 +549,7 @@ public class AiController : ControllerBase
             else
             {
                 // Fallback example when no template exists
-                exampleJson = @"{""name"":""Zephyr-9"",""bio"":""A rogue android..."",""stats"":{
+                exampleJson = @"{""name"":""Zephyr-9"",""description"":""A rogue android..."",""stats"":{
     ""STRENGTH"": 3,
     ""AGILITY"": 4,
     ""WITS"": 4,
@@ -563,7 +563,7 @@ public class AiController : ControllerBase
     ""GEAR"": ""Medkit, Surgical kit, Four doses of Naproleve"",
     ""CASH"": 1000}}";
                 fieldDescriptions = @"- name: A unique character name fitting the setting
-- bio: A 2-3 paragraphs backstory based on the lore
+- description: A 2-3 paragraphs backstory based on the lore
 - stats: An object with the attributes required by the character creation rules";
             }
 
@@ -668,20 +668,20 @@ Example format:
             
             if (request.GenerateImage)
             {
-                // Extract bio from generated character JSON to enhance image prompt
-                string? characterBio = null;
+                // Extract description from generated character JSON to enhance image prompt
+                string? characterDescription = null;
                 try
                 {
                     var cleanedJson = Shared.Helpers.JsonSanitizationHelper.StripMarkdownCodeFences(characterJson);
                     var jsonDoc = JsonDocument.Parse(cleanedJson);
-                    if (jsonDoc.RootElement.TryGetProperty("bio", out var bioElement))
+                    if (jsonDoc.RootElement.TryGetProperty("description", out var descriptionElement))
                     {
-                        characterBio = bioElement.GetString();
+                        characterDescription = descriptionElement.GetString();
                     }
                 }
                 catch (Exception ex)
                 {
-                    _logger.LogDebug(ex, "Failed to extract bio from generated character JSON");
+                    _logger.LogDebug(ex, "Failed to extract description from generated character JSON");
                 }
 
                 // Optionally enhance image prompt with style context from RAG
@@ -703,11 +703,11 @@ Example format:
 
                 var imagePrompt = $"High-quality portrait of a {request.Species} {request.Role}, {request.Morphology}.";
 
-                // Add character bio context if available (truncated to 300 chars)
-                if (!string.IsNullOrEmpty(characterBio))
+                // Add character description context if available (truncated to 500 chars)
+                if (!string.IsNullOrEmpty(characterDescription))
                 {
-                    var truncatedBio = characterBio.Length > 500 ? characterBio[..497] + "..." : characterBio;
-                    imagePrompt += $" Character details: {truncatedBio}";
+                    var truncatedDescription = characterDescription.Length > 500 ? characterDescription[..497] + "..." : characterDescription;
+                    imagePrompt += $" Character details: {truncatedDescription}";
                 }
 
                 imagePrompt += $" Cinematic lighting, detailed face, 8k resolution, professional concept art, black background.{imagePromptContext}";

@@ -200,7 +200,7 @@ const npcData = parseJsonResponse<NpcData>(result.npcJson);
       await entityService.create(activeCampaignId, {
         entityType: 'npc',
         name: editableNpc.name,
-        description: editableNpc.background,
+        description: editableNpc.description,
         imageUrl: npcImage !== UNKNOWN_NPC_IMAGE ? npcImage : undefined,
         attributes: {
           ...editableNpc.stats
@@ -265,13 +265,13 @@ generationParams: {
   };
 
   /**
-   * Handle background change
+   * Handle description change
    */
-  const handleBackgroundChange = (value: string | number) => {
+  const handleDescriptionChange = (value: string | number) => {
     if (editableNpc) {
       setEditableNpc({
         ...editableNpc,
-        background: String(value)
+        description: String(value)
       });
     }
   };
@@ -429,15 +429,15 @@ generationParams: {
                   />
                 </div>
               )}
-              {editableNpc.background && (
+              {editableNpc.description && (
                 <div className="bg-surface-dark/50 border border-primary/20 p-2">
                   <EditableField
-                    value={editableNpc.background}
-                    label="Background"
+                    value={editableNpc.description}
+                    label="Description"
                     type="textarea"
                     rows={2}
                     variant="primary"
-                    onChange={handleBackgroundChange}
+                    onChange={handleDescriptionChange}
                     disabled={!editableNpc}
                   />
                 </div>
