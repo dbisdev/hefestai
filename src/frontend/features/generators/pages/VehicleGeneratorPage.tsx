@@ -7,9 +7,8 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { TerminalLayout } from '@shared/components/layout';
-import { Button, ImageSourceSelector, DynamicStatsPanel } from '@shared/components/ui';
+import { Button, ImageSourceSelector, DynamicStatsPanel, TerminalLog, EditableField, EditableStatsPanel } from '@shared/components/ui';
 import type { ImageSourceMode } from '@shared/components/ui';
-import { TerminalLog } from '@shared/components/ui';
 import { useTerminalLog } from '@core/hooks/useTerminalLog';
 import { aiService, entityService, entityTemplateService } from '@core/services/api';
 import { useCampaign } from '@core/context';
@@ -42,9 +41,11 @@ export const VehicleGeneratorPage: React.FC<VehicleGeneratorPageProps> = ({ onBa
     maxLogs: 6,
     initialLogs: ['> Awaiting construction parameters...']
   });
-  const [isGenerating, setIsGenerating] = useState(false);
+const [isGenerating, setIsGenerating] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
   const [generatedVehi, setGeneratedVehi] = useState<VehicleData | null>(null);
+  /** Editable vehicle data for inline editing before saving */
+  const [editableVehi, setEditableVehi] = useState<VehicleData | null>(null);
   const [vehicleImage, setVehicleImage] = useState<string>(VEHICLE_PLACEHOLDER_IMAGE);
   /** Stores the generation request ID to link entity to generation history when saving */
   const [generationRequestId, setGenerationRequestId] = useState<string | undefined>();
@@ -107,8 +108,9 @@ export const VehicleGeneratorPage: React.FC<VehicleGeneratorPageProps> = ({ onBa
         generateImage: shouldGenerateImage
       });
 
-      const data = parseJsonResponse<VehicleData>(result.vehicleJson);
+const data = parseJsonResponse<VehicleData>(result.vehicleJson);
       setGeneratedVehi(data);
+      setEditableVehi(data);
       setGenerationRequestId(result.generationRequestId);
       addLog(`Assembly complete: ${data.name}`);
 
@@ -141,26 +143,22 @@ export const VehicleGeneratorPage: React.FC<VehicleGeneratorPageProps> = ({ onBa
     }
   };
 
-  /**
-   * Saves the generated vehicle to the entity service using campaign-scoped endpoint
-   */
+/**
+    * Saves the generated vehicle to the entity service using campaign-scoped endpoint
+    */
   const handleSave = async () => {
-    if (!generatedVehi || !activeCampaignId) return;
+    if (!editableVehi || !activeCampaignId) return;
     setIsSaving(true);
     addLog('Writing to shipyard database...');
 
     try {
-      // Flatten stats into attributes to match template field definitions
-      // Form fields go into metadata for reference
       await entityService.create(activeCampaignId, {
         entityType: 'vehicle',
-        name: generatedVehi.name,
-        description: generatedVehi.specs,
+        name: editableVehi.name,
+        description: editableVehi.specs,
         imageUrl: vehicleImage !== VEHICLE_PLACEHOLDER_IMAGE ? vehicleImage : undefined,
         attributes: {
-          // Spread AI-generated stats directly as top-level attributes
-          // These should match the template field definitions
-          ...generatedVehi.stats
+          ...editableVehi.stats
         },
         metadata: {
           generatedAt: new Date().toISOString(),
@@ -181,6 +179,42 @@ export const VehicleGeneratorPage: React.FC<VehicleGeneratorPageProps> = ({ onBa
       addLog(`Database write failed: ${message}`);
     } finally {
       setIsSaving(false);
+}
+  };
+
+  /**
+   * Handle stats changes from EditableStatsPanel
+   */
+  const handleStatsChange = (newStats: Record<string, unknown>) => {
+    if (editableVehi) {
+      setEditableVehi({
+        ...editableVehi,
+        stats: newStats
+      });
+    }
+  };
+
+  /**
+   * Handle name change
+   */
+  const handleNameChange = (value: string | number) => {
+    if (editableVehi) {
+      setEditableVehi({
+        ...editableVehi,
+        name: String(value)
+      });
+    }
+  };
+
+  /**
+   * Handle specs change
+   */
+  const handleSpecsChange = (value: string | number) => {
+    if (editableVehi) {
+      setEditableVehi({
+        ...editableVehi,
+        specs: String(value)
+      });
     }
   };
 
@@ -192,7 +226,7 @@ export const VehicleGeneratorPage: React.FC<VehicleGeneratorPageProps> = ({ onBa
       gameSystemId={activeCampaign?.gameSystemId}
       hideCampaignSelector={false}
     >
-      <div className="flex flex-col lg:flex-row gap-8 h-full font-mono">
+      <div className="flex flex-col md:flex-row gap-8 md:h-full font-mono">
         {/* Form Panel */}
         <div className="flex-1 flex flex-col gap-6 overflow-y-auto">
           <div className="space-y-4">
@@ -245,7 +279,7 @@ export const VehicleGeneratorPage: React.FC<VehicleGeneratorPageProps> = ({ onBa
             </Button>
             <Button
               onClick={handleSave}
-              disabled={!generatedVehi || isSaving || !activeCampaignId}
+              disabled={!editableVehi || isSaving || !activeCampaignId}
               variant="primary"
               fullWidth
               size="lg"
@@ -257,11 +291,13 @@ export const VehicleGeneratorPage: React.FC<VehicleGeneratorPageProps> = ({ onBa
         </div>
 
         {/* Preview Panel */}
-        <div className="flex-1 flex flex-col gap-4 overflow-y-auto">
-          <div className="relative flex-1 border border-primary/30 bg-black clip-tech-br overflow-hidden">
+        <div className="flex-1 flex flex-col gap-4">
+          {/* Scrollable content */}
+          <div className="flex-1 overflow-y-auto flex flex-col gap-4">
+            <div className="relative h-64 md:h-[500px] border border-primary/30 bg-black clip-tech-br">
             <img 
               src={vehicleImage} 
-              className={`w-full h-full object-cover transition-all duration-1000 ${isGenerating ? 'opacity-10 scale-110 blur-sm' : 'opacity-60 scale-100'} grayscale`} 
+              className={`w-full h-full object-cover object-[center_25%] transition-all duration-1000 ${isGenerating ? 'opacity-10 scale-110 blur-sm' : 'opacity-60 scale-100'} grayscale`} 
               alt="Vehicle Preview"
             />
             {isGenerating && (
@@ -272,24 +308,48 @@ export const VehicleGeneratorPage: React.FC<VehicleGeneratorPageProps> = ({ onBa
                 <span className="text-primary text-[10px] animate-pulse">ENSAMBLANDO_VEHICULO...</span>
               </div>
             )}
-            <div className="absolute inset-0 flex flex-col justify-end p-4 bg-gradient-to-t from-black to-transparent">
-              <h3 className="text-primary font-bold">{generatedVehi?.name || '---'}</h3>
-              <p className="text-[10px] text-primary/70">{generatedVehi?.specs}</p>
+<div className="absolute inset-0 flex flex-col justify-end p-4 bg-gradient-to-t from-black to-transparent">
+              <EditableField
+                value={editableVehi?.name || ''}
+                label="Nombre"
+                variant="primary"
+                onChange={handleNameChange}
+                className="font-bold text-lg"
+                disabled={!editableVehi}
+              />
             </div>
           </div>
           
-          {/* Log Panel */}
-          <TerminalLog logs={logs} maxLogs={6} className="h-20" />
+          {/* Details Section - Below image, above stats */}
+          {editableVehi?.specs && (
+            <div className="bg-surface-dark/50 border border-primary/20 p-3">
+              <EditableField
+                value={editableVehi.specs}
+                label="Especificaciones"
+                type="textarea"
+                rows={2}
+                variant="primary"
+                onChange={handleSpecsChange}
+                disabled={!editableVehi}
+              />
+            </div>
+          )}
           
           {/* Stats Panel - Dynamic based on game system */}
-          <DynamicStatsPanel 
-            stats={generatedVehi?.stats} 
+          <EditableStatsPanel 
+            stats={editableVehi?.stats || null}
+            onStatsChange={handleStatsChange}
             variant="primary"
             maxColumns={3}
             showProgressBar={true}
             maxProgressValue={100}
             fieldDefinitions={fieldDefinitions}
+            disabled={!editableVehi}
           />
+          </div>
+
+          {/* Log Panel - Fixed at bottom */}
+          <TerminalLog logs={logs} maxLogs={6} className="h-20 shrink-0" />
         </div>
       </div>
     </TerminalLayout>

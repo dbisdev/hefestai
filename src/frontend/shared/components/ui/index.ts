@@ -19,4 +19,10 @@ export type { ImageSourceMode, ImageSourceSelectorProps } from './ImageSourceSel
 export { DynamicStatsPanel, buildLabelMapFromFields } from './DynamicStatsPanel';
 export type { DynamicStatsPanelProps, LabelMap } from './DynamicStatsPanel';
 
+export { EditableField } from './EditableField';
+export type { EditableFieldProps, EditableFieldVariant } from './EditableField';
+
+export { EditableStatsPanel } from './EditableStatsPanel';
+export type { EditableStatsPanelProps } from './EditableStatsPanel';
+
 export { TerminalLog } from './TerminalLog';

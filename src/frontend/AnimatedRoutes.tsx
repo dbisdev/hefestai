@@ -76,7 +76,7 @@ export const AnimatedRoutes: React.FC<AnimatedRoutesProps> = ({ isAuthenticated,
   };
 
   return (
-    <div className={`h-full w-full transition-all duration-300 ${
+    <div className={`h-full w-full transition-all duration-300 overflow-y-auto sm:overflow-visible ${
       transitionStage === 'out' ? 'section-transition-out' : 
       transitionStage === 'in' ? 'section-transition-in' : ''
     }`}>

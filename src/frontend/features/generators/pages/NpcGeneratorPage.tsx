@@ -7,9 +7,8 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { TerminalLayout } from '@shared/components/layout';
-import { Button, ImageSourceSelector, DynamicStatsPanel } from '@shared/components/ui';
+import { Button, ImageSourceSelector, DynamicStatsPanel, TerminalLog, EditableField, EditableStatsPanel } from '@shared/components/ui';
 import type { ImageSourceMode } from '@shared/components/ui';
-import { TerminalLog } from '@shared/components/ui';
 import { useTerminalLog } from '@core/hooks/useTerminalLog';
 import { aiService, entityService, entityTemplateService } from '@core/services/api';
 import { useCampaign } from '@core/context';
@@ -74,9 +73,11 @@ export const NpcGeneratorPage: React.FC<NpcGeneratorPageProps> = ({ onBack }) =>
       '> Awaiting actor parameters...'
     ]
   });
-  const [isGenerating, setIsGenerating] = useState(false);
+const [isGenerating, setIsGenerating] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
   const [generatedNpc, setGeneratedNpc] = useState<NpcData | null>(null);
+  /** Editable NPC data for inline editing before saving */
+  const [editableNpc, setEditableNpc] = useState<NpcData | null>(null);
   const [npcImage, setNpcImage] = useState<string>(UNKNOWN_NPC_IMAGE);
   /** Stores the generation request ID to link entity to generation history when saving */
   const [generationRequestId, setGenerationRequestId] = useState<string | undefined>();
@@ -148,8 +149,9 @@ export const NpcGeneratorPage: React.FC<NpcGeneratorPageProps> = ({ onBack }) =>
         generateImage: shouldGenerateImage
       });
 
-      const npcData = parseJsonResponse<NpcData>(result.npcJson);
+const npcData = parseJsonResponse<NpcData>(result.npcJson);
       setGeneratedNpc(npcData);
+      setEditableNpc(npcData);
       setGenerationRequestId(result.generationRequestId);
       addLog(`ACTOR REGISTRADO: ${npcData.name.toUpperCase()}`);
 
@@ -186,34 +188,30 @@ export const NpcGeneratorPage: React.FC<NpcGeneratorPageProps> = ({ onBack }) =>
     }
   };
 
-  /**
-   * Handles NPC generation via AI service
-   */
+/**
+    * Handles NPC generation via AI service
+    */
   const handleSave = async () => {
-    if (!generatedNpc || !activeCampaignId) return;
+    if (!editableNpc || !activeCampaignId) return;
     setIsSaving(true);
     addLog('ESCRIBIENDO EN ALMACENAMIENTO...');
     
     try {
-      // Flatten stats into attributes to match template field definitions
-      // Form fields (species, occupation, etc.) go into metadata for reference
       await entityService.create(activeCampaignId, {
         entityType: 'npc',
-        name: generatedNpc.name,
-        description: generatedNpc.background,
+        name: editableNpc.name,
+        description: editableNpc.background,
         imageUrl: npcImage !== UNKNOWN_NPC_IMAGE ? npcImage : undefined,
         attributes: {
-          // Spread AI-generated stats directly as top-level attributes
-          // These should match the template field definitions (e.g., STRENGTH, AGILITY, etc.)
-          ...generatedNpc.stats
+          ...editableNpc.stats
         },
         metadata: {
           generatedAt: new Date().toISOString(),
           generator: 'npc_generator',
           // Store generation parameters for reference
-          generationParams: {
+generationParams: {
             species: form.species,
-            occupation: generatedNpc.occupation || form.occupation,
+            occupation: editableNpc.occupation || form.occupation,
             personality: form.personality,
             setting: form.setting
           }
@@ -227,6 +225,54 @@ export const NpcGeneratorPage: React.FC<NpcGeneratorPageProps> = ({ onBack }) =>
       addLog(`DB_WRITE_ERROR: ${message}`);
     } finally {
       setIsSaving(false);
+}
+  };
+
+  /**
+   * Handle stats changes from EditableStatsPanel
+   */
+  const handleStatsChange = (newStats: Record<string, unknown>) => {
+    if (editableNpc) {
+      setEditableNpc({
+        ...editableNpc,
+        stats: newStats
+      });
+    }
+  };
+
+  /**
+   * Handle name change
+   */
+  const handleNameChange = (value: string | number) => {
+    if (editableNpc) {
+      setEditableNpc({
+        ...editableNpc,
+        name: String(value)
+      });
+    }
+  };
+
+  /**
+   * Handle occupation change
+   */
+  const handleOccupationChange = (value: string | number) => {
+    if (editableNpc) {
+      setEditableNpc({
+        ...editableNpc,
+        occupation: String(value)
+      });
+    }
+  };
+
+  /**
+   * Handle background change
+   */
+  const handleBackgroundChange = (value: string | number) => {
+    if (editableNpc) {
+      setEditableNpc({
+        ...editableNpc,
+        background: String(value)
+      });
     }
   };
 
@@ -238,7 +284,7 @@ export const NpcGeneratorPage: React.FC<NpcGeneratorPageProps> = ({ onBack }) =>
       gameSystemId={activeCampaign?.gameSystemId}
       hideCampaignSelector={false}
     >
-      <div className="flex flex-col lg:flex-row gap-8 h-full font-mono">
+      <div className="flex flex-col md:flex-row gap-8 md:h-full font-mono">
         {/* Form Panel */}
         <div className="flex-1 flex flex-col gap-6 overflow-y-auto pr-2">
           <div className="space-y-6">
@@ -320,7 +366,7 @@ export const NpcGeneratorPage: React.FC<NpcGeneratorPageProps> = ({ onBack }) =>
             </Button>
             <Button
               onClick={handleSave}
-              disabled={!generatedNpc || isSaving || isGenerating || !activeCampaignId}
+              disabled={!editableNpc || isSaving || isGenerating || !activeCampaignId}
               variant="primary"
               size="lg"
               isLoading={isSaving}
@@ -332,11 +378,13 @@ export const NpcGeneratorPage: React.FC<NpcGeneratorPageProps> = ({ onBack }) =>
         </div>
 
         {/* Preview Panel */}
-        <div className="flex-1 flex flex-col gap-4 overflow-y-auto">
-          <div className="relative w-full aspect-square border border-primary/30 bg-black p-1 flex flex-col overflow-hidden clip-tech-br group">
+        <div className="flex-1 flex flex-col gap-4">
+          {/* Scrollable content */}
+          <div className="flex-1 overflow-y-auto flex flex-col gap-4">
+            <div className="relative w-full h-64 md:h-[500px] border border-primary/30 bg-black p-1 flex flex-col clip-tech-br group">
             <div className="relative flex-1 bg-black overflow-hidden flex items-center justify-center">
               <img 
-                className={`w-full h-full object-cover transition-all duration-1000 ${isGenerating ? 'opacity-10 scale-110 blur-sm' : 'opacity-80 scale-100'} grayscale brightness-90`} 
+                className={`w-full h-full object-cover object-[center_25%] transition-all duration-1000 ${isGenerating ? 'opacity-10 scale-110 blur-sm' : 'opacity-80 scale-100'} grayscale brightness-90`} 
                 src={npcImage} 
                 alt="NPC Preview"
               />
@@ -350,30 +398,68 @@ export const NpcGeneratorPage: React.FC<NpcGeneratorPageProps> = ({ onBack }) =>
               )}
               <div className="absolute inset-0 pointer-events-none border border-primary/5 opacity-30"></div>
             </div>
-            <div className={`absolute bottom-0 left-0 right-0 z-10 bg-black/80 p-3 border-t border-primary/40 backdrop-blur-sm transition-transform duration-500 ${generatedNpc ? 'translate-y-0' : 'translate-y-full'}`}>
-              <p className="font-bold text-primary text-sm uppercase mb-1">{generatedNpc?.name}</p>
-              <p className="text-[8px] text-white/60 uppercase mb-1">{generatedNpc?.occupation}</p>
-              <p className="text-[9px] text-white/80 leading-tight font-mono">{generatedNpc?.background}</p>
+<div className={`absolute bottom-0 left-0 right-0 z-10 bg-black/80 p-3 border-t border-primary/40 backdrop-blur-sm transition-transform duration-500 ${editableNpc ? 'translate-y-0' : 'translate-y-full'}`}>
+              <EditableField
+                value={editableNpc?.name || ''}
+                label="Nombre"
+                variant="primary"
+                onChange={handleNameChange}
+                disabled={!editableNpc}
+                className="font-bold"
+              />
             </div>
-            {!generatedNpc && !isGenerating && (
+            {!editableNpc && !isGenerating && (
               <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
                 <span className="text-primary/20 text-[10px] tracking-[0.5em] uppercase font-bold">Sin Datos</span>
               </div>
             )}
           </div>
 
-          {/* Log Panel */}
-          <TerminalLog logs={logs} maxLogs={6} className="h-24" />
+          {/* Details Section - Below image, above stats */}
+          {editableNpc && (
+            <div className="space-y-2">
+              {editableNpc.occupation && (
+                <div className="bg-surface-dark/50 border border-primary/20 p-2">
+                  <EditableField
+                    value={editableNpc.occupation}
+                    label="Ocupación"
+                    variant="primary"
+                    onChange={handleOccupationChange}
+                    disabled={!editableNpc}
+                  />
+                </div>
+              )}
+              {editableNpc.background && (
+                <div className="bg-surface-dark/50 border border-primary/20 p-2">
+                  <EditableField
+                    value={editableNpc.background}
+                    label="Background"
+                    type="textarea"
+                    rows={2}
+                    variant="primary"
+                    onChange={handleBackgroundChange}
+                    disabled={!editableNpc}
+                  />
+                </div>
+              )}
+            </div>
+          )}
 
           {/* Stats Panel - Dynamic based on game system */}
-          <DynamicStatsPanel 
-            stats={generatedNpc?.stats} 
+          <EditableStatsPanel 
+            stats={editableNpc?.stats || null}
+            onStatsChange={handleStatsChange}
             variant="primary"
             maxColumns={3}
             showProgressBar={true}
             maxProgressValue={10}
             fieldDefinitions={fieldDefinitions}
+            disabled={!editableNpc}
           />
+          </div>
+
+          {/* Log Panel - Fixed at bottom */}
+          <TerminalLog logs={logs} maxLogs={6} className="h-24 shrink-0" />
         </div>
       </div>
     </TerminalLayout>

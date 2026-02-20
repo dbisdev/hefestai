@@ -7,7 +7,7 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { TerminalLayout } from '@shared/components/layout';
-import { Button, ImageSourceSelector, DynamicStatsPanel, TerminalLog } from '@shared/components/ui';
+import { Button, ImageSourceSelector, DynamicStatsPanel, TerminalLog, EditableField, EditableStatsPanel } from '@shared/components/ui';
 import type { ImageSourceMode } from '@shared/components/ui';
 import { useTerminalLog } from '@core/hooks/useTerminalLog';
 import { aiService, entityService, entityTemplateService } from '@core/services/api';
@@ -71,9 +71,11 @@ export const EnemyGeneratorPage: React.FC<EnemyGeneratorPageProps> = ({ onBack }
       '> Awaiting threat parameters...'
     ]
   });
-  const [isGenerating, setIsGenerating] = useState(false);
+const [isGenerating, setIsGenerating] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
   const [generatedEnemy, setGeneratedEnemy] = useState<EnemyData | null>(null);
+  /** Editable enemy data for inline editing before saving */
+  const [editableEnemy, setEditableEnemy] = useState<EnemyData | null>(null);
   const [enemyImage, setEnemyImage] = useState<string>(UNKNOWN_ENEMY_IMAGE);
   /** Stores the generation request ID to link entity to generation history when saving */
   const [generationRequestId, setGenerationRequestId] = useState<string | undefined>();
@@ -145,8 +147,9 @@ export const EnemyGeneratorPage: React.FC<EnemyGeneratorPageProps> = ({ onBack }
         generateImage: shouldGenerateImage
       });
 
-      const enemyData = parseJsonResponse<EnemyData>(result.enemyJson);
+const enemyData = parseJsonResponse<EnemyData>(result.enemyJson);
       setGeneratedEnemy(enemyData);
+      setEditableEnemy(enemyData);
       setGenerationRequestId(result.generationRequestId);
       addLog(`AMENAZA IDENTIFICADA: ${enemyData.name.toUpperCase()}`);
 
@@ -183,37 +186,32 @@ export const EnemyGeneratorPage: React.FC<EnemyGeneratorPageProps> = ({ onBack }
     }
   };
 
-  /**
-   * Saves the generated enemy to the entity service using campaign-scoped endpoint
-   */
+/**
+    * Saves the generated enemy to the entity service using campaign-scoped endpoint
+    */
   const handleSave = async () => {
-    if (!generatedEnemy || !activeCampaignId) return;
+    if (!editableEnemy || !activeCampaignId) return;
     setIsSaving(true);
     addLog('ARCHIVANDO AMENAZA...');
     
     try {
-      // Flatten stats into attributes to match template field definitions
-      // Form fields go into metadata for reference
       await entityService.create(activeCampaignId, {
         entityType: 'enemy',
-        name: generatedEnemy.name,
-        description: generatedEnemy.abilities,
+        name: editableEnemy.name,
+        description: editableEnemy.abilities,
         imageUrl: enemyImage !== UNKNOWN_ENEMY_IMAGE ? enemyImage : undefined,
         attributes: {
-          // Spread AI-generated stats directly as top-level attributes
-          // These should match the template field definitions
-          ...generatedEnemy.stats
+          ...editableEnemy.stats
         },
         metadata: {
           generatedAt: new Date().toISOString(),
           generator: 'enemy_generator',
-          // Store generation parameters for reference
           generationParams: {
-            species: generatedEnemy.species || form.species,
+            species: editableEnemy.species || form.species,
             threatLevel: form.threatLevel,
             behavior: form.behavior,
             environment: form.environment,
-            weakness: generatedEnemy.weakness
+            weakness: editableEnemy.weakness
           }
         },
         generationRequestId
@@ -225,6 +223,66 @@ export const EnemyGeneratorPage: React.FC<EnemyGeneratorPageProps> = ({ onBack }
       addLog(`DB_WRITE_ERROR: ${message}`);
     } finally {
       setIsSaving(false);
+}
+  };
+
+  /**
+   * Handle stats changes from EditableStatsPanel
+   */
+  const handleStatsChange = (newStats: Record<string, unknown>) => {
+    if (editableEnemy) {
+      setEditableEnemy({
+        ...editableEnemy,
+        stats: newStats
+      });
+    }
+  };
+
+  /**
+   * Handle name change
+   */
+  const handleNameChange = (value: string | number) => {
+    if (editableEnemy) {
+      setEditableEnemy({
+        ...editableEnemy,
+        name: String(value)
+      });
+    }
+  };
+
+  /**
+   * Handle species change
+   */
+  const handleSpeciesChange = (value: string | number) => {
+    if (editableEnemy) {
+      setEditableEnemy({
+        ...editableEnemy,
+        species: String(value)
+      });
+    }
+  };
+
+  /**
+   * Handle abilities change
+   */
+  const handleAbilitiesChange = (value: string | number) => {
+    if (editableEnemy) {
+      setEditableEnemy({
+        ...editableEnemy,
+        abilities: String(value)
+      });
+    }
+  };
+
+  /**
+   * Handle weakness change
+   */
+  const handleWeaknessChange = (value: string | number) => {
+    if (editableEnemy) {
+      setEditableEnemy({
+        ...editableEnemy,
+        weakness: String(value)
+      });
     }
   };
 
@@ -244,7 +302,7 @@ export const EnemyGeneratorPage: React.FC<EnemyGeneratorPageProps> = ({ onBack }
       gameSystemId={activeCampaign?.gameSystemId}
       hideCampaignSelector={false}
     >
-      <div className="flex flex-col lg:flex-row gap-8 h-full font-mono">
+      <div className="flex flex-col md:flex-row gap-8 md:h-full font-mono">
         {/* Form Panel */}
         <div className="flex-1 flex flex-col gap-6 overflow-y-auto pr-2">
           <div className="space-y-6">
@@ -333,7 +391,7 @@ export const EnemyGeneratorPage: React.FC<EnemyGeneratorPageProps> = ({ onBack }
             </Button>
             <Button
               onClick={handleSave}
-              disabled={!generatedEnemy || isSaving || isGenerating || !activeCampaignId}
+              disabled={!editableEnemy || isSaving || isGenerating || !activeCampaignId}
               variant="primary"
               size="lg"
               isLoading={isSaving}
@@ -345,11 +403,13 @@ export const EnemyGeneratorPage: React.FC<EnemyGeneratorPageProps> = ({ onBack }
         </div>
 
         {/* Preview Panel */}
-        <div className="flex-1 flex flex-col gap-4 overflow-y-auto">
-          <div className="relative w-full aspect-square border border-danger/30 bg-black p-1 flex flex-col overflow-hidden clip-tech-br group">
+        <div className="flex-1 flex flex-col gap-4">
+          {/* Scrollable content */}
+          <div className="flex-1 overflow-y-auto flex flex-col gap-4">
+            <div className="relative w-full h-64 md:h-[500px] border border-danger/30 bg-black p-1 flex flex-col clip-tech-br group">
             <div className="relative flex-1 bg-black overflow-hidden flex items-center justify-center">
               <img 
-                className={`w-full h-full object-cover transition-all duration-1000 ${isGenerating ? 'opacity-10 scale-110 blur-sm' : 'opacity-80 scale-100'} grayscale brightness-75 contrast-125`} 
+                className={`w-full h-full object-cover object-[center_25%] transition-all duration-1000 ${isGenerating ? 'opacity-10 scale-110 blur-sm' : 'opacity-80 scale-100'} grayscale brightness-75 contrast-125`} 
                 src={enemyImage} 
                 alt="Enemy Preview"
               />
@@ -363,48 +423,94 @@ export const EnemyGeneratorPage: React.FC<EnemyGeneratorPageProps> = ({ onBack }
               )}
               <div className="absolute inset-0 pointer-events-none border border-danger/5 opacity-30"></div>
               
-              {/* Threat Level Badge */}
-              {generatedEnemy && (
+{/* Threat Level Badge */}
+              {editableEnemy && (
                 <div className={`absolute top-2 right-2 px-2 py-1 bg-black/80 border border-current text-[8px] font-bold uppercase ${getThreatColor()}`}>
                   {form.threatLevel}
                 </div>
               )}
             </div>
-            <div className={`absolute bottom-0 left-0 right-0 z-10 bg-black/80 p-3 border-t border-danger/40 backdrop-blur-sm transition-transform duration-500 ${generatedEnemy ? 'translate-y-0' : 'translate-y-full'}`}>
-              <p className="font-bold text-danger text-sm uppercase mb-1">{generatedEnemy?.name}</p>
-              <p className="text-[8px] text-white/60 uppercase mb-1">{generatedEnemy?.species}</p>
-              <p className="text-[9px] text-white/80 leading-tight font-mono">{generatedEnemy?.abilities}</p>
+            <div className={`absolute bottom-0 left-0 right-0 z-10 bg-black/80 p-3 border-t border-danger/40 backdrop-blur-sm transition-transform duration-500 ${editableEnemy ? 'translate-y-0' : 'translate-y-full'}`}>
+              <EditableField
+                value={editableEnemy?.name || ''}
+                label="Nombre"
+                variant="danger"
+                onChange={handleNameChange}
+                disabled={!editableEnemy}
+                className="font-bold"
+              />
             </div>
-            {!generatedEnemy && !isGenerating && (
+            {!editableEnemy && !isGenerating && (
               <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
                 <span className="text-danger/20 text-[10px] tracking-[0.5em] uppercase font-bold">Sin Datos</span>
               </div>
             )}
           </div>
 
+          {/* Details Section - Below image, above stats */}
+          {editableEnemy && (
+            <div className="space-y-2">
+              {editableEnemy.species && (
+                <div className="bg-surface-dark/50 border border-danger/20 p-2">
+                  <EditableField
+                    value={editableEnemy.species}
+                    label="Especie"
+                    variant="danger"
+                    onChange={handleSpeciesChange}
+                    disabled={!editableEnemy}
+                  />
+                </div>
+              )}
+              {editableEnemy.abilities && (
+                <div className="bg-surface-dark/50 border border-danger/20 p-2">
+                  <EditableField
+                    value={editableEnemy.abilities}
+                    label="Habilidades"
+                    type="textarea"
+                    rows={2}
+                    variant="danger"
+                    onChange={handleAbilitiesChange}
+                    disabled={!editableEnemy}
+                  />
+                </div>
+              )}
+            </div>
+          )}
+
           {/* Log Panel */}
           <TerminalLog logs={logs} maxLogs={6} className="h-24" />
 
           {/* Stats Panel - Dynamic based on game system */}
-          <DynamicStatsPanel 
-            stats={generatedEnemy?.stats} 
+          <EditableStatsPanel 
+            stats={editableEnemy?.stats || null}
+            onStatsChange={handleStatsChange}
             variant="danger"
             maxColumns={4}
             showProgressBar={true}
             maxProgressValue={100}
             fieldDefinitions={fieldDefinitions}
+            disabled={!editableEnemy}
           />
 
           {/* Weakness Display */}
-          {generatedEnemy?.weakness && (
-            <div className="bg-black/60 border border-yellow-500/30 p-3">
-              <p className="text-[8px] text-yellow-500/60 uppercase tracking-widest mb-1">
-                <span className="material-icons text-sm align-middle mr-1">tips_and_updates</span>
-                Debilidad Detectada
-              </p>
-              <p className="text-[10px] text-yellow-500/80">{generatedEnemy.weakness}</p>
-            </div>
-          )}
+          <div className="bg-black/60 border border-yellow-500/30 p-3">
+            <p className="text-[8px] text-yellow-500/60 uppercase tracking-widest mb-1">
+              <span className="material-icons text-sm align-middle mr-1">tips_and_updates</span>
+              Debilidad Detectada
+            </p>
+            <EditableField
+              value={editableEnemy?.weakness || ''}
+              variant="warning"
+              onChange={handleWeaknessChange}
+              type="textarea"
+              rows={2}
+              disabled={!editableEnemy}
+            />
+          </div>
+          </div>
+
+          {/* Log Panel - Fixed at bottom */}
+          <TerminalLog logs={logs} maxLogs={6} className="h-24 shrink-0" />
         </div>
       </div>
     </TerminalLayout>

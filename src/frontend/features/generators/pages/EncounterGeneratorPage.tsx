@@ -7,7 +7,7 @@
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { TerminalLayout } from '@shared/components/layout';
-import { Button, ImageSourceSelector } from '@shared/components/ui';
+import { Button, ImageSourceSelector, EditableField } from '@shared/components/ui';
 import type { ImageSourceMode } from '@shared/components/ui';
 import { aiService, entityService } from '@core/services/api';
 import { useCampaign } from '@core/context';
@@ -81,9 +81,11 @@ export const EncounterGeneratorPage: React.FC<EncounterGeneratorPageProps> = ({ 
     '> [SUCCESS] Combat analyzer loaded.',
     '> Awaiting encounter parameters...'
   ]);
-  const [isGenerating, setIsGenerating] = useState(false);
+const [isGenerating, setIsGenerating] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
   const [generatedEncounter, setGeneratedEncounter] = useState<EncounterData | null>(null);
+  /** Editable encounter data for inline editing before saving */
+  const [editableEncounter, setEditableEncounter] = useState<EncounterData | null>(null);
   const [encounterImage, setEncounterImage] = useState<string>(ENCOUNTER_PLACEHOLDER_IMAGE);
   /** Stores the generation request ID to link entity to generation history when saving */
   const [generationRequestId, setGenerationRequestId] = useState<string | undefined>();
@@ -134,8 +136,9 @@ export const EncounterGeneratorPage: React.FC<EncounterGeneratorPageProps> = ({ 
         generateImage: shouldGenerateImage
       });
 
-      const encounterData = parseJsonResponse<EncounterData>(result.encounterJson);
+const encounterData = parseJsonResponse<EncounterData>(result.encounterJson);
       setGeneratedEncounter(encounterData);
+      setEditableEncounter(encounterData);
       setGenerationRequestId(result.generationRequestId);
       addLog(`ENCUENTRO GENERADO: ${encounterData.name.toUpperCase()}`);
 
@@ -172,28 +175,28 @@ export const EncounterGeneratorPage: React.FC<EncounterGeneratorPageProps> = ({ 
     }
   };
 
-  /**
-   * Saves the generated encounter to the entity service using campaign-scoped endpoint
-   * Maps AI response fields to entity attributes
-   */
+/**
+    * Saves the generated encounter to the entity service using campaign-scoped endpoint
+    * Maps AI response fields to entity attributes
+    */
   const handleSave = async () => {
-    if (!generatedEncounter || !activeCampaignId) return;
+    if (!editableEncounter || !activeCampaignId) return;
     setIsSaving(true);
     addLog('ARCHIVANDO ENCUENTRO...');
     
     try {
       await entityService.create(activeCampaignId, {
         entityType: 'encounter',
-        name: generatedEncounter.name,
-        description: generatedEncounter.description,
+        name: editableEncounter.name,
+        description: editableEncounter.description,
         imageUrl: encounterImage !== ENCOUNTER_PLACEHOLDER_IMAGE ? encounterImage : undefined,
         attributes: {
           encounterType: form.encounterType,
-          difficulty: generatedEncounter.stats?.difficulty ?? form.difficulty,
-          environment: generatedEncounter.stats?.environment ?? form.environment,
+          difficulty: editableEncounter.stats?.difficulty ?? form.difficulty,
+          environment: editableEncounter.stats?.environment ?? form.environment,
           enemyCount: form.enemyCount,
-          participants: generatedEncounter.stats?.participants,
-          loot: generatedEncounter.stats?.loot
+          participants: editableEncounter.stats?.participants,
+          loot: editableEncounter.stats?.loot
         },
         metadata: {
           generatedAt: new Date().toISOString(),
@@ -208,6 +211,45 @@ export const EncounterGeneratorPage: React.FC<EncounterGeneratorPageProps> = ({ 
       addLog(`DB_WRITE_ERROR: ${message}`);
     } finally {
       setIsSaving(false);
+}
+  };
+
+  /**
+   * Handle name change
+   */
+  const handleNameChange = (value: string | number) => {
+    if (editableEncounter) {
+      setEditableEncounter({
+        ...editableEncounter,
+        name: String(value)
+      });
+    }
+  };
+
+  /**
+   * Handle description change
+   */
+  const handleDescriptionChange = (value: string | number) => {
+    if (editableEncounter) {
+      setEditableEncounter({
+        ...editableEncounter,
+        description: String(value)
+      });
+    }
+  };
+
+  /**
+   * Handle stats changes (environment, difficulty, loot, etc.)
+   */
+  const handleStatsChange = (key: string, value: string | number) => {
+    if (editableEncounter) {
+      setEditableEncounter({
+        ...editableEncounter,
+        stats: {
+          ...editableEncounter.stats,
+          [key]: value
+        }
+      });
     }
   };
 
@@ -336,7 +378,7 @@ export const EncounterGeneratorPage: React.FC<EncounterGeneratorPageProps> = ({ 
             </Button>
             <Button
               onClick={handleSave}
-              disabled={!generatedEncounter || isSaving || isGenerating || !activeCampaignId}
+              disabled={!editableEncounter || isSaving || isGenerating || !activeCampaignId}
               variant="primary"
               size="lg"
               isLoading={isSaving}
@@ -348,24 +390,33 @@ export const EncounterGeneratorPage: React.FC<EncounterGeneratorPageProps> = ({ 
         </div>
 
         {/* Preview Panel - Tactical Display Style */}
-        <div className="flex-1 flex flex-col gap-4 overflow-y-auto">
-          {/* Encounter Header */}
-          <div className={`border border-primary/30 bg-black p-4 transition-all ${generatedEncounter ? 'border-primary' : ''}`}>
+        <div className="flex-1 flex flex-col gap-4">
+          {/* Scrollable content */}
+          <div className="flex-1 overflow-y-auto flex flex-col gap-4">
+{/* Encounter Header */}
+          <div className={`border border-primary/30 bg-black p-4 transition-all ${editableEncounter ? 'border-primary' : ''}`}>
             <div className="flex items-center justify-between mb-3">
               <div className="flex items-center gap-2">
                 <span className="material-icons text-primary text-xl">swords</span>
                 <span className="text-[10px] text-primary/60 uppercase tracking-widest">Simulacion Tactica</span>
               </div>
-              {generatedEncounter && (
+              {editableEncounter && (
                 <div className={`px-2 py-1 border text-[8px] font-bold uppercase ${getDifficultyInfo().color} border-current`}>
                   {getDifficultyInfo().label}
                 </div>
               )}
             </div>
             
-            {generatedEncounter ? (
+            {editableEncounter ? (
               <div className="space-y-3">
-                <h2 className="text-xl text-primary font-display uppercase text-glow">{generatedEncounter.name}</h2>
+                <EditableField
+                  value={editableEncounter.name}
+                  label="Nombre del Encuentro"
+                  variant="primary"
+                  onChange={handleNameChange}
+                  className="text-xl font-display uppercase text-glow"
+                  disabled={!editableEncounter}
+                />
                 <div className="h-0.5 bg-gradient-to-r from-primary via-primary/20 to-transparent"></div>
               </div>
             ) : (
@@ -378,37 +429,48 @@ export const EncounterGeneratorPage: React.FC<EncounterGeneratorPageProps> = ({ 
           </div>
 
           {/* Encounter Details */}
-          {generatedEncounter && (
+          {editableEncounter && (
             <>
               {/* Description Section */}
-              {generatedEncounter.description && (
+              {editableEncounter.description && (
                 <div className="bg-surface-dark/50 border border-primary/20 p-4">
                   <p className="text-[9px] text-primary/40 uppercase tracking-widest mb-2 flex items-center gap-1">
                     <span className="material-icons text-xs">description</span> Descripcion
                   </p>
-                  <p className="text-[11px] text-white/80 leading-relaxed">{generatedEncounter.description}</p>
+                  <EditableField
+                    value={editableEncounter.description}
+                    type="textarea"
+                    rows={3}
+                    variant="primary"
+                    onChange={handleDescriptionChange}
+                    disabled={!editableEncounter}
+                  />
                 </div>
               )}
 
               {/* Environment Section */}
-              {generatedEncounter.stats?.environment && (
+              {editableEncounter.stats?.environment && (
                 <div className="bg-black/60 border border-blue-500/30 p-4">
                   <p className="text-[9px] text-blue-500/60 uppercase tracking-widest mb-2 flex items-center gap-1">
                     <span className="material-icons text-xs">terrain</span> Entorno
                   </p>
-                  <p className="text-[11px] text-blue-500/90">{generatedEncounter.stats.environment}</p>
+                  <EditableField
+                    value={editableEncounter.stats.environment}
+                    variant="primary"
+                    onChange={(val) => handleStatsChange('environment', val)}
+                    disabled={!editableEncounter}
+                  />
                 </div>
               )}
 
               {/* Participants Section */}
-              {generatedEncounter.stats?.participants && generatedEncounter.stats.participants.length > 0 && (
+              {editableEncounter.stats?.participants && editableEncounter.stats.participants.length > 0 && (
                 <div className="bg-surface-dark border border-danger/20 p-4">
                   <p className="text-[9px] text-danger/60 uppercase tracking-widest mb-2 flex items-center gap-1">
                     <span className="material-icons text-xs">groups</span> Participantes
                   </p>
                   <div className="flex flex-wrap gap-2">
-                    {generatedEncounter.stats.participants.map((participant, idx) => {
-                      // Handle both string and object formats
+                    {editableEncounter.stats.participants.map((participant, idx) => {
                       const displayText = typeof participant === 'string' 
                         ? participant 
                         : `${participant.type ?? 'Unknown'}${participant.count ? ` x${participant.count}` : ''}`;
@@ -424,24 +486,35 @@ export const EncounterGeneratorPage: React.FC<EncounterGeneratorPageProps> = ({ 
 
               {/* Info Grid */}
               <div className="grid grid-cols-2 gap-3">
-                {generatedEncounter.stats?.loot && (
+                {editableEncounter.stats?.loot && (
                   <div className="bg-black/60 border border-yellow-500/30 p-3">
                     <p className="text-[8px] text-yellow-500/60 uppercase tracking-widest mb-1">Botin Potencial</p>
-                    <p className="text-[10px] text-yellow-500/90">{generatedEncounter.stats.loot}</p>
+                    <EditableField
+                      value={editableEncounter.stats.loot}
+                      variant="warning"
+                      onChange={(val) => handleStatsChange('loot', val)}
+                      disabled={!editableEncounter}
+                    />
                   </div>
                 )}
-                {generatedEncounter.stats?.difficulty && (
+                {editableEncounter.stats?.difficulty && (
                   <div className="bg-surface-dark border border-primary/20 p-3">
                     <p className="text-[8px] text-primary/40 uppercase tracking-widest mb-1">Dificultad IA</p>
-                    <p className="text-[10px] text-primary">{generatedEncounter.stats.difficulty}</p>
+                    <EditableField
+                      value={editableEncounter.stats.difficulty}
+                      variant="primary"
+                      onChange={(val) => handleStatsChange('difficulty', val)}
+                      disabled={!editableEncounter}
+                    />
                   </div>
                 )}
               </div>
             </>
           )}
+          </div>
 
-          {/* Log Panel */}
-          <div className="mt-auto h-24 bg-black/80 border border-primary/20 p-3 text-[10px] text-primary/80 overflow-y-auto font-mono scrollbar-hide">
+          {/* Log Panel - Fixed at bottom */}
+          <div className="h-24 bg-black/80 border border-primary/20 p-3 text-[10px] text-primary/80 overflow-y-auto font-mono scrollbar-hide shrink-0">
             {logs.map((log, i) => <p key={i} className={i === logs.length - 1 ? "text-primary font-bold" : "opacity-60"}>{log}</p>)}
           </div>
         </div>

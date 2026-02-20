@@ -36,10 +36,15 @@ type CategoryInfo = {
 const ENTITY_CATEGORIES: CategoryInfo[] = [  
   { id: 'character', label: 'PERSONAJES', icon: 'face' },
   { id: 'npc', label: 'ACTORES', icon: 'groups' },
-  { id: 'enemy', label: 'ENEMIGOS', icon: 'pest_control' },
+  // { id: 'enemy', label: 'ENEMIGOS', icon: 'pest_control' },
   { id: 'vehicle', label: 'VEHÍCULOS', icon: 'rocket_launch' },
   { id: 'mission', label: 'MISIONES', icon: 'assignment' },
   { id: 'encounter', label: 'ENCUENTROS', icon: 'pest_control' },
+  // { id: 'solar_system', label: 'SISTEMAS SOLARES', icon: 'public' },
+];
+
+
+const ENTITY_CATEGORIES_LABS: CategoryInfo[] = [  
   { id: 'solar_system', label: 'SISTEMAS SOLARES', icon: 'public' },
 ];
 
@@ -268,7 +273,7 @@ export const GalleryPage: React.FC = () => {
     setActiveCategory(newCat);
     
     // Announce category change to screen readers
-    const categoryLabel = ENTITY_CATEGORIES.find(c => c.id === newCat)?.label || newCat;
+    const categoryLabel = ENTITY_CATEGORIES.find(c => c.id === newCat)?.label || ENTITY_CATEGORIES_LABS.find(c => c.id === newCat)?.label || newCat;
     announce(`Cambiando a categoría ${categoryLabel}`);
     
     setTimeout(() => {
@@ -899,7 +904,7 @@ export const GalleryPage: React.FC = () => {
               aria-label="Categorías de entidades"
               className="flex flex-col gap-2"
             >
-              <div className="p-1 border border-primary/50 text-[10px] text-primary text-center uppercase mb-2 bg-primary/5 font-bold tracking-[0.2em]">
+              <div className="p-1 border border-primary/50 text-[10px] text-primary text-center uppercase mb-0 bg-primary/5 font-bold tracking-[0.2em]">
                 <span className="hidden md:inline">:: GENERADORES ::</span>
                 <span className="md:hidden xs:inline">:: GEN.AI ::</span>
               </div>
@@ -931,11 +936,44 @@ export const GalleryPage: React.FC = () => {
                   )}
                 </button>
               ))}
+              
+              <div className="p-1 border border-cyan-500/50 text-[10px] text-cyan-500 text-center uppercase mt-2 mb-0 bg-cyan-500/5 font-bold tracking-[0.2em]">
+                <span className="hidden md:inline">:: Experimental ::</span>
+                <span className="md:hidden xs:inline">:: LABS.AI ::</span>
+              </div>
+              {ENTITY_CATEGORIES_LABS.map((cat, index) => (
+                <button
+                  key={cat.id}
+                  role="tab"
+                  aria-selected={activeCategory === cat.id}
+                  aria-controls="entity-grid"
+                  tabIndex={activeCategory === cat.id ? 0 : -1}
+                  onClick={() => handleCategoryChange(cat.id)}
+                  onKeyDown={(e) => handleCategoryKeyDown(e, index)}
+                  disabled={transitionStatus !== 'idle' || !activeCampaignId}
+                  className={`group flex items-center gap-3 p-3 border transition-all clip-tech-tl relative overflow-hidden ${
+                    activeCategory === cat.id 
+                      ? 'border-l-4 border-l-cyan-500 border-y-cyan-500/30 border-r-cyan-500/30 bg-cyan-500/20 shadow-[inset_0_0_15px_rgba(37,244,106,0.1)]' 
+                      : 'border-cyan-500/30 hover:border-cyan-500 hover:bg-cyan-500/5 bg-surface-dark disabled:opacity-50'
+                  }`}
+                >
+                  {activeCategory === cat.id && (
+                    <div className="absolute inset-0 bg-cyan-500/5 animate-pulse pointer-events-none"></div>
+                  )}
+                  <span className={`material-icons text-xl ${activeCategory === cat.id ? 'text-cyan-500' : 'text-cyan-500/60'}`}>{cat.icon}</span>
+                  <span className={`hidden md:inline text-xs font-bold tracking-widest ${activeCategory === cat.id ? 'text-cyan-500 text-glow' : 'text-cyan-500/70'}`}>
+                    {cat.label}
+                  </span>
+                  {activeCategory === cat.id && (
+                    <div className="absolute right-2 top-1/2 -translate-y-1/2 w-1 h-1 bg-cyan-500 rounded-full animate-ping"></div>
+                  )}
+                </button>
+              ))}
             </nav>
           )}
 
           {/* Generators Section - Master users only, when templates are available */}
-          {isMaster && user?.role !== 'ADMIN' && confirmedTemplates.length > 0 && (
+          {/* {isMaster && user?.role !== 'ADMIN' && confirmedTemplates.length > 0 && (
             <nav 
               aria-label="Generadores de entidades"
               className="flex flex-col gap-2"
@@ -976,7 +1014,7 @@ export const GalleryPage: React.FC = () => {
                 })
               )}
             </nav>
-          )}
+          )} */}
 
           {/* Admin Section (Admin only) */}
           {user?.role === 'ADMIN' && (
@@ -1121,7 +1159,7 @@ export const GalleryPage: React.FC = () => {
                 ref={entityGridRef}
               id="entity-grid"
               role="grid"
-              aria-label={`Entidades de tipo ${ENTITY_CATEGORIES.find(c => c.id === displayCategory)?.label || displayCategory}`}
+              aria-label={`Entidades de tipo ${ENTITY_CATEGORIES.find(c => c.id === displayCategory)?.label || ENTITY_CATEGORIES_LABS.find(c => c.id === displayCategory)?.label || displayCategory}`}
               tabIndex={0}
               onKeyDown={handleEntityGridKeyDown}
               className={`grid grid-cols-1 md:grid-cols-2 lg:grid-cols-2 xl:grid-cols-3 gap-6 pb-8 transition-all duration-300 ${
@@ -1247,7 +1285,7 @@ const EntityCard: React.FC<EntityCardProps> = ({ entity, selected, currentUserId
         <img 
           src={imageUrl} 
           alt={entity.name} 
-          className="w-full h-full object-cover grayscale brightness-50 group-hover:grayscale-0 group-hover:brightness-100 transition-all duration-500" 
+          className="w-full h-full object-cover object-[center_25%] grayscale brightness-50 group-hover:grayscale-0 group-hover:brightness-100 transition-all duration-500" 
         />
         <div className="absolute inset-0 bg-primary/5 mix-blend-overlay group-hover:bg-transparent transition-colors"></div>
         

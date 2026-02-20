@@ -7,7 +7,7 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { TerminalLayout } from '@shared/components/layout';
-import { Button, ImageSourceSelector, DynamicStatsPanel, TerminalLog } from '@shared/components/ui';
+import { Button, ImageSourceSelector, DynamicStatsPanel, TerminalLog, EditableField, EditableStatsPanel } from '@shared/components/ui';
 import type { ImageSourceMode } from '@shared/components/ui';
 import { aiService, entityService, entityTemplateService } from '@core/services/api';
 import { useCampaign, useAuth } from '@core/context';
@@ -56,9 +56,11 @@ export const CharacterGeneratorPage: React.FC<CharacterGeneratorPageProps> = ({ 
     ]
   });
   
-  const [isGenerating, setIsGenerating] = useState(false);
+const [isGenerating, setIsGenerating] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
   const [generatedChar, setGeneratedChar] = useState<CharacterData | null>(null);
+  /** Editable character data for inline editing before saving */
+  const [editableChar, setEditableChar] = useState<CharacterData | null>(null);
   const [charImage, setCharImage] = useState<string>(UNKNOWN_CHAR_IMAGE);
   /** Stores the generation request ID to link entity to generation history when saving */
   const [generationRequestId, setGenerationRequestId] = useState<string | undefined>();
@@ -130,8 +132,9 @@ export const CharacterGeneratorPage: React.FC<CharacterGeneratorPageProps> = ({ 
         generateImage: shouldGenerateImage
       });
 
-      const charData = parseJsonResponse<CharacterData>(result.characterJson);
+const charData = parseJsonResponse<CharacterData>(result.characterJson);
       setGeneratedChar(charData);
+      setEditableChar(charData);
       setGenerationRequestId(result.generationRequestId);
       addLog(`DATA RECEIVED: ${charData.name.toUpperCase()}`);
 
@@ -171,8 +174,8 @@ export const CharacterGeneratorPage: React.FC<CharacterGeneratorPageProps> = ({ 
   /**
    * Saves the generated character to the active campaign
    */
-  const handleSave = async () => {
-    if (!generatedChar) return;
+const handleSave = async () => {
+    if (!editableChar) return;
     
     if (!activeCampaignId) {
       addLog('ERROR: NO CAMPAIGN SELECTED');
@@ -183,17 +186,14 @@ export const CharacterGeneratorPage: React.FC<CharacterGeneratorPageProps> = ({ 
     addLog('WRITING TO PERSISTENT STORAGE...');
     
     try {
-      // Flatten stats into attributes to match template field definitions
-      // Form fields (species, role, morphology) go into metadata for reference
+      // Use editableChar for the saved data (includes any user edits)
       await entityService.create(activeCampaignId, {
         entityType: 'character',
-        name: generatedChar.name,
-        description: generatedChar.bio,
+        name: editableChar.name,
+        description: editableChar.bio,
         imageUrl: charImage !== UNKNOWN_CHAR_IMAGE ? charImage : undefined,
         attributes: {
-          // Spread AI-generated stats directly as top-level attributes
-          // These should match the template field definitions (e.g., STRENGTH, AGILITY, etc.)
-          ...generatedChar.stats
+          ...editableChar.stats
         },
         metadata: {
           generatedAt: new Date().toISOString(),
@@ -214,6 +214,42 @@ export const CharacterGeneratorPage: React.FC<CharacterGeneratorPageProps> = ({ 
       addLog(`DB_WRITE_ERROR: ${message}`);
     } finally {
       setIsSaving(false);
+}
+  };
+
+  /**
+   * Handle stats changes from EditableStatsPanel
+   */
+  const handleStatsChange = (newStats: Record<string, unknown>) => {
+    if (editableChar) {
+      setEditableChar({
+        ...editableChar,
+        stats: newStats
+      });
+    }
+  };
+
+  /**
+   * Handle name change
+   */
+  const handleNameChange = (value: string | number) => {
+    if (editableChar) {
+      setEditableChar({
+        ...editableChar,
+        name: String(value)
+      });
+    }
+  };
+
+  /**
+   * Handle bio change
+   */
+  const handleBioChange = (value: string | number) => {
+    if (editableChar) {
+      setEditableChar({
+        ...editableChar,
+        bio: String(value)
+      });
     }
   };
 
@@ -225,7 +261,7 @@ export const CharacterGeneratorPage: React.FC<CharacterGeneratorPageProps> = ({ 
       gameSystemId={activeCampaign?.gameSystemId}
       hideCampaignSelector={false}
     >
-      <div className="flex flex-col lg:flex-row gap-8 h-full font-mono">
+      <div className="flex flex-col md:flex-row gap-8 md:h-full font-mono">
         {/* Form Panel */}
         <div className="flex-1 flex flex-col gap-6 overflow-y-auto pr-2">
           {/* No Campaign Warning */}
@@ -312,7 +348,7 @@ export const CharacterGeneratorPage: React.FC<CharacterGeneratorPageProps> = ({ 
             </Button>
             <Button
               onClick={handleSave}
-              disabled={!generatedChar || isSaving || isGenerating || !activeCampaignId}
+              disabled={!editableChar || isSaving || isGenerating || !activeCampaignId}
               variant="primary"
               size="lg"
               isLoading={isSaving}
@@ -324,11 +360,13 @@ export const CharacterGeneratorPage: React.FC<CharacterGeneratorPageProps> = ({ 
         </div>
 
         {/* Preview Panel */}
-        <div className="flex-1 flex flex-col gap-4 overflow-y-auto">
-          <div className="relative w-full aspect-square border border-primary/30 bg-black p-1 flex flex-col overflow-hidden clip-tech-br group">
+        <div className="flex-1 flex flex-col gap-4">
+          {/* Scrollable content */}
+          <div className="flex-1 overflow-y-auto flex flex-col gap-4">
+            <div className="relative w-full h-64 md:h-[500px] border border-primary/30 bg-black p-1 flex flex-col clip-tech-br group">
             <div className="relative flex-1 bg-black overflow-hidden flex items-center justify-center">
               <img 
-                className={`w-full h-full object-cover transition-all duration-1000 ${isGenerating ? 'opacity-10 scale-110 blur-sm' : 'opacity-80 scale-100'} grayscale brightness-90`} 
+                className={`w-full h-full object-cover object-[center_25%] transition-all duration-1000 ${isGenerating ? 'opacity-10 scale-110 blur-sm' : 'opacity-80 scale-100'} grayscale brightness-90`} 
                 src={charImage} 
                 alt="Character Preview"
               />
@@ -342,29 +380,54 @@ export const CharacterGeneratorPage: React.FC<CharacterGeneratorPageProps> = ({ 
               )}
               <div className="absolute inset-0 pointer-events-none border border-primary/5 opacity-30"></div>
             </div>
-            <div className={`absolute bottom-0 left-0 right-0 z-10 bg-black/80 p-3 border-t border-primary/40 backdrop-blur-sm transition-transform duration-500 ${generatedChar ? 'translate-y-0' : 'translate-y-full'}`}>
-              <p className="font-bold text-primary text-sm uppercase mb-1">{generatedChar?.name}</p>
-              <p className="text-[9px] text-white/80 leading-tight font-mono">{generatedChar?.bio}</p>
+<div className={`absolute bottom-0 left-0 right-0 z-10 bg-black/80 p-3 border-t border-primary/40 backdrop-blur-sm transition-transform duration-500 ${editableChar ? 'translate-y-0' : 'translate-y-full'}`}>
+              <EditableField
+                value={editableChar?.name || ''}
+                label="Nombre"
+                variant="primary"
+                onChange={handleNameChange}
+                disabled={!editableChar}
+                className="font-bold"
+              />
             </div>
-            {!generatedChar && !isGenerating && (
+            {!editableChar && !isGenerating && (
               <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
                 <span className="text-primary/20 text-[10px] tracking-[0.5em] uppercase font-bold">Sin Datos</span>
               </div>
             )}
           </div>
 
-          {/* Log Panel */}
-          <TerminalLog logs={logs} maxLogs={6} className="h-24" />
+          {/* Bio Section - Below image, above stats */}
+          {editableChar?.bio && (
+            <div className="bg-surface-dark/50 border border-primary/20 p-3">
+              <EditableField
+                value={editableChar.bio}
+                label="Bio"
+                type="textarea"
+                rows={3}
+                variant="primary"
+                onChange={handleBioChange}
+                disabled={!editableChar}
+                className="text-sm"
+              />
+            </div>
+          )}
 
-          {/* Stats Panel - Dynamic based on game system */}
-          <DynamicStatsPanel 
-            stats={generatedChar?.stats} 
+{/* Stats Panel - Dynamic based on game system */}
+          <EditableStatsPanel 
+            stats={editableChar?.stats || null}
+            onStatsChange={handleStatsChange}
             variant="primary"
             maxColumns={3}
             showProgressBar={true}
             maxProgressValue={10}
             fieldDefinitions={fieldDefinitions}
+            disabled={!editableChar}
           />
+          </div>
+
+          {/* Log Panel - Fixed at bottom */}
+          <TerminalLog logs={logs} maxLogs={6} className="h-24 shrink-0" />
         </div>
       </div>
     </TerminalLayout>

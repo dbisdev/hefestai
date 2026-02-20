@@ -8,7 +8,7 @@
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { TerminalLayout } from '@shared/components/layout';
-import { Button, ImageSourceSelector, TerminalLog } from '@shared/components/ui';
+import { Button, ImageSourceSelector, TerminalLog, EditableField } from '@shared/components/ui';
 import type { ImageSourceMode } from '@shared/components/ui';
 import { useTerminalLog } from '@core/hooks/useTerminalLog';
 import { aiService, entityService } from '@core/services/api';
@@ -76,9 +76,11 @@ export const MissionGeneratorPage: React.FC<MissionGeneratorPageProps> = ({ onBa
       '> Awaiting mission parameters...'
     ]
   });
-  const [isGenerating, setIsGenerating] = useState(false);
+const [isGenerating, setIsGenerating] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
   const [generatedMission, setGeneratedMission] = useState<MissionData | null>(null);
+  /** Editable mission data for inline editing before saving */
+  const [editableMission, setEditableMission] = useState<MissionData | null>(null);
   const [missionImage, setMissionImage] = useState<string>(MISSION_PLACEHOLDER_IMAGE);
   /** Stores the generation request ID to link entity to generation history when saving */
   const [generationRequestId, setGenerationRequestId] = useState<string | undefined>();
@@ -122,8 +124,9 @@ export const MissionGeneratorPage: React.FC<MissionGeneratorPageProps> = ({ onBa
         generateImage: shouldGenerateImage
       });
 
-      const missionData = parseJsonResponse<MissionData>(result.missionJson);
+const missionData = parseJsonResponse<MissionData>(result.missionJson);
       setGeneratedMission(missionData);
+      setEditableMission(missionData);
       setGenerationRequestId(result.generationRequestId);
       addLog(`MISION GENERADA: ${missionData.name.toUpperCase()}`);
 
@@ -160,12 +163,12 @@ export const MissionGeneratorPage: React.FC<MissionGeneratorPageProps> = ({ onBa
     }
   };
 
-  /**
-   * Saves the generated mission to the active campaign
-   * Maps AI response fields to entity attributes
-   */
+/**
+    * Saves the generated mission to the active campaign
+    * Maps AI response fields to entity attributes
+    */
   const handleSave = async () => {
-    if (!generatedMission) return;
+    if (!editableMission) return;
     
     if (!activeCampaignId) {
       addLog('ERROR: NO CAMPAIGN SELECTED');
@@ -178,16 +181,16 @@ export const MissionGeneratorPage: React.FC<MissionGeneratorPageProps> = ({ onBa
     try {
       await entityService.create(activeCampaignId, {
         entityType: 'mission',
-        name: generatedMission.name,
-        description: generatedMission.description,
+        name: editableMission.name,
+        description: editableMission.description,
         imageUrl: missionImage !== MISSION_PLACEHOLDER_IMAGE ? missionImage : undefined,
         attributes: {
           missionType: form.missionType.toUpperCase(),
-          difficulty: generatedMission.stats?.difficulty ?? form.difficulty,
+          difficulty: editableMission.stats?.difficulty ?? form.difficulty,
           environment: form.environment,
-          objective: generatedMission.stats?.objective,
-          rewards: generatedMission.stats?.rewards,
-          estimatedDuration: generatedMission.stats?.estimatedDuration
+          objective: editableMission.stats?.objective,
+          rewards: editableMission.stats?.rewards,
+          estimatedDuration: editableMission.stats?.estimatedDuration
         },
         metadata: {
           generatedAt: new Date().toISOString(),
@@ -202,6 +205,45 @@ export const MissionGeneratorPage: React.FC<MissionGeneratorPageProps> = ({ onBa
       addLog(`DB_WRITE_ERROR: ${message}`);
     } finally {
       setIsSaving(false);
+    }
+  };
+
+  /**
+   * Handle name change
+   */
+  const handleNameChange = (value: string | number) => {
+    if (editableMission) {
+      setEditableMission({
+        ...editableMission,
+        name: String(value)
+      });
+    }
+  };
+
+  /**
+   * Handle description change
+   */
+  const handleDescriptionChange = (value: string | number) => {
+    if (editableMission) {
+      setEditableMission({
+        ...editableMission,
+        description: String(value)
+      });
+    }
+  };
+
+  /**
+   * Handle stats changes (objective, rewards, difficulty, etc.)
+   */
+  const handleStatsChange = (key: string, value: string | number) => {
+    if (editableMission) {
+      setEditableMission({
+        ...editableMission,
+        stats: {
+          ...editableMission.stats,
+          [key]: value
+        }
+      });
     }
   };
 
@@ -317,7 +359,7 @@ export const MissionGeneratorPage: React.FC<MissionGeneratorPageProps> = ({ onBa
             </Button>
             <Button
               onClick={handleSave}
-              disabled={!generatedMission || isSaving || isGenerating || !activeCampaignId}
+              disabled={!editableMission || isSaving || isGenerating || !activeCampaignId}
               variant="primary"
               size="lg"
               isLoading={isSaving}
@@ -329,24 +371,33 @@ export const MissionGeneratorPage: React.FC<MissionGeneratorPageProps> = ({ onBa
         </div>
 
         {/* Preview Panel - Mission Briefing Style */}
-        <div className="flex-1 flex flex-col gap-4 overflow-y-auto">
-          {/* Mission Header */}
-          <div className={`border border-primary/30 bg-black p-4 transition-all ${generatedMission ? 'border-primary' : ''}`}>
+        <div className="flex-1 flex flex-col gap-4">
+          {/* Scrollable content */}
+          <div className="flex-1 overflow-y-auto flex flex-col gap-4">
+{/* Mission Header */}
+          <div className={`border border-primary/30 bg-black p-4 transition-all ${editableMission ? 'border-primary' : ''}`}>
             <div className="flex items-center justify-between mb-3">
               <div className="flex items-center gap-2">
                 <span className="material-icons text-primary text-xl">assignment</span>
                 <span className="text-[10px] text-primary/60 uppercase tracking-widest">Briefing Tactico</span>
               </div>
-              {generatedMission && (
+              {editableMission && (
                 <div className={`px-2 py-1 border text-[8px] font-bold uppercase ${getDifficultyInfo().color} border-current`}>
                   {getDifficultyInfo().label}
                 </div>
               )}
             </div>
             
-            {generatedMission ? (
+            {editableMission ? (
               <div className="space-y-3">
-                <h2 className="text-xl text-primary font-display uppercase text-glow">{generatedMission.name}</h2>
+                <EditableField
+                  value={editableMission.name}
+                  label="Nombre de la Misión"
+                  variant="primary"
+                  onChange={handleNameChange}
+                  className="text-xl font-display uppercase text-glow"
+                  disabled={!editableMission}
+                />
                 <div className="h-0.5 bg-gradient-to-r from-primary via-primary/20 to-transparent"></div>
               </div>
             ) : (
@@ -359,54 +410,84 @@ export const MissionGeneratorPage: React.FC<MissionGeneratorPageProps> = ({ onBa
           </div>
 
           {/* Mission Details */}
-          {generatedMission && (
+          {editableMission && (
             <>
               {/* Briefing Section */}
-              {generatedMission.description && (
+              {editableMission.description && (
                 <div className="bg-surface-dark/50 border border-primary/20 p-4">
                   <p className="text-[9px] text-primary/40 uppercase tracking-widest mb-2 flex items-center gap-1">
                     <span className="material-icons text-xs">description</span> Briefing
                   </p>
-                  <p className="text-[11px] text-white/80 leading-relaxed">{generatedMission.description}</p>
+                  <EditableField
+                    value={editableMission.description}
+                    type="textarea"
+                    rows={3}
+                    variant="primary"
+                    onChange={handleDescriptionChange}
+                    disabled={!editableMission}
+                  />
                 </div>
               )}
 
               {/* Objective Section */}
-              {generatedMission.stats?.objective && (
+              {editableMission.stats?.objective && (
                 <div className="bg-black/60 border border-yellow-500/30 p-4">
                   <p className="text-[9px] text-yellow-500/60 uppercase tracking-widest mb-2 flex items-center gap-1">
                     <span className="material-icons text-xs">flag</span> Objetivo Principal
                   </p>
-                  <p className="text-[11px] text-yellow-500/90 font-bold">{generatedMission.stats.objective}</p>
+                  <EditableField
+                    value={editableMission.stats.objective}
+                    type="textarea"
+                    rows={2}
+                    variant="warning"
+                    onChange={(val) => handleStatsChange('objective', val)}
+                    disabled={!editableMission}
+                  />
                 </div>
               )}
 
               {/* Info Grid */}
               <div className="grid grid-cols-2 gap-3">
-                {generatedMission.stats?.rewards && (
+                {editableMission.stats?.rewards && (
                   <div className="bg-surface-dark border border-primary/20 p-3">
                     <p className="text-[8px] text-primary/40 uppercase tracking-widest mb-1">Recompensa</p>
-                    <p className="text-[10px] text-primary">{generatedMission.stats.rewards}</p>
+                    <EditableField
+                      value={editableMission.stats.rewards}
+                      variant="primary"
+                      onChange={(val) => handleStatsChange('rewards', val)}
+                      disabled={!editableMission}
+                    />
                   </div>
                 )}
-                {generatedMission.stats?.estimatedDuration && (
+                {editableMission.stats?.estimatedDuration && (
                   <div className="bg-surface-dark border border-primary/20 p-3">
                     <p className="text-[8px] text-primary/40 uppercase tracking-widest mb-1">Duracion Est.</p>
-                    <p className="text-[10px] text-primary">{generatedMission.stats.estimatedDuration}</p>
+                    <EditableField
+                      value={editableMission.stats.estimatedDuration}
+                      variant="primary"
+                      onChange={(val) => handleStatsChange('estimatedDuration', val)}
+                      disabled={!editableMission}
+                    />
                   </div>
                 )}
-                {generatedMission.stats?.difficulty && (
+                {editableMission.stats?.difficulty && (
                   <div className="bg-surface-dark border border-primary/20 p-3">
                     <p className="text-[8px] text-primary/40 uppercase tracking-widest mb-1">Dificultad IA</p>
-                    <p className="text-[10px] text-primary">{generatedMission.stats.difficulty}</p>
+                    <EditableField
+                      value={editableMission.stats.difficulty}
+                      variant="primary"
+                      onChange={(val) => handleStatsChange('difficulty', val)}
+                      disabled={!editableMission}
+                    />
                   </div>
                 )}
               </div>
             </>
           )}
-
-          {/* Log Panel */}
-          <TerminalLog logs={logs} maxLogs={6} className="mt-auto h-24" />
+          </div>
+            
+          {/* Log Panel - Fixed at bottom */}
+          <TerminalLog logs={logs} maxLogs={6} className="h-24 shrink-0" />
         </div>
       </div>
     </TerminalLayout>

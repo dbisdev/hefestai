@@ -56,7 +56,7 @@ const Home: React.FC = () => {
             <span className="bg-primary text-black px-4 ml-[-8px]">Historia</span>
           </h1>
           <p className="max-w-2xl mx-auto text-primary/60 text-lg md:text-xl leading-relaxed font-mono">
-            La interfaz retro-futurista definitiva para Maestros de Juego y Jugadores. 
+            La interfaz retro-futurista definitiva para Maestros de <span className="bg-primary text-black px-1">Juegos de Rol</span> y Jugadores. 
             Sintetiza mundos, despliega activos y archiva tu cronología a través de la nébula.
           </p>
           
@@ -65,7 +65,7 @@ const Home: React.FC = () => {
               onClick={handleSignup}
               className="px-8 py-4 bg-primary text-black font-bold uppercase tracking-widest hover:bg-white transition-all shadow-[0_0_30px_#25f46a44] clip-tech-tl"
             >
-              Inicializar Perfil
+              Inicializar Nuevo Perfil
             </button>
             <button 
               onClick={handleLogin}

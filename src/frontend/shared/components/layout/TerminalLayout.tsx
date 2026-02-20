@@ -115,7 +115,7 @@ export const TerminalLayout: React.FC<TerminalLayoutProps> = ({
     switch (user.role) {
       case 'ADMIN': return 'ADMINISTRADOR';
       case 'MASTER': return 'MAESTRO DE JUEGO';
-      case 'PLAYER': return 'OPERATIVO';
+      case 'PLAYER': return 'JUGADOR';
       default: return 'USUARIO';
     }
   };
@@ -141,14 +141,14 @@ export const TerminalLayout: React.FC<TerminalLayoutProps> = ({
             </h1>
             <div className="flex items-center gap-2 flex-wrap">
               {/* Subtitle with username */}
-              <p className="text-[10px] md:text-xs text-primary/60 uppercase tracking-wider">
-                <span className="animate-pulse">_</span> {/* USER: {user?.username || 'Usuario'} */}
-              </p>
+              {/* <p className="text-[10px] md:text-xs text-primary/60 uppercase tracking-wider">
+                 USER: {user?.username || 'Usuario'} }
+              </p> */}
               
               {/* Campaign Selector Button */}
               {shouldShowCampaignSelector && (
                 <>
-                  <span className="text-primary/30 hidden sm:inline">//</span>
+                  {/* <span className="text-primary/30 hidden sm:inline">//</span> */}
                   <button
                     onClick={handleCampaignSelectorToggle}
                     className="flex items-center gap-1 text-[10px] md:text-xs text-primary/60 hover:text-primary transition-colors uppercase tracking-wider group"
@@ -171,7 +171,7 @@ export const TerminalLayout: React.FC<TerminalLayoutProps> = ({
         </div>
 
         {/* Right Section: Actions */}
-        <div className="flex items-center gap-2 md:gap-4">
+        <div className="grid grid-cols-3 md:flex md:flex-nowrap items-center gap-2 md:gap-4">
 
           <div className="hidden md:flex flex-col text-right text-xs text-primary/60">
             <span>MEM: 64TB [OK]</span>
@@ -181,7 +181,7 @@ export const TerminalLayout: React.FC<TerminalLayoutProps> = ({
           {/* Dice Roller Button */}
           <button 
             onClick={() => setShowDice(true)}
-            className="flex items-center gap-2 border border-primary/40 px-2 md:px-3 py-1 text-xs uppercase hover:bg-primary/20 transition-all text-primary font-bold"
+            className="col-span-1 md:col-auto flex items-center gap-2 border border-primary/40 px-2 md:px-3 py-1 text-xs uppercase hover:bg-primary/20 transition-all text-primary font-bold"
             aria-label="Lanzar dados"
           >
             <span className="material-icons text-sm">casino</span>
@@ -191,7 +191,7 @@ export const TerminalLayout: React.FC<TerminalLayoutProps> = ({
           {/* Rules Search Button */}
           <button 
             onClick={() => setShowRuleQuery(true)}
-            className="flex items-center gap-2 border border-primary/40 px-2 md:px-3 py-1 text-xs uppercase hover:bg-primary/20 transition-all text-primary font-bold"
+            className="col-span-1 md:col-auto flex items-center gap-2 border border-primary/40 px-2 md:px-3 py-1 text-xs uppercase hover:bg-primary/20 transition-all text-primary font-bold"
             aria-label="Consultar reglas"
           >
             <span className="material-icons text-sm">auto_stories</span>
@@ -205,7 +205,7 @@ export const TerminalLayout: React.FC<TerminalLayoutProps> = ({
           {!hideBackButton && (
             <button 
               onClick={handleBack}
-              className="flex items-center gap-2 border border-primary/40 px-2 md:px-3 py-1 text-xs uppercase hover:bg-primary/20 transition-all text-primary font-bold"
+              className="col-span-1 md:col-auto flex items-center gap-2 border border-primary/40 px-2 md:px-3 py-1 text-xs uppercase hover:bg-primary/20 transition-all text-primary font-bold"
               aria-label="Volver atrás"
             >
               <span className="material-icons text-sm">arrow_back</span>
@@ -217,11 +217,11 @@ export const TerminalLayout: React.FC<TerminalLayoutProps> = ({
           {!hideBackToHub && (
             <button 
               onClick={handleBackToHub}
-              className="flex items-center gap-2 border  px-2 md:px-3 py-1 text-xs uppercase border-cyan-500/30 hover:border-cyan-500 hover:bg-cyan-500/40 transition-all font-bold text-cyan-500 group-hover:text-cyan-400"
+              className="col-span-1 md:col-auto flex items-center gap-2 border  px-2 md:px-3 py-1 text-xs uppercase border-cyan-500/30 hover:border-cyan-500 hover:bg-cyan-500/40 transition-all font-bold text-cyan-500 group-hover:text-cyan-400"
               aria-label="Volver al hub"
             >
               <span className="material-icons text-sm">home</span>
-              <span className="hidden md:inline">HUB</span>
+              <span className="hidden sm:inline">HUB</span>
             </button>
           )}
           
@@ -231,11 +231,11 @@ export const TerminalLayout: React.FC<TerminalLayoutProps> = ({
               await logout();
               window.location.replace('/');
             }}
-            className="flex items-center gap-2 border border-red-500/60 px-2 md:px-3 py-1 text-xs uppercase hover:bg-red-500 hover:text-black transition-colors text-red-500 font-bold"
+            className="col-span-1 md:col-auto flex items-center gap-2 border border-red-500/60 px-2 md:px-3 py-1 text-xs uppercase hover:bg-red-500 hover:text-black transition-colors text-red-500 font-bold"
             aria-label="Cerrar sesión"
           >
             <span className="material-icons text-sm">logout</span>
-            <span className="hidden md:inline">LOGOUT</span>
+            <span className="hidden sm:inline">LOGOUT</span>
           </button>
         </div>
       </header>
@@ -342,7 +342,7 @@ export const TerminalLayout: React.FC<TerminalLayoutProps> = ({
       )}
 
       {/* Main Content */}
-      <div className="flex-1 overflow-hidden">
+      <div className="flex-1 overflow-y-auto md:overflow-hidden">
         {children}
       </div>
 

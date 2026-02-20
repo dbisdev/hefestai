@@ -13,12 +13,27 @@ interface DiceRollerProps {
   onClose: () => void;
 }
 
+// Check WebGL support
+const checkWebGLSupport = (): { supported: boolean; error?: string } => {
+  try {
+    const canvas = document.createElement('canvas');
+    const gl = canvas.getContext('webgl') || canvas.getContext('experimental-webgl');
+    if (!gl) {
+      return { supported: false, error: 'WebGL not supported in this browser' };
+    }
+    return { supported: true };
+  } catch (e) {
+    return { supported: false, error: 'WebGL check failed' };
+  }
+};
+
 const DiceRoller: React.FC<DiceRollerProps> = ({ onClose }) => {
   const [blackCount, setBlackCount] = useState(1);
   const [yellowCount, setYellowCount] = useState(0);
   const [isRolling, setIsRolling] = useState(false);
   const [currentResults, setCurrentResults] = useState<DiceRoll[]>([]);
   const [history, setHistory] = useState<DiceRoll[][]>([]);
+  const [webglError, setWebglError] = useState<string | null>(null);
   
   const containerRef = useRef<HTMLDivElement>(null);
   const requestRef = useRef<number | undefined>(undefined);
@@ -27,9 +42,17 @@ const DiceRoller: React.FC<DiceRollerProps> = ({ onClose }) => {
   const cameraRef = useRef<THREE.PerspectiveCamera | undefined>(undefined);
   const rendererRef = useRef<THREE.WebGLRenderer | undefined>(undefined);
   const diceBodiesRef = useRef<{ body: CANNON.Body, mesh: THREE.Mesh, color: 'black' | 'yellow' }[]>([]);
+  const isContextLostRef = useRef<boolean>(false);
 
   // Initialize Three.js and Cannon.js
   useEffect(() => {
+    // Check WebGL support first
+    const webglCheck = checkWebGLSupport();
+    if (!webglCheck.supported) {
+      setWebglError(webglCheck.error || 'WebGL not available');
+      return;
+    }
+
     if (!containerRef.current) return;
 
     // --- Evitar duplicar renderer ---
@@ -66,22 +89,37 @@ const DiceRoller: React.FC<DiceRollerProps> = ({ onClose }) => {
     });
 
     // --- THREE.JS SETUP ---
-    // Start with default values, ResizeObserver will fix it immediately
     const scene = new THREE.Scene();
     sceneRef.current = scene;
 
     const camera = new THREE.PerspectiveCamera(45, 1, 0.1, 100);
-    // Adjusted position: moved from (0, 10, 8) to (0, 14, 11) to be "a little far"
     camera.position.set(0, 14, 11);
     camera.lookAt(0, 0, 0);
     cameraRef.current = camera;
 
+    // Limit pixel ratio to max 2 to avoid memory issues
     const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
-    renderer.setPixelRatio(window.devicePixelRatio);
-    // Limpiar cualquier canvas previo
+    renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+    
+    // Handle WebGL context loss
+    const handleContextLost = (event: Event) => {
+      event.preventDefault();
+      isContextLostRef.current = true;
+      console.warn('WebGL context lost');
+    };
+
+    const handleContextRestored = () => {
+      isContextLostRef.current = false;
+      console.log('WebGL context restored');
+      // Reinitialize if needed
+    };
+
+    renderer.domElement.addEventListener('webglcontextlost', handleContextLost);
+    renderer.domElement.addEventListener('webglcontextrestored', handleContextRestored);
+
+    renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
     container.innerHTML = '';
     container.appendChild(renderer.domElement);
-    //containerRef.current.appendChild(renderer.domElement);
     rendererRef.current = renderer;
 
     // Lighting
@@ -103,7 +141,7 @@ const DiceRoller: React.FC<DiceRollerProps> = ({ onClose }) => {
     floorMesh.rotation.x = -Math.PI / 2;
     scene.add(floorMesh);
 
-    // Grid Helper for that retro look
+    // Grid Helper
     const grid = new THREE.GridHelper(20, 20, 0x25f46a, 0x1a853d);
     grid.position.y = 0.01;
     scene.add(grid);
@@ -117,23 +155,26 @@ const DiceRoller: React.FC<DiceRollerProps> = ({ onClose }) => {
 
       cameraRef.current.aspect = width / height;
       cameraRef.current.updateProjectionMatrix();
-      cameraRef.current.lookAt(0, 0, 0); // Re-center
+      cameraRef.current.lookAt(0, 0, 0);
       rendererRef.current.setSize(width, height);
     };
 
-    // Use ResizeObserver for robust layout detection
     const resizeObserver = new ResizeObserver(() => {
       updateSize();
     });
     resizeObserver.observe(containerRef.current);
 
-    // Initial size update with a small delay to ensure container is laid out
     const initialSizeTimeout = setTimeout(() => {
       updateSize();
     }, 100);
 
     // Animation Loop
     const animate = () => {
+      if (isContextLostRef.current) {
+        requestRef.current = requestAnimationFrame(animate);
+        return;
+      }
+
       world.fixedStep();
       
       // Update dice meshes
@@ -155,19 +196,37 @@ const DiceRoller: React.FC<DiceRollerProps> = ({ onClose }) => {
       resizeObserver.disconnect();
       clearTimeout(initialSizeTimeout);
       if (requestRef.current) cancelAnimationFrame(requestRef.current);
-      
-      // Eliminar todos los meshes de la escena
-    diceBodiesRef.current.forEach(({ mesh }) => scene.remove(mesh));
-    diceBodiesRef.current = [];
-    if (rendererRef.current && container) {
+
+      // Proper cleanup - dispose all resources
+      diceBodiesRef.current.forEach(({ mesh }) => {
+        if (mesh.geometry) mesh.geometry.dispose();
+        if (Array.isArray(mesh.material)) {
+          mesh.material.forEach(m => {
+            if (m.map) m.map.dispose();
+            m.dispose();
+          });
+        } else if (mesh.material) {
+          if (mesh.material.map) mesh.material.map.dispose();
+          mesh.material.dispose();
+        }
+        scene.remove(mesh);
+      });
+      diceBodiesRef.current = [];
+
+      if (floorGeom) floorGeom.dispose();
+      if (floorMat) floorMat.dispose();
+      if (grid) grid.dispose();
+
+      if (rendererRef.current && container) {
+        rendererRef.current.domElement.removeEventListener('webglcontextlost', handleContextLost);
+        rendererRef.current.domElement.removeEventListener('webglcontextrestored', handleContextRestored);
         container.removeChild(rendererRef.current.domElement);
         rendererRef.current.dispose();
-      rendererRef.current = undefined;
+        rendererRef.current = undefined;
       }
-      // Limpiar referencias
-    sceneRef.current = undefined;
-    cameraRef.current = undefined;
-    worldRef.current = undefined;
+      sceneRef.current = undefined;
+      cameraRef.current = undefined;
+      worldRef.current = undefined;
     };
   }, []);
 

@@ -88,7 +88,7 @@ export const SignupPage: React.FC = () => {
   }, [navigate]);
 
   return (
-    <div className="flex items-center justify-center min-h-screen bg-background-dark relative p-6">
+    <div className="flex items-center justify-center min-h-screen bg-background-dark relative p-6 overflow-y-auto">
       <GridBackground opacity={0.1} size={40} />
       
       <div className="relative z-10 w-full max-w-[450px]">
