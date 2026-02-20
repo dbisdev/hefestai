@@ -45,6 +45,7 @@ public class EntityTemplatesController : ControllerBase
     /// <param name="gameSystemId">The game system ID.</param>
     /// <param name="status">Optional status filter.</param>
     /// <param name="confirmedOnly">If true, only return confirmed templates.</param>
+    /// <param name="includeAll">If true, ignore status and return all templates (Admins only).</param>
     /// <param name="cancellationToken">Cancellation token.</param>
     [HttpGet]
     [Authorize(Policy = "RequirePlayerRole")]
