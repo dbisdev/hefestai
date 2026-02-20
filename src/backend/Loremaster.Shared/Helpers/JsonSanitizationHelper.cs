@@ -5,6 +5,10 @@ namespace Loremaster.Shared.Helpers;
 
 public static class JsonSanitizationHelper
 {
+    private static readonly Regex CodeFencePattern = new(
+        @"^```(?:\w+)?\s*\n?|\n?```\s*$",
+        RegexOptions.Compiled);
+
     private static readonly HashSet<string> AllowedJsonTypes = new(StringComparer.OrdinalIgnoreCase)
     {
         "string",
@@ -14,6 +18,28 @@ public static class JsonSanitizationHelper
         "array",
         "null"
     };
+
+    /// <summary>
+    /// Strips markdown code fences from a JSON string.
+    /// Handles ```json, ```xml, ```, and other code fence variations.
+    /// </summary>
+    /// <param name="json">The JSON string potentially containing markdown code fences</param>
+    /// <returns>The cleaned JSON string without code fences</returns>
+    public static string StripMarkdownCodeFences(string? json)
+    {
+        if (string.IsNullOrWhiteSpace(json))
+            return string.Empty;
+
+        var cleaned = json.Trim();
+        
+        if (!cleaned.StartsWith("```"))
+            return cleaned;
+
+        // Remove opening and closing code fences
+        cleaned = CodeFencePattern.Replace(cleaned, "");
+        
+        return cleaned.Trim();
+    }
 
     private static readonly Regex DangerousPatternRegex = new(
         @"("+

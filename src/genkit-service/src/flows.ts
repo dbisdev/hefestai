@@ -85,7 +85,7 @@ export const chatFlow = ai.defineFlow(
     });
 
     return {
-      message: response.text,
+      message: stripMarkdownCodeFences(response.text),
       usage: response.usage
         ? {
             promptTokens: response.usage.inputTokens || 0,
@@ -165,7 +165,7 @@ Focus on the most important information and maintain accuracy.`;
       },
     });
 
-    const summary = response.text;
+    const summary = stripMarkdownCodeFences(response.text);
 
     const compressionRatio = summary.length > 0 
       ? Number((input.text.length / summary.length).toFixed(2))
@@ -265,7 +265,7 @@ Be concise and accurate.`;
     });
 
     return {
-      answer: response.text,
+      answer: stripMarkdownCodeFences(response.text),
       usage: response.usage
         ? {
             promptTokens: response.usage.inputTokens || 0,
@@ -321,7 +321,7 @@ export const imageGenerateFlow = ai.defineFlow(
     }
 
     const fullPrompt = `Generate an image: ${enhancedPrompt}`;
-
+    console.log('Full image generation prompt:', fullPrompt);
     try {
       const response = await ai.generate({
         model: geminiImageModel,

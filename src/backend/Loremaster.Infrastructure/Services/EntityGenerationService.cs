@@ -232,7 +232,7 @@ public class EntityGenerationService : IEntityGenerationService
             {string.Join("\n", fieldDescriptions)}
             
             IMPORTANT RULES:
-            1. Output ONLY valid JSON - no explanations or markdown.
+            1. Output ONLY valid minified JSON - no explanations or markdown.
             2. Include all required fields.
             3. Follow the data type specified for each field.
             4. For Select fields, use ONLY the provided options.
@@ -240,7 +240,7 @@ public class EntityGenerationService : IEntityGenerationService
             6. Be creative but consistent with the game system rules provided in the context.
             7. Include "suggestedName" and "suggestedDescription" fields in your response.
             
-            Your response must be a JSON object with field names as keys and generated values.
+            Your response must be a minified JSON object with field names as keys and generated values.
             """;
     }
 
@@ -408,18 +408,7 @@ public class EntityGenerationService : IEntityGenerationService
     /// </summary>
     private static string CleanJsonResponse(string response)
     {
-        var cleaned = response.Trim();
-        
-        // Remove markdown code blocks
-        if (cleaned.StartsWith("```json"))
-            cleaned = cleaned[7..];
-        else if (cleaned.StartsWith("```"))
-            cleaned = cleaned[3..];
-        
-        if (cleaned.EndsWith("```"))
-            cleaned = cleaned[..^3];
-
-        return cleaned.Trim();
+        return Loremaster.Shared.Helpers.JsonSanitizationHelper.StripMarkdownCodeFences(response);
     }
 
     /// <summary>

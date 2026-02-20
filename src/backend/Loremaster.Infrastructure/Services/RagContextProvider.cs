@@ -178,6 +178,6 @@ public class RagContextProvider : IRagContextProvider
     /// <returns>Style-focused search query.</returns>
     private static string BuildStyleQuery(string entityTypeName)
     {
-        return $"{entityTypeName} appearance visual description art style artwork illustration";
+        return $"{entityTypeName} appearance visual description art style artwork illustration artist graphic designer ambience history culture";
     }
 }

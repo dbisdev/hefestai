@@ -101,6 +101,12 @@ public class AiController : ControllerBase
                 "Found confirmed template {TemplateId} for entity type '{EntityType}' in game system {GameSystemId}",
                 template.Id, entityTypeName, gameSystemId);
         }
+        else{
+
+        _logger.LogDebug(
+                "NOT Found template {TemplateId} for entity type '{EntityType}' in game system {GameSystemId}", 0,
+                entityTypeName, gameSystemId);
+        }
 
         return template;
     }
@@ -562,7 +568,7 @@ public class AiController : ControllerBase
             }
 
             // Step 2: Build additional context from request parameters
-            var additionalContext = $"Species: {request.Species}, Role: {request.Role}, Morphology: {request.Morphology}, Style: {request.Attire}";
+            var additionalContext = $"Species: {request.Species}, Role: {request.Role}, Morphology: {request.Morphology}";
 
             // Step 3: Retrieve RAG context from game system manuals (if gameSystemId provided)
             IReadOnlyList<RagContextChunk> ragContext = Array.Empty<RagContextChunk>();
@@ -594,13 +600,12 @@ public class AiController : ControllerBase
                 var systemPrompt = @"You are a character generator for a tabletop RPG. 
 Use the provided lore context from the game manuals to create a character that fits the game's setting and rules.
 The character must be consistent with the game system's lore, species, classes, and mechanics.
-Respond only with valid JSON.";
+Respond only with valid minified JSON, no markdown code fences.";
 
                 var userQuery = $@"Based on the game system lore provided, generate a character with these parameters:
 Species: {request.Species}
 Role: {request.Role}
 Morphology: {request.Morphology}
-Style: {request.Attire}
 
 Generate a JSON object with the following fields:
 {fieldDescriptions}
@@ -632,12 +637,11 @@ Example format:
                 // Fallback: Basic generation without RAG context
                 _logger.LogDebug("No RAG context available, using basic generation");
                 
-                var fallbackSystemPrompt = "You are a sci-fi character generator. Respond only with valid JSON.";
+                var fallbackSystemPrompt = "You are a sci-fi character generator. Respond only with valid minified JSON, no markdown code fences.";
                 var prompt = $@"Generate a sci-fi character based on:
 Species: {request.Species}
 Role: {request.Role}
 Morphology: {request.Morphology}
-Style: {request.Attire}
 
 Respond with a JSON object containing the following fields:
 {fieldDescriptions}
@@ -664,6 +668,22 @@ Example format:
             
             if (request.GenerateImage)
             {
+                // Extract bio from generated character JSON to enhance image prompt
+                string? characterBio = null;
+                try
+                {
+                    var cleanedJson = Shared.Helpers.JsonSanitizationHelper.StripMarkdownCodeFences(characterJson);
+                    var jsonDoc = JsonDocument.Parse(cleanedJson);
+                    if (jsonDoc.RootElement.TryGetProperty("bio", out var bioElement))
+                    {
+                        characterBio = bioElement.GetString();
+                    }
+                }
+                catch (Exception ex)
+                {
+                    _logger.LogDebug(ex, "Failed to extract bio from generated character JSON");
+                }
+
                 // Optionally enhance image prompt with style context from RAG
                 string imagePromptContext = "";
                 
@@ -672,16 +692,26 @@ Example format:
                     var styleContext = await _ragContextProvider.GetStyleContextAsync(
                         request.GameSystemId.Value,
                         userId,
-                        "character",
+                        $"character {request.Species} {request.Role} {request.Morphology}",
                         cancellationToken);
                     
                     if (styleContext.Any())
                     {
-                        imagePromptContext = $" Art style based on: {string.Join(" ", styleContext.Take(2).Select(c => c.Content?.Substring(0, Math.Min(200, c.Content.Length)) ?? ""))}";
+                        imagePromptContext = $" Art style based on: {string.Join(" ", styleContext.Take(2).Select(c => c.Content?.Substring(0, Math.Min(300, c.Content.Length)) ?? ""))}";
                     }
                 }
 
-                var imagePrompt = $"High-quality futuristic sci-fi portrait of a {request.Species} {request.Role}, {request.Morphology}, wearing {request.Attire}. Cinematic lighting, detailed face, 8k resolution, professional concept art, black background.{imagePromptContext}";
+                var imagePrompt = $"High-quality portrait of a {request.Species} {request.Role}, {request.Morphology}.";
+
+                // Add character bio context if available (truncated to 300 chars)
+                if (!string.IsNullOrEmpty(characterBio))
+                {
+                    var truncatedBio = characterBio.Length > 500 ? characterBio[..497] + "..." : characterBio;
+                    imagePrompt += $" Character details: {truncatedBio}";
+                }
+
+                imagePrompt += $" Cinematic lighting, detailed face, 8k resolution, professional concept art, black background.{imagePromptContext}";
+
                 var imageResult = await _aiService.GenerateImageAsync(imagePrompt, cancellationToken: cancellationToken);
                 imageBase64 = imageResult.ImageBase64;
                 imageUrl = imageResult.ImageUrl;
@@ -801,7 +831,7 @@ Example format:
             var systemPrompt = @"You are a star system generator for a tabletop RPG.
 Use the provided lore context from the game manuals to create a star system for campaing that fits the game's setting.
 The system must be consistent with the game system's lore, factions, and cosmic geography.
-Respond only with valid JSON.";
+Respond only with valid minified JSON, no markdown code fences.";
 
             // RAG user query
             var userQuery = $@"Based on the game system lore provided, generate a star system with these parameters:
@@ -826,7 +856,7 @@ Respond with a JSON object containing the following fields:
 Example format:
 {exampleJson}";
 
-            var fallbackSystemPrompt = "You are a sci-fi world builder. Respond only with valid JSON.";
+            var fallbackSystemPrompt = "You are a sci-fi world builder. Respond only with valid minified JSON, no markdown code fences.";
 
             // Generate with RAG
             var (systemJson, ragContext, fullPrompt) = await GenerateWithRagAsync(
@@ -867,16 +897,7 @@ Example format:
                 string descriptionForImage = "";
                 try
                 {
-                    // Clean markdown code blocks from JSON response before parsing
-                    var cleanedJson = systemJson.Trim();
-                    if (cleanedJson.StartsWith("```json"))
-                        cleanedJson = cleanedJson[7..];
-                    else if (cleanedJson.StartsWith("```"))
-                        cleanedJson = cleanedJson[3..];
-                    if (cleanedJson.EndsWith("```"))
-                        cleanedJson = cleanedJson[..^3];
-                    cleanedJson = cleanedJson.Trim();
-
+                    var cleanedJson = Shared.Helpers.JsonSanitizationHelper.StripMarkdownCodeFences(systemJson);
                     var jsonDoc = JsonDocument.Parse(cleanedJson);
                     if (jsonDoc.RootElement.TryGetProperty("description", out var descriptionElement))
                     {
@@ -1002,7 +1023,7 @@ Example format:
             var systemPrompt = @"You are a vehicle generator for a tabletop RPG.
 Use the provided lore context from the game manuals to create a vehicle that fits the game's setting and technology level.
 The vehicle must be consistent with the game system's lore, factions, and available technology.
-Respond only with valid JSON.";
+Respond only with valid minified JSON, no markdown code fences.";
 
             // RAG user query
             var userQuery = $@"Based on the game system lore provided, generate a vehicle with these parameters:
@@ -1019,7 +1040,7 @@ Example format:
 {exampleJson}";
 
             // Fallback prompts
-            var fallbackPrompt = $@"Create a futuristic vehicle:
+            var fallbackPrompt = $@"Create a  vehicle:
 Type: {request.Type}
 Class: {request.Class}
 Engine: {request.Engine}
@@ -1030,7 +1051,7 @@ Respond with a JSON object containing the following fields:
 Example format:
 {exampleJson}";
 
-            var fallbackSystemPrompt = "You are a sci-fi vehicle designer. Respond only with valid JSON.";
+            var fallbackSystemPrompt = "You are a vehicle designer. Respond only with valid minified JSON, no markdown code fences.";
 
             // Generate with RAG
             var (vehicleJson, ragContext, fullPrompt) = await GenerateWithRagAsync(
@@ -1067,7 +1088,7 @@ Example format:
                     }
                 }
 
-                var imagePrompt = $"Stunning sci-fi {request.Type} design, {request.Class} class, powered by {request.Engine} engine. Sleek futuristic vehicle, detailed mechanical components, cinematic lighting, concept art style, black space background, 8k resolution.{imagePromptContext}";
+                var imagePrompt = $"Stunning  {request.Type} design, {request.Class} class, powered by {request.Engine} engine. Sleek vehicle, detailed mechanical components, cinematic lighting, concept art style, black space background, 8k resolution.{imagePromptContext}";
                 var imageResult = await _aiService.GenerateImageAsync(imagePrompt, cancellationToken: cancellationToken);
                 imageBase64 = imageResult.ImageBase64;
                 imageUrl = imageResult.ImageUrl;
@@ -1176,14 +1197,13 @@ Example format:
             var systemPrompt = @"You are an NPC generator for a tabletop RPG.
 Use the provided lore context from the game manuals to create an NPC that fits the game's setting.
 The NPC must be consistent with the game system's lore, factions, species, and social structures.
-Respond only with valid JSON.";
+Respond only with valid minified JSON, no markdown code fences.";
 
             // RAG user query
             var userQuery = $@"Based on the game system lore provided, generate an NPC with these parameters:
 Species: {request.Species}
 Occupation: {request.Occupation}
 Personality: {request.Personality}
-Setting: {request.Setting}
 
 Generate a JSON object with the following fields:
 {fieldDescriptions}
@@ -1194,11 +1214,10 @@ Example format:
 {exampleJson}";
 
             // Fallback prompts
-            var fallbackPrompt = $@"Create a sci-fi NPC (non-player character) for a tabletop RPG:
+            var fallbackPrompt = $@"Create a  NPC (non-player character) for a tabletop RPG:
 Species: {request.Species}
 Occupation: {request.Occupation}
 Personality: {request.Personality}
-Setting: {request.Setting}
 
 Respond with a JSON object containing the following fields:
 {fieldDescriptions}
@@ -1206,7 +1225,7 @@ Respond with a JSON object containing the following fields:
 Example format:
 {exampleJson}";
 
-            var fallbackSystemPrompt = "You are a sci-fi RPG character creator. Create interesting NPCs with depth. Respond only with valid JSON.";
+            var fallbackSystemPrompt = "You are a RPG character creator. Create interesting NPCs with depth. Respond only with valid minified JSON, no markdown code fences.";
 
             // Generate with RAG
             var (npcJson, ragContext, fullPrompt) = await GenerateWithRagAsync(
@@ -1234,7 +1253,7 @@ Example format:
                     var styleContext = await _ragContextProvider.GetStyleContextAsync(
                         request.GameSystemId.Value,
                         userId,
-                        "npc",
+                        $"npc {request.Species} {request.Occupation}",
                         cancellationToken);
                     
                     if (styleContext.Any())
@@ -1243,7 +1262,7 @@ Example format:
                     }
                 }
 
-                var imagePrompt = $"High-quality futuristic sci-fi portrait of a {request.Species} {request.Occupation}, {request.Personality} expression. Cinematic lighting, cyberpunk aesthetic, detailed face, professional concept art, neutral background, 8k resolution.{imagePromptContext}";
+                var imagePrompt = $"High-quality portrait of a {request.Species} {request.Occupation}, {request.Personality} expression. Cinematic lighting, detailed face, professional concept art, neutral background, 8k resolution.{imagePromptContext}";
                 var imageResult = await _aiService.GenerateImageAsync(imagePrompt, cancellationToken: cancellationToken);
                 imageBase64 = imageResult.ImageBase64;
                 imageUrl = imageResult.ImageUrl;
@@ -1351,7 +1370,7 @@ Example format:
             var systemPrompt = @"You are an enemy/creature generator for a tabletop RPG.
 Use the provided lore context from the game manuals to create an enemy that fits the game's setting.
 The enemy must be consistent with the game system's lore, bestiary, and combat mechanics.
-Respond only with valid JSON.";
+Respond only with valid minified JSON, no markdown code fences.";
 
             // RAG user query
             var userQuery = $@"Based on the game system lore provided, generate a hostile creature/enemy with these parameters:
@@ -1369,7 +1388,7 @@ Example format:
 {exampleJson}";
 
             // Fallback prompts
-            var fallbackPrompt = $@"Create a hostile sci-fi creature/enemy for a tabletop RPG:
+            var fallbackPrompt = $@"Create a hostile creature/enemy for a tabletop RPG:
 Species Type: {request.Species}
 Threat Level: {request.ThreatLevel}
 Behavior Pattern: {request.Behavior}
@@ -1381,7 +1400,7 @@ Respond with a JSON object containing the following fields:
 Example format:
 {exampleJson}";
 
-            var fallbackSystemPrompt = "You are a sci-fi monster designer. Create terrifying but balanced enemies. Respond only with valid JSON.";
+            var fallbackSystemPrompt = "You are a  monster designer. Create terrifying but balanced enemies. Respond only with valid minified JSON, no markdown code fences.";
 
             // Generate with RAG
             var (enemyJson, ragContext, fullPrompt) = await GenerateWithRagAsync(
@@ -1418,7 +1437,7 @@ Example format:
                     }
                 }
 
-                var imagePrompt = $"Terrifying sci-fi creature concept art, {request.Species}, {request.Behavior} posture, menacing, dark atmosphere, highly detailed, horror sci-fi aesthetic, professional illustration, dramatic lighting, 8k resolution.{imagePromptContext}";
+                var imagePrompt = $"Terrifying creature concept art, {request.Species}, {request.Behavior} posture, menacing, dark atmosphere, highly detailed, horror aesthetic, professional illustration, dramatic lighting, 8k resolution.{imagePromptContext}";
                 var imageResult = await _aiService.GenerateImageAsync(imagePrompt, cancellationToken: cancellationToken);
                 imageBase64 = imageResult.ImageBase64;
                 imageUrl = imageResult.ImageUrl;
@@ -1526,7 +1545,7 @@ Example format:
             var systemPrompt = @"You are a mission/quest generator for a tabletop RPG.
 Use the provided lore context from the game manuals to create a mission that fits the game's setting.
 The mission must be consistent with the game system's lore, factions, and narrative themes.
-Respond only with valid JSON.";
+Respond only with valid minified JSON, no markdown code fences.";
 
             // RAG user query
             var userQuery = $@"Based on the game system lore provided, generate a mission with these parameters:
@@ -1544,7 +1563,7 @@ Example format:
 {exampleJson}";
 
             // Fallback prompts
-            var fallbackPrompt = $@"Create a sci-fi RPG mission/quest:
+            var fallbackPrompt = $@"Create a RPG mission/quest:
 Mission Type: {request.MissionType}
 Difficulty: {request.Difficulty}
 Environment: {request.Environment}
@@ -1556,7 +1575,7 @@ Respond with a JSON object containing the following fields:
 Example format:
 {exampleJson}";
 
-            var fallbackSystemPrompt = "You are a sci-fi mission designer. Create engaging quests with clear objectives. Respond only with valid JSON.";
+            var fallbackSystemPrompt = "You are a mission designer. Create engaging quests with clear objectives. Respond only with valid minified JSON, no markdown code fences.";
 
             // Generate with RAG
             var (missionJson, ragContext, fullPrompt) = await GenerateWithRagAsync(
@@ -1593,7 +1612,7 @@ Example format:
                     }
                 }
 
-                var imagePrompt = $"Cinematic sci-fi scene depicting a {request.MissionType} mission in a {request.Environment}. Dramatic atmosphere, {request.Difficulty} difficulty feel, tactical environment, concept art style, moody lighting, 8k resolution.{imagePromptContext}";
+                var imagePrompt = $"Cinematic scene depicting a {request.MissionType} mission in a {request.Environment}. Dramatic atmosphere, {request.Difficulty} difficulty feel, tactical environment, concept art style, moody lighting, 8k resolution.{imagePromptContext}";
                 var imageResult = await _aiService.GenerateImageAsync(imagePrompt, cancellationToken: cancellationToken);
                 imageBase64 = imageResult.ImageBase64;
                 imageUrl = imageResult.ImageUrl;
@@ -1701,7 +1720,7 @@ Example format:
             var systemPrompt = @"You are a combat encounter generator for a tabletop RPG.
 Use the provided lore context from the game manuals to create an encounter that fits the game's setting.
 The encounter must be consistent with the game system's lore, combat rules, and enemy types.
-Respond only with valid JSON.";
+Respond only with valid minified JSON, no markdown code fences.";
 
             // RAG user query
             var userQuery = $@"Based on the game system lore provided, generate a combat encounter with these parameters:
@@ -1719,7 +1738,7 @@ Example format:
 {exampleJson}";
 
             // Fallback prompts
-            var fallbackPrompt = $@"Create a sci-fi RPG combat/tactical encounter:
+            var fallbackPrompt = $@"Create a RPG combat/tactical encounter:
 Encounter Type: {request.EncounterType}
 Difficulty: {request.Difficulty}
 Environment: {request.Environment}
@@ -1731,7 +1750,7 @@ Respond with a JSON object containing the following fields:
 Example format:
 {exampleJson}";
 
-            var fallbackSystemPrompt = "You are a sci-fi encounter designer. Create tactical and exciting combat scenarios. Respond only with valid JSON.";
+            var fallbackSystemPrompt = "You are a encounter designer. Create tactical and exciting combat scenarios. Respond only with valid minified JSON, no markdown code fences.";
 
             // Generate with RAG
             var (encounterJson, ragContext, fullPrompt) = await GenerateWithRagAsync(

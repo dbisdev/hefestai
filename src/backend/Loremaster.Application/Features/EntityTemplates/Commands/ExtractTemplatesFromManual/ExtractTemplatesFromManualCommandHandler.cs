@@ -167,7 +167,9 @@ Include ALL attributes, skills, derived stats, identity fields, gear from the ru
         var ragResult = await _embeddingService.GenerateWithContextAsync(
             EntityTypeExtractionPrompt,
             context,
-            "You are a game system analyst. Extract ALL entity types: characters, NPCs, vehicles, starships, monsters, locations, items.",
+            "You are a game system analyst. Extract ALL entity types: characters, NPCs, vehicles, starships, monsters, locations, items. Respond only with valid minified JSON, no markdown code fences.",
+            temperature: 0.3f,
+            maxTokens: 8192,
             cancellationToken: cancellationToken);
 
         // Parse the RAG response

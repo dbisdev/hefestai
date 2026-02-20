@@ -26,6 +26,7 @@
 
   <ItemGroup>
     <ProjectReference Include="..\Loremaster.Application\Loremaster.Application.csproj" />
+    <ProjectReference Include="..\Loremaster.Shared\Loremaster.Shared.csproj" />
   </ItemGroup>
 
 </Project>

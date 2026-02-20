@@ -69,7 +69,7 @@ public class GenkitAiService : IAiService
         var request = new GenerateJsonRequest
         {
             Prompt = prompt,
-            SystemPrompt = systemPrompt ?? "You are a helpful assistant. Always respond with valid JSON only, no additional text.",
+            SystemPrompt = systemPrompt ?? "You are a helpful assistant. Always respond with valid minified JSON only, no additional text or markdown.",
             Temperature = temperature,
             MaxTokens = maxTokens,
             ResponseFormat = "json"

@@ -196,7 +196,7 @@ app.post(
       const result = await imageGenerateFlow(validatedInput);
       
       if (result.success) {
-        logger.info({ serviceId: req.service?.id, message: result.image?.base64 }, 'Image generation completed successfully');
+        logger.info({ serviceId: req.service?.id }, 'Image generation completed successfully');
       } else {
         logger.warn({ serviceId: req.service?.id, message: result.message }, 'Image generation failed');
       }

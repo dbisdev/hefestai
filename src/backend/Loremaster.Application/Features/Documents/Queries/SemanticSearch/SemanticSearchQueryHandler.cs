@@ -70,6 +70,8 @@ public class SemanticSearchQueryHandler : IRequestHandler<SemanticSearchQuery, S
                     request.Query,
                     context,
                     request.SystemPrompt,
+                    temperature: 0.3f,
+                    maxTokens: 4096,
                     cancellationToken: cancellationToken);
 
                 generatedAnswer = ragResult.Answer;
