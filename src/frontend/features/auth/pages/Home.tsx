@@ -56,7 +56,7 @@ const Home: React.FC = () => {
             <span className="bg-primary text-black px-4 ml-[-8px]">Historia</span>
           </h1>
           <p className="max-w-2xl mx-auto text-primary/60 text-lg md:text-xl leading-relaxed font-mono">
-            La interfaz retro-futurista definitiva para Maestros de <span className="bg-primary text-black px-1">Juegos de Rol</span> y Jugadores. 
+            La interfaz retro-futurista definitiva para Maestros y Jugadores de <span className="bg-primary text-black px-1">Juegos de Rol</span>. 
             Sintetiza mundos, despliega activos y archiva tu cronología a través de la nébula.
           </p>
           

@@ -381,7 +381,7 @@ const DiceRoller: React.FC<DiceRollerProps> = ({ onClose }) => {
 
   const total = currentResults.reduce((acc, curr) => acc + curr.value, 0);
   const successes = currentResults.filter(r => r.value === 6).length;
-  const fails = currentResults.filter(r => r.value === 1).length;
+  const fails = currentResults.filter(r => r.value === 1 && r.color === 'yellow').length;
 
   return (
     <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/90 backdrop-blur-md p-2 md:p-4 font-mono">
@@ -471,7 +471,7 @@ const DiceRoller: React.FC<DiceRollerProps> = ({ onClose }) => {
                       {currentResults.map(r => (
                         <span key={r.id} className={`w-6 h-6 flex items-center justify-center text-[10px] font-bold border transition-all ${
                           r.value === 6 ? 'border-primary ring-1 ring-primary/40' : 
-                          r.value === 1 ? 'border-danger' : 'border-primary/20'
+                          r.value === 1 && r.color === 'yellow' ? 'border-danger' : 'border-primary/20'
                         } ${
                           r.color === 'black' ? 'bg-black text-primary' : 'bg-yellow-500 text-black'
                         }`}>
@@ -489,7 +489,7 @@ const DiceRoller: React.FC<DiceRollerProps> = ({ onClose }) => {
 
                 {history.slice(1).map((h, i) => {
                   const hSucc = h.filter(r => r.value === 6).length;
-                  const hFail = h.filter(r => r.value === 1).length;
+                  const hFail = h.filter(r => r.value === 1 && r.color === 'yellow').length;
                   const hTotal = h.reduce((a, b) => a + b.value, 0);
                   return (
                     <div key={i} className="opacity-40 hover:opacity-100 transition-opacity border-l border-primary/10 pl-3">
@@ -502,7 +502,7 @@ const DiceRoller: React.FC<DiceRollerProps> = ({ onClose }) => {
                       </div>
                       <div className="flex gap-1 text-[8px] flex-wrap">
                         {h.map(r => (
-                          <span key={r.id} className={`${r.value === 6 ? 'text-primary font-bold' : r.value === 1 ? 'text-danger font-bold' : 'text-primary/40'}`}>
+                          <span key={r.id} className={`${r.value === 6 ? 'text-primary font-bold' : r.value === 1 && r.color === 'yellow'? 'text-danger font-bold' : 'text-primary/40'}`}>
                             {r.value}
                           </span>
                         ))}
@@ -577,7 +577,7 @@ const DiceRoller: React.FC<DiceRollerProps> = ({ onClose }) => {
                     {currentResults.map(r => (
                       <span key={r.id} className={`w-6 h-6 flex items-center justify-center text-[10px] font-bold border transition-all ${
                         r.value === 6 ? 'border-primary ring-1 ring-primary/40' : 
-                        r.value === 1 ? 'border-danger' : 'border-primary/20'
+                        r.value === 1 && r.color === 'yellow'? 'border-danger' : 'border-primary/20'
                       } ${
                         r.color === 'black' ? 'bg-black text-primary' : 'bg-yellow-500 text-black'
                       }`}>
@@ -595,7 +595,7 @@ const DiceRoller: React.FC<DiceRollerProps> = ({ onClose }) => {
 
               {history.slice(1).map((h, i) => {
                 const hSucc = h.filter(r => r.value === 6).length;
-                const hFail = h.filter(r => r.value === 1).length;
+                const hFail = h.filter(r => r.value === 1 && r.color === 'yellow').length;
                 const hTotal = h.reduce((a, b) => a + b.value, 0);
                 return (
                   <div key={i} className="opacity-60 border-l border-primary/10 pl-3">
@@ -608,7 +608,7 @@ const DiceRoller: React.FC<DiceRollerProps> = ({ onClose }) => {
                     </div>
                     <div className="flex gap-1 text-[8px] flex-wrap">
                       {h.map(r => (
-                        <span key={r.id} className={`${r.value === 6 ? 'text-primary font-bold' : r.value === 1 ? 'text-danger font-bold' : 'text-primary/40'}`}>
+                        <span key={r.id} className={`${r.value === 6 ? 'text-primary font-bold' : r.value === 1 && r.color === 'yellow' ? 'text-danger font-bold' : 'text-primary/40'}`}>
                           {r.value}
                         </span>
                       ))}

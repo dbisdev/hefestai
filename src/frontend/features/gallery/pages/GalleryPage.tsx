@@ -111,7 +111,7 @@ const getIconForTemplate = (template: EntityTemplateSummary): string => {
     'planet': 'language',
     'mission': 'assignment',
     'quest': 'explore',
-    'encounter': 'swords',
+    'encounter': 'pest_control',
     'combat': 'sports_martial_arts',
   };
   return icons[template.entityTypeName.toLowerCase()] || 'category';

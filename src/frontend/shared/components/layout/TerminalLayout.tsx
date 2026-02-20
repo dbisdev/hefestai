@@ -68,7 +68,7 @@ export const TerminalLayout: React.FC<TerminalLayoutProps> = ({
   
   const navigate = useNavigate();
   const location = useLocation();
-
+  //console.log('Current location:', location.pathname);
   const { user, logout } = useAuth();
   const { campaigns, activeCampaign, selectCampaign, isLoading: campaignsLoading } = useCampaign();
 
@@ -202,7 +202,7 @@ export const TerminalLayout: React.FC<TerminalLayoutProps> = ({
           {actions}
 
           {/* Back Button - Visible in all pages with browser history */}
-          {!hideBackButton && (
+          {!hideBackButton && location.pathname != "/hub" && (
             <button 
               onClick={handleBack}
               className="col-span-1 md:col-auto flex items-center gap-2 border border-primary/40 px-2 md:px-3 py-1 text-xs uppercase hover:bg-primary/20 transition-all text-primary font-bold"

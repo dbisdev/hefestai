@@ -256,7 +256,7 @@ const missionData = parseJsonResponse<MissionData>(result.missionJson);
 
   return (
     <TerminalLayout 
-      title="GENERADOR DE MISIONES" 
+      title="SYNTH_MISION" 
       subtitle="Generador de Misiones Tacticas"
       icon="assignment"
       gameSystemId={activeCampaign?.gameSystemId}

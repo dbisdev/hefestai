@@ -127,7 +127,7 @@ export const SolarSystemGeneratorPage: React.FC<SolarSystemGeneratorPageProps> =
 
   return (
     <TerminalLayout 
-      title="GENERADOR SOLAR" 
+      title="SYNTH_SOLAR" 
       subtitle="Sintetizador de Mapas Estelares"
       icon="public"
       gameSystemId={activeCampaign?.gameSystemId}

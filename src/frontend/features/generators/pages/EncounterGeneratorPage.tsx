@@ -262,9 +262,9 @@ const encounterData = parseJsonResponse<EncounterData>(result.encounterJson);
 
   return (
     <TerminalLayout 
-      title="SIMULADOR DE COMBATE" 
+      title="SYNTH_ENCUENTRO" 
       subtitle="Generador de Encuentros Tacticos"
-      icon="swords"
+      icon="pest_control"
       gameSystemId={activeCampaign?.gameSystemId}
       hideCampaignSelector={false}
     >
@@ -275,7 +275,7 @@ const encounterData = parseJsonResponse<EncounterData>(result.encounterJson);
             {/* Encounter Type Selection */}
             <div>
               <label className="text-primary text-[10px] uppercase tracking-widest mb-2 flex items-center gap-2">
-                <span className="material-icons text-sm">swords</span> Tipo de Encuentro
+                <span className="material-icons text-sm">pest_control</span> Tipo de Encuentro
               </label>
               <select 
                 value={form.encounterType}
