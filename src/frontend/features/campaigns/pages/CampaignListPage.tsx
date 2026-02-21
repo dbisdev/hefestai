@@ -467,7 +467,7 @@ export const CampaignListPage: React.FC = () => {
                 <span className="material-icons text-sm">error</span>
                 {error}
               </div>
-              <button onClick={clearError} className="text-danger/60 hover:text-danger">
+              <button type="button" onClick={clearError} className="text-danger/60 hover:text-danger cursor-pointer">
                 <span className="material-icons text-sm">close</span>
               </button>
             </div>

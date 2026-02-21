@@ -1,26 +1,19 @@
 /**
  * Vehicle Generator Page
  * AI-powered vehicle generation for starships, rovers, and mechs
- * Uses campaign context for entity creation
+ * Uses useEntityGeneration hook for generation orchestration
  */
 
-import React, { useState, useEffect } from 'react';
-import { useNavigate } from 'react-router-dom';
+import React, { useState, useCallback, useEffect } from 'react';
 import { TerminalLayout } from '@shared/components/layout';
-import { Button, ImageSourceSelector, DynamicStatsPanel, TerminalLog, EditableField, EditableStatsPanel } from '@shared/components/ui';
-import type { ImageSourceMode } from '@shared/components/ui';
-import { useTerminalLog } from '@core/hooks/useTerminalLog';
+import { Button, ImageSourceSelector, TerminalLog, EditableField, EditableStatsPanel } from '@shared/components/ui';
 import { aiService, entityService, entityTemplateService } from '@core/services/api';
 import { useCampaign } from '@core/context';
 import { parseJsonResponse } from '@core/utils';
-import type { VehicleData, FieldDefinition } from '@core/types';
+import { useEntityGeneration } from '@core/hooks';
+import type { VehicleData } from '@core/types';
 
-/** Placeholder image for vehicles without generated images */
 const VEHICLE_PLACEHOLDER_IMAGE = "https://images.unsplash.com/photo-1702499903230-867455db1752?q=80&w=400&auto=format&fit=crop";
-
-interface VehicleGeneratorPageProps {
-  onBack: () => void;
-}
 
 const VEHICLE_TYPE_OPTIONS = [
   { value: 'starship', label: 'Nave Espacial' },
@@ -34,23 +27,12 @@ const CHASSIS_CLASS_OPTIONS = [
   { value: 'explorer', label: 'Explorador de Larga Distancia' },
 ];
 
+interface VehicleGeneratorPageProps {
+  onBack: () => void;
+}
+
 export const VehicleGeneratorPage: React.FC<VehicleGeneratorPageProps> = ({ onBack }) => {
-  const navigate = useNavigate();
   const { activeCampaignId, activeCampaign } = useCampaign();
-  const { logs, addLog } = useTerminalLog({
-    maxLogs: 6,
-    initialLogs: ['> Awaiting construction parameters...']
-  });
-const [isGenerating, setIsGenerating] = useState(false);
-  const [isSaving, setIsSaving] = useState(false);
-  const [generatedVehi, setGeneratedVehi] = useState<VehicleData | null>(null);
-  /** Editable vehicle data for inline editing before saving */
-  const [editableVehi, setEditableVehi] = useState<VehicleData | null>(null);
-  const [vehicleImage, setVehicleImage] = useState<string>(VEHICLE_PLACEHOLDER_IMAGE);
-  /** Stores the generation request ID to link entity to generation history when saving */
-  const [generationRequestId, setGenerationRequestId] = useState<string | undefined>();
-  /** Template field definitions for display name mapping */
-  const [fieldDefinitions, setFieldDefinitions] = useState<FieldDefinition[]>([]);
 
   const [form, setForm] = useState({
     type: 'starship',
@@ -58,184 +40,137 @@ const [isGenerating, setIsGenerating] = useState(false);
     engine: 'fusion'
   });
 
-  /** Image source mode state */
-  const [imageMode, setImageMode] = useState<ImageSourceMode>('generate');
-  /** Uploaded image data (base64) */
-  const [uploadedImageData, setUploadedImageData] = useState<string | null>(null);
+  const generateVehicle = useCallback(async (params: unknown, generateImage: boolean) => {
+    const formParams = params as { type: string; class: string; engine: string };
+    const result = await aiService.generateVehicle({
+      gameSystemId: activeCampaign?.gameSystemId,
+      type: formParams.type,
+      class: formParams.class,
+      engine: formParams.engine,
+      generateImage
+    });
 
-  /**
-   * Fetch template field definitions when game system changes.
-   * Used to map field identifiers to display names in stats panel.
-   */
-  useEffect(() => {
-    const fetchTemplateFields = async () => {
-      if (!activeCampaign?.gameSystemId) {
-        setFieldDefinitions([]);
-        return;
-      }
-      
-      try {
-        const fields = await entityTemplateService.getFieldDefinitions(
-          activeCampaign.gameSystemId,
-          'vehicle'
-        );
-        setFieldDefinitions(fields);
-      } catch (error) {
-        console.error('Failed to fetch template fields:', error);
-        setFieldDefinitions([]);
-      }
+    const data = parseJsonResponse<VehicleData>(result.vehicleJson);
+    return {
+      data,
+      imageBase64: result.imageBase64,
+      imageUrl: result.imageUrl,
+      generationRequestId: result.generationRequestId
     };
-    
-    fetchTemplateFields();
   }, [activeCampaign?.gameSystemId]);
 
-  /**
-   * Handles vehicle generation via AI service
-   */
-  const handleGenerate = async () => {
-    setIsGenerating(true);
-    addLog(`Initializing assembly for ${form.class}...`);
-
-    try {
-      // Only request AI image generation if mode is 'generate'
-      const shouldGenerateImage = imageMode === 'generate';
-      
-      const result = await aiService.generateVehicle({
-        gameSystemId: activeCampaign?.gameSystemId,
-        type: form.type,
-        class: form.class,
-        engine: form.engine,
-        generateImage: shouldGenerateImage
-      });
-
-const data = parseJsonResponse<VehicleData>(result.vehicleJson);
-      setGeneratedVehi(data);
-      setEditableVehi(data);
-      setGenerationRequestId(result.generationRequestId);
-      addLog(`Assembly complete: ${data.name}`);
-
-      // Handle image based on selected mode
-      if (imageMode === 'upload' && uploadedImageData) {
-        // Use uploaded image (already compressed to WebP)
-        setVehicleImage(`data:image/webp;base64,${uploadedImageData}`);
-        addLog('Using uploaded image.');
-      } else if (imageMode === 'generate') {
-        if (result.imageUrl) {
-          setVehicleImage(result.imageUrl);
-          addLog('Visual synthesis complete.');
-        } else if (result.imageBase64) {
-          setVehicleImage(`data:image/webp;base64,${result.imageBase64}`);
-          addLog('Visual synthesis complete.');
-        } else {
-          setVehicleImage(VEHICLE_PLACEHOLDER_IMAGE);
-          addLog('WARNING: Visual render failed. Using placeholder.');
+  const saveVehicle = useCallback(async (params: {
+    name: string;
+    description?: string;
+    imageUrl?: string;
+    attributes: Record<string, unknown>;
+    metadata?: Record<string, unknown>;
+    generationRequestId?: string;
+  }) => {
+    if (!activeCampaignId) return;
+    
+    await entityService.create(activeCampaignId, {
+      entityType: 'vehicle',
+      name: params.name,
+      description: params.description,
+      imageUrl: params.imageUrl,
+      attributes: params.attributes,
+      metadata: {
+        ...params.metadata,
+        generatedAt: new Date().toISOString(),
+        generator: 'vehicle_generator',
+        generationParams: {
+          vehicleType: form.type,
+          chassisClass: form.class,
+          engine: form.engine
         }
-      } else {
-        // Mode is 'none' - use placeholder
-        setVehicleImage(VEHICLE_PLACEHOLDER_IMAGE);
-        addLog('Image generation skipped.');
-      }
-    } catch (e: unknown) {
-      const message = e instanceof Error ? e.message : 'Unknown error';
-      addLog(`Error during assembly: ${message}`);
-    } finally {
-      setIsGenerating(false);
-    }
-  };
+      },
+      generationRequestId: params.generationRequestId
+    });
+  }, [activeCampaignId, form.type, form.class, form.engine]);
 
-/**
-    * Saves the generated vehicle to the entity service using campaign-scoped endpoint
-    */
-  const handleSave = async () => {
-    if (!editableVehi || !activeCampaignId) return;
-    setIsSaving(true);
-    addLog('Writing to shipyard database...');
+  const getFieldDefinitions = useCallback(async (gameSystemId: string) => {
+    return entityTemplateService.getFieldDefinitions(gameSystemId, 'vehicle');
+  }, []);
 
-    try {
-      await entityService.create(activeCampaignId, {
-        entityType: 'vehicle',
-        name: editableVehi.name,
-        description: editableVehi.description,
-        imageUrl: vehicleImage !== VEHICLE_PLACEHOLDER_IMAGE ? vehicleImage : undefined,
-        attributes: {
-          ...editableVehi.stats
-        },
-        metadata: {
-          generatedAt: new Date().toISOString(),
-          generator: 'vehicle_generator',
-          // Store generation parameters for reference
-          generationParams: {
-            vehicleType: form.type,
-            chassisClass: form.class,
-            engine: form.engine
-          }
-        },
-        generationRequestId
-      });
-      addLog('Data committed to shipyard database.');
+  const {
+    isGenerating,
+    isSaving,
+    editableData,
+    image,
+    fieldDefinitions,
+    imageMode,
+    uploadedImageData,
+    logs,
+    generate,
+    save,
+    loadFieldDefinitions,
+    setEditableData,
+    setImageMode,
+    setUploadedImageData
+  } = useEntityGeneration<VehicleData>({
+    entityType: 'vehicle',
+    placeholderImage: VEHICLE_PLACEHOLDER_IMAGE,
+    initialLogs: ['> Awaiting construction parameters...'],
+    maxLogs: 6,
+    generateFn: generateVehicle,
+    saveFn: saveVehicle,
+    getFieldDefinitions,
+    onSaveSuccess: () => {
       setTimeout(onBack, 1500);
-    } catch (e: unknown) {
-      const message = e instanceof Error ? e.message : 'Unknown error';
-      addLog(`Database write failed: ${message}`);
-    } finally {
-      setIsSaving(false);
-}
+    }
+  });
+
+  useEffect(() => {
+    loadFieldDefinitions(activeCampaign?.gameSystemId);
+  }, [activeCampaign?.gameSystemId, loadFieldDefinitions]);
+
+  const handleGenerate = () => generate(form);
+
+  const handleSave = async () => {
+    if (!editableData) return;
+    await save(activeCampaignId || '', {
+      name: editableData.name,
+      description: editableData.description,
+      attributes: { ...editableData.stats },
+    });
   };
 
-  /**
-   * Handle stats changes from EditableStatsPanel
-   */
   const handleStatsChange = (newStats: Record<string, unknown>) => {
-    if (editableVehi) {
-      setEditableVehi({
-        ...editableVehi,
-        stats: newStats
-      });
+    if (editableData) {
+      setEditableData({ ...editableData, stats: newStats });
     }
   };
 
-  /**
-   * Handle name change
-   */
   const handleNameChange = (value: string | number) => {
-    if (editableVehi) {
-      setEditableVehi({
-        ...editableVehi,
-        name: String(value)
-      });
+    if (editableData) {
+      setEditableData({ ...editableData, name: String(value) });
     }
   };
 
-  /**
-   * Handle description change
-   */
   const handleDescriptionChange = (value: string | number) => {
-    if (editableVehi) {
-      setEditableVehi({
-        ...editableVehi,
-        description: String(value)
-      });
+    if (editableData) {
+      setEditableData({ ...editableData, description: String(value) });
     }
   };
 
   return (
-    <TerminalLayout 
-      title="SYNTH_VEHICULO" 
+    <TerminalLayout
+      title="SYNTH_VEHICULO"
       subtitle="Ensamblaje Naval"
       icon="rocket_launch"
       gameSystemId={activeCampaign?.gameSystemId}
       hideCampaignSelector={false}
     >
       <div className="flex flex-col md:flex-row gap-8 md:h-full font-mono">
-        {/* Form Panel */}
         <div className="flex-1 flex flex-col gap-6 overflow-y-auto">
           <div className="space-y-4">
             <div>
-              <label className="text-primary text-[10px] uppercase block mb-1">Tipo de Vehículo</label>
-              <select 
-                className="w-full bg-surface-dark border border-primary/30 p-2 text-sm text-white" 
-                value={form.type} 
-                onChange={e => setForm({...form, type: e.target.value})}
+              <label className="text-primary text-[10px] uppercase block mb-1">Tipo de Vehiculo</label>
+              <select
+                className="w-full bg-surface-dark border border-primary/30 p-2 text-sm text-white"
+                value={form.type}
+                onChange={e => setForm({ ...form, type: e.target.value })}
               >
                 {VEHICLE_TYPE_OPTIONS.map(opt => (
                   <option key={opt.value} value={opt.value}>{opt.label}</option>
@@ -244,10 +179,10 @@ const data = parseJsonResponse<VehicleData>(result.vehicleJson);
             </div>
             <div>
               <label className="text-primary text-[10px] uppercase block mb-1">Clase de Chasis</label>
-              <select 
+              <select
                 className="w-full bg-surface-dark border border-primary/30 p-2 text-sm text-white"
-                value={form.class} 
-                onChange={e => setForm({...form, class: e.target.value})}
+                value={form.class}
+                onChange={e => setForm({ ...form, class: e.target.value })}
               >
                 {CHASSIS_CLASS_OPTIONS.map(opt => (
                   <option key={opt.value} value={opt.value}>{opt.label}</option>
@@ -255,7 +190,6 @@ const data = parseJsonResponse<VehicleData>(result.vehicleJson);
               </select>
             </div>
 
-            {/* Image Source Selector */}
             <ImageSourceSelector
               mode={imageMode}
               onModeChange={setImageMode}
@@ -265,7 +199,6 @@ const data = parseJsonResponse<VehicleData>(result.vehicleJson);
             />
           </div>
 
-          {/* Action Buttons */}
           <div className="mt-auto flex gap-4">
             <Button
               onClick={handleGenerate}
@@ -279,7 +212,7 @@ const data = parseJsonResponse<VehicleData>(result.vehicleJson);
             </Button>
             <Button
               onClick={handleSave}
-              disabled={!editableVehi || isSaving || !activeCampaignId}
+              disabled={!editableData || isSaving || !activeCampaignId}
               variant="primary"
               fullWidth
               size="lg"
@@ -290,65 +223,60 @@ const data = parseJsonResponse<VehicleData>(result.vehicleJson);
           </div>
         </div>
 
-        {/* Preview Panel */}
         <div className="flex-1 flex flex-col gap-4">
-          {/* Scrollable content */}
           <div className="flex-1 overflow-y-auto flex flex-col gap-4">
             <div className="relative h-64 md:h-[500px] border border-primary/30 bg-black clip-tech-br">
-            <img 
-              src={vehicleImage} 
-              className={`w-full h-full object-cover object-[center_25%] transition-all duration-1000 ${isGenerating ? 'opacity-10 scale-110 blur-sm' : 'opacity-60 scale-100'} grayscale`} 
-              alt="Vehicle Preview"
-            />
-            {isGenerating && (
-              <div className="absolute inset-0 flex flex-col items-center justify-center bg-black/40 z-20">
-                <div className="w-1/2 h-1 bg-primary/20 relative overflow-hidden mb-2">
-                  <div className="absolute inset-0 bg-primary animate-[scan_2s_linear_infinite]"></div>
+              <img
+                src={image}
+                className={`w-full h-full object-cover object-[center_25%] transition-all duration-1000 ${isGenerating ? 'opacity-10 scale-110 blur-sm' : 'opacity-60 scale-100'} grayscale`}
+                alt="Vehicle Preview"
+              />
+              {isGenerating && (
+                <div className="absolute inset-0 flex flex-col items-center justify-center bg-black/40 z-20">
+                  <div className="w-1/2 h-1 bg-primary/20 relative overflow-hidden mb-2">
+                    <div className="absolute inset-0 bg-primary animate-[scan_2s_linear_infinite]"></div>
+                  </div>
+                  <span className="text-primary text-[10px] animate-pulse">ENSAMBLANDO_VEHICULO...</span>
                 </div>
-                <span className="text-primary text-[10px] animate-pulse">ENSAMBLANDO_VEHICULO...</span>
+              )}
+              <div className="absolute inset-0 flex flex-col justify-end p-4 bg-gradient-to-t from-black to-transparent">
+                <EditableField
+                  value={editableData?.name || ''}
+                  label="Nombre"
+                  variant="primary"
+                  onChange={handleNameChange}
+                  className="font-bold text-lg"
+                  disabled={!editableData}
+                />
+              </div>
+            </div>
+
+            {editableData?.description && (
+              <div className="bg-surface-dark/50 border border-primary/20 p-3">
+                <EditableField
+                  value={editableData.description}
+                  label="Description"
+                  type="textarea"
+                  rows={2}
+                  variant="primary"
+                  onChange={handleDescriptionChange}
+                  disabled={!editableData}
+                />
               </div>
             )}
-<div className="absolute inset-0 flex flex-col justify-end p-4 bg-gradient-to-t from-black to-transparent">
-              <EditableField
-                value={editableVehi?.name || ''}
-                label="Nombre"
-                variant="primary"
-                onChange={handleNameChange}
-                className="font-bold text-lg"
-                disabled={!editableVehi}
-              />
-            </div>
-          </div>
-          
-          {/* Details Section - Below image, above stats */}
-          {editableVehi?.description && (
-            <div className="bg-surface-dark/50 border border-primary/20 p-3">
-              <EditableField
-                value={editableVehi.description}
-                label="Description"
-                type="textarea"
-                rows={2}
-                variant="primary"
-                onChange={handleDescriptionChange}
-                disabled={!editableVehi}
-              />
-            </div>
-          )}
-          
-          {/* Stats Panel - Dynamic based on game system */}
-          <EditableStatsPanel 
-            stats={editableVehi?.stats || null}
-            onStatsChange={handleStatsChange}
-            variant="primary"
-            maxColumns={3}
-            showProgressBar={true}
-            maxProgressValue={100}
-            fieldDefinitions={fieldDefinitions}
-            disabled={!editableVehi}
-          />
+
+            <EditableStatsPanel
+              stats={editableData?.stats || null}
+              onStatsChange={handleStatsChange}
+              variant="primary"
+              maxColumns={3}
+              showProgressBar={true}
+              maxProgressValue={100}
+              fieldDefinitions={fieldDefinitions}
+              disabled={!editableData}
+            />
           </div>
 
-          {/* Log Panel - Fixed at bottom */}
           <TerminalLog logs={logs} maxLogs={6} className="h-20 shrink-0" />
         </div>
       </div>

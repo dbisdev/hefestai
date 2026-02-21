@@ -6,6 +6,7 @@
  */
 
 import React, { useEffect, useRef } from 'react';
+import { buildLabelMapFromFields, getDisplayLabel, categorizeAttributes } from '@core/utils';
 import type { LoreEntity, FieldDefinition } from '@core/types';
 import { VisibilityLevel } from '@core/types';
 
@@ -17,54 +18,6 @@ interface EntityViewModalProps {
   /** Callback when modal is closed */
   onClose: () => void;
 }
-
-/**
- * Map of field identifier (name) to display name.
- */
-type LabelMap = Record<string, string>;
-
-/**
- * Builds a label map from field definitions.
- * Maps field.name (identifier) -> field.displayName
- */
-const buildLabelMapFromFields = (fields: FieldDefinition[]): LabelMap => {
-  const map: LabelMap = {};
-  fields.forEach(field => {
-    map[field.name] = field.displayName;
-    map[field.name.toLowerCase()] = field.displayName;
-    map[field.name.toUpperCase()] = field.displayName;
-  });
-  return map;
-};
-
-/**
- * Gets the display label for a field key.
- * Falls back to formatting the raw key if not found in map.
- */
-const getDisplayLabel = (key: string, labelMap?: LabelMap): string => {
-  if (labelMap?.[key]) {
-    return labelMap[key];
-  }
-  
-  if (labelMap) {
-    const lowerKey = key.toLowerCase();
-    const upperKey = key.toUpperCase();
-    if (labelMap[lowerKey]) return labelMap[lowerKey];
-    if (labelMap[upperKey]) return labelMap[upperKey];
-  }
-  
-  return key
-    .replace(/_/g, ' ')
-    .toLowerCase()
-    .replace(/\b\w/g, c => c.toUpperCase());
-};
-
-/**
- * Checks if a value is a nested object (like SKILLS)
- */
-const isNestedObject = (value: unknown): value is Record<string, unknown> => {
-  return typeof value === 'object' && value !== null && !Array.isArray(value);
-};
 
 /**
  * Visibility level labels
@@ -93,21 +46,8 @@ export const EntityViewModal: React.FC<EntityViewModalProps> = ({
   // Get attributes from entity
   const attributes = (entity.attributes || {}) as Record<string, unknown>;
 
-  // Separate attributes by type for proper rendering
-  const numericAttrs: [string, number][] = [];
-  const stringAttrs: [string, string][] = [];
-  const nestedAttrs: [string, Record<string, unknown>][] = [];
-
-  Object.entries(attributes).forEach(([key, value]) => {
-    if (typeof value === 'number') {
-      numericAttrs.push([key, value]);
-    } else if (typeof value === 'string') {
-      stringAttrs.push([key, value]);
-    } else if (isNestedObject(value)) {
-      nestedAttrs.push([key, value]);
-    }
-  });
-
+  // Categorize attributes by type for proper rendering
+  const { numeric: numericAttrs, string: stringAttrs, nested: nestedAttrs } = categorizeAttributes(attributes);
   const hasAttributes = numericAttrs.length > 0 || stringAttrs.length > 0 || nestedAttrs.length > 0;
 
   // Handle escape key to close modal

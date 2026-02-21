@@ -1,38 +1,18 @@
 /**
  * Animated Routes Component
- * Wraps Routes with transition effects for smooth page changes
+ * Declarative routing with transition effects for smooth page changes
+ * Simplified using route configuration
  */
 
+import React, { useEffect, useState } from 'react';
 import { useLocation, Routes, Route, Navigate, useNavigate } from 'react-router-dom';
-import { useEffect, useState } from 'react';
-
-// Import all page components directly
-import Home from '@features/auth/pages/Home';
-import LoginPage from '@features/auth/pages/LoginPage';
-import SignupPage from '@features/auth/pages/SignupPage';
-import GalleryPage from '@features/gallery/pages/GalleryPage';
-import { MasterHubPage } from '@features/gallery/pages/MasterHubPage';
-import { CampaignListPage } from '@features/campaigns/pages/CampaignListPage';
-import { CampaignGeneratorPage } from '@features/generators/pages/CampaignGeneratorPage';
-import { CampaignSettingsPage } from '@features/generators/pages/CampaignSettingsPage';
-import { InvitationsPage } from '@features/invitations/pages/InvitationsPage';
-import { CharacterGeneratorPage } from '@features/generators/pages/CharacterGeneratorPage';
-import { SolarSystemGeneratorPage } from '@features/generators/pages/SolarSystemGeneratorPage';
-import { VehicleGeneratorPage } from '@features/generators/pages/VehicleGeneratorPage';
-import { NpcGeneratorPage } from '@features/generators/pages/NpcGeneratorPage';
-import { EnemyGeneratorPage } from '@features/generators/pages/EnemyGeneratorPage';
-import { MissionGeneratorPage } from '@features/generators/pages/MissionGeneratorPage';
-import { EncounterGeneratorPage } from '@features/generators/pages/EncounterGeneratorPage';
-import { GameSystemsPage } from '@features/generators/pages/GameSystemsPage';
-import { TemplatesPage } from '@features/generators/pages/TemplatesPage';
-import { AdminUsersPage } from '@features/admin/pages/AdminUsersPage';
-import { AdminCampaignsPage } from '@features/admin/pages/AdminCampaignsPage';
-import { AdminSystemPage } from '@features/admin/pages/AdminSystemPage';
-import { AccessDenied, ErrorScreen } from '@shared/components/feedback';
+import { ProtectedRoute } from '@shared/components/routing';
+import { routeConfig, getDefaultRoute } from '@core/config/routes';
+import type { UserRole } from '@core/config/routes';
 
 interface AnimatedRoutesProps {
   isAuthenticated: boolean;
-  userRole?: string;
+  userRole?: UserRole;
 }
 
 export const AnimatedRoutes: React.FC<AnimatedRoutesProps> = ({ isAuthenticated, userRole }) => {
@@ -55,184 +35,28 @@ export const AnimatedRoutes: React.FC<AnimatedRoutesProps> = ({ isAuthenticated,
     }
   }, [location, displayLocation.pathname]);
 
-  // Helper to check if user has required role
-  const hasRole = (requiredRoles?: string[]) => {
-    if (!requiredRoles || requiredRoles.length === 0) return true;
-    if (!userRole) return false;
-    return requiredRoles.includes(userRole);
-  };
-
-  // Helper to check if route requires auth
-  const requiresAuth = (routeAuth?: boolean) => {
-    return routeAuth === true;
-  };
-
-  // Redirect to appropriate page based on auth state
-  const getDefaultRoute = () => {
-    if (!isAuthenticated) return '/';
-    if (userRole === 'ADMIN') return '/admin/users';
-    if (userRole === 'MASTER') return '/hub';
-    return '/gallery';
-  };
-
   return (
     <div className={`h-full w-full transition-all duration-300 overflow-y-auto sm:overflow-visible ${
-      transitionStage === 'out' ? 'section-transition-out' : 
+      transitionStage === 'out' ? 'section-transition-out' :
       transitionStage === 'in' ? 'section-transition-in' : ''
     }`}>
       <Routes location={displayLocation}>
-          {/* Public routes */}
-          <Route path="/" element={
-            isAuthenticated ? <Navigate to={getDefaultRoute()} replace /> : <Home />
-          } />
-          <Route path="/login" element={
-            isAuthenticated ? <Navigate to={getDefaultRoute()} replace /> : <LoginPage />
-          } />
-          <Route path="/signup" element={
-            isAuthenticated ? <Navigate to={getDefaultRoute()} replace /> : <SignupPage />
-          } />
-          <Route path="/access-denied" element={<AccessDenied onBack={handleGoBack} />} />
-          <Route path="/error" element={<ErrorScreen onReboot={handleGoBack} />} />
-          
-          {/* Gallery - authenticated users */}
-          <Route path="/gallery" element={
-            requiresAuth(true) && !isAuthenticated 
-              ? <Navigate to="/" replace />
-              : <GalleryPage />
-          } />
-          
-          {/* Master Hub - MASTER or ADMIN only */}
-          <Route path="/hub" element={
-            !isAuthenticated 
-              ? <Navigate to="/" replace />
-              : !hasRole(['MASTER', 'ADMIN'])
-                ? <Navigate to="/access-denied" replace />
-                : <MasterHubPage />
-          } />
-          
-          {/* Campaign routes */}
-          <Route path="/campaigns" element={
-            !isAuthenticated 
-              ? <Navigate to="/" replace />
-              : <CampaignListPage />
-          } />
-          <Route path="/campaigns/new" element={
-            !isAuthenticated 
-              ? <Navigate to="/" replace />
-              : <CampaignGeneratorPage onBack={handleGoBack} />
-          } />
-          <Route path="/campaigns/:campaignId" element={
-            !isAuthenticated 
-              ? <Navigate to="/" replace />
-              : <CampaignSettingsPage onBack={handleGoBack} />
-          } />
-          {/* Invitations - uses campaign ID from context or param */}
-          <Route path="/invitations" element={
-            !isAuthenticated 
-              ? <Navigate to="/" replace />
-              : <InvitationsPage />
-          } />
-          <Route path="/campaigns/:campaignId/invitations" element={
-            !isAuthenticated 
-              ? <Navigate to="/" replace />
-              : <InvitationsPage />
-          } />
-          
-          {/* Generator routes - MASTER or ADMIN only */}
-          <Route path="/gallery/char-gen" element={
-            !isAuthenticated 
-              ? <Navigate to="/" replace />
-              : !hasRole(['MASTER', 'ADMIN'])
-                ? <Navigate to="/access-denied" replace />
-                : <CharacterGeneratorPage onBack={handleGoBack} />
-          } />
-          <Route path="/gallery/solar-gen" element={
-            !isAuthenticated 
-              ? <Navigate to="/" replace />
-              : !hasRole(['MASTER', 'ADMIN'])
-                ? <Navigate to="/access-denied" replace />
-                : <SolarSystemGeneratorPage onBack={handleGoBack} />
-          } />
-          <Route path="/gallery/vehi-gen" element={
-            !isAuthenticated 
-              ? <Navigate to="/" replace />
-              : !hasRole(['MASTER', 'ADMIN'])
-                ? <Navigate to="/access-denied" replace />
-                : <VehicleGeneratorPage onBack={handleGoBack} />
-          } />
-          <Route path="/gallery/npc-gen" element={
-            !isAuthenticated 
-              ? <Navigate to="/" replace />
-              : !hasRole(['MASTER', 'ADMIN'])
-                ? <Navigate to="/access-denied" replace />
-                : <NpcGeneratorPage onBack={handleGoBack} />
-          } />
-          <Route path="/gallery/enemy-gen" element={
-            !isAuthenticated 
-              ? <Navigate to="/" replace />
-              : !hasRole(['MASTER', 'ADMIN'])
-                ? <Navigate to="/access-denied" replace />
-                : <EnemyGeneratorPage onBack={handleGoBack} />
-          } />
-          <Route path="/gallery/mission-gen" element={
-            !isAuthenticated 
-              ? <Navigate to="/" replace />
-              : !hasRole(['MASTER', 'ADMIN'])
-                ? <Navigate to="/access-denied" replace />
-                : <MissionGeneratorPage onBack={handleGoBack} />
-          } />
-          <Route path="/gallery/encounter-gen" element={
-            !isAuthenticated 
-              ? <Navigate to="/" replace />
-              : !hasRole(['MASTER', 'ADMIN'])
-                ? <Navigate to="/access-denied" replace />
-                : <EncounterGeneratorPage onBack={handleGoBack} />
-          } />
-          
-          {/* Game Systems - MASTER or ADMIN only */}
-          <Route path="/game-systems" element={
-            !isAuthenticated 
-              ? <Navigate to="/" replace />
-              : !hasRole(['MASTER', 'ADMIN'])
-                ? <Navigate to="/access-denied" replace />
-                : <GameSystemsPage />
-          } />
-          
-          {/* Templates - ADMIN and MASTER (ownership check done in TemplatesPage) */}
-          <Route path="/templates" element={
-            !isAuthenticated 
-              ? <Navigate to="/" replace />
-              : !hasRole(['ADMIN', 'MASTER'])
-                ? <Navigate to="/access-denied" replace />
-                : <TemplatesPage />
-          } />
-          
-          {/* Admin routes - ADMIN only */}
-          <Route path="/admin/users" element={
-            !isAuthenticated 
-              ? <Navigate to="/" replace />
-              : !hasRole(['ADMIN'])
-                ? <Navigate to="/access-denied" replace />
-                : <AdminUsersPage />
-          } />
-          <Route path="/admin/campaigns" element={
-            !isAuthenticated 
-              ? <Navigate to="/" replace />
-              : !hasRole(['ADMIN'])
-                ? <Navigate to="/access-denied" replace />
-                : <AdminCampaignsPage />
-          } />
-          <Route path="/admin/system" element={
-            !isAuthenticated 
-              ? <Navigate to="/" replace />
-              : !hasRole(['ADMIN'])
-                ? <Navigate to="/access-denied" replace />
-                : <AdminSystemPage />
-          } />
-          
-          {/* Catch all - v7 uses /* instead of * */}
-          <Route path="/*" element={<Navigate to="/" replace />} />
-        </Routes>
+        {routeConfig.map((route) => (
+          <Route
+            key={route.path}
+            path={route.path}
+            element={
+              <ProtectedRoute
+                route={route}
+                isAuthenticated={isAuthenticated}
+                userRole={userRole}
+                onBack={handleGoBack}
+              />
+            }
+          />
+        ))}
+        <Route path="/*" element={<Navigate to={getDefaultRoute(isAuthenticated, userRole)} replace />} />
+      </Routes>
     </div>
   );
 };

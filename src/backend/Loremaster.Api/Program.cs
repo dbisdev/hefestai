@@ -27,7 +27,7 @@ Log.Logger = new LoggerConfiguration()
 
 try
 {
-    Log.Information("Starting Loremaster API");
+    Log.Information("Starting HefestAi API");
 
     var builder = WebApplication.CreateBuilder(args);
 

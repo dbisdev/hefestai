@@ -9,6 +9,7 @@
 import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { entityService, campaignService } from '@core/services/api';
 import { useCampaign } from '@core/context';
+import { buildLabelMapFromFields, getDisplayLabel, categorizeAttributes, isNestedObject } from '@core/utils';
 import type { LoreEntity, DynamicStats, FieldDefinition, CampaignMember } from '@core/types';
 import { VisibilityLevel, CampaignRole } from '@core/types';
 
@@ -28,61 +29,6 @@ interface EntityEditModalProps {
   /** Callback when entity is successfully saved */
   onSave: (updatedEntity: LoreEntity) => void;
 }
-
-/**
- * Map of field identifier (name) to display name.
- */
-type LabelMap = Record<string, string>;
-
-/**
- * Builds a label map from field definitions.
- * Maps field.name (identifier) -> field.displayName
- */
-const buildLabelMapFromFields = (fields: FieldDefinition[]): LabelMap => {
-  const map: LabelMap = {};
-  fields.forEach(field => {
-    map[field.name] = field.displayName;
-    // Also map case variations for flexibility
-    map[field.name.toLowerCase()] = field.displayName;
-    map[field.name.toUpperCase()] = field.displayName;
-  });
-  return map;
-};
-
-/**
- * Gets the display label for a field key.
- * Falls back to formatting the raw key if not found in map.
- * @param key - The field identifier (e.g., "ATTRIBUTES_STRENGTH")
- * @param labelMap - Optional map of identifiers to display names
- * @returns Human-readable label
- */
-const getDisplayLabel = (key: string, labelMap?: LabelMap): string => {
-  // First check exact match in label map
-  if (labelMap?.[key]) {
-    return labelMap[key];
-  }
-  
-  // Check case-insensitive match
-  if (labelMap) {
-    const lowerKey = key.toLowerCase();
-    const upperKey = key.toUpperCase();
-    if (labelMap[lowerKey]) return labelMap[lowerKey];
-    if (labelMap[upperKey]) return labelMap[upperKey];
-  }
-  
-  // Fallback: Format the raw key to be more readable
-  return key
-    .replace(/_/g, ' ')
-    .toLowerCase()
-    .replace(/\b\w/g, c => c.toUpperCase());
-};
-
-/**
- * Checks if a value is a nested object (like SKILLS)
- */
-const isNestedObject = (value: unknown): value is Record<string, unknown> => {
-  return typeof value === 'object' && value !== null && !Array.isArray(value);
-};
 
 /**
  * Modal component for editing entity details
@@ -286,22 +232,9 @@ export const EntityEditModal: React.FC<EntityEditModalProps> = ({
   ];
 
   /**
-   * Separate attributes by type for proper rendering
+   * Categorize attributes by type for proper rendering
    */
-  const numericAttrs: [string, number][] = [];
-  const stringAttrs: [string, string][] = [];
-  const nestedAttrs: [string, Record<string, unknown>][] = [];
-
-  Object.entries(attributes).forEach(([key, value]) => {
-    if (typeof value === 'number') {
-      numericAttrs.push([key, value]);
-    } else if (typeof value === 'string') {
-      stringAttrs.push([key, value]);
-    } else if (isNestedObject(value)) {
-      nestedAttrs.push([key, value]);
-    }
-  });
-
+  const { numeric: numericAttrs, string: stringAttrs, nested: nestedAttrs } = categorizeAttributes(attributes);
   const hasAttributes = numericAttrs.length > 0 || stringAttrs.length > 0 || nestedAttrs.length > 0;
 
   return (

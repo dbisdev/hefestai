@@ -395,7 +395,7 @@ const DiceRoller: React.FC<DiceRollerProps> = ({ onClose }) => {
               <span className="text-[8px] md:text-[10px] text-primary/40 uppercase hidden sm:block">Simulación Física: Precision H-99</span>
             </div>
           </div>
-          <button onClick={onClose} className="text-primary/60 hover:text-primary transition-colors hover:rotate-90">
+          <button type="button" onClick={onClose} className="text-primary/60 hover:text-primary transition-colors hover:rotate-90 cursor-pointer">
             <span className="material-icons">close</span>
           </button>
         </div>
@@ -411,11 +411,11 @@ const DiceRoller: React.FC<DiceRollerProps> = ({ onClose }) => {
                 <div className="flex justify-between items-center bg-black/30 p-2 border border-primary/10 clip-tech-tl">
                   <label className="text-[10px] text-primary/70 uppercase">Negros</label>
                   <div className="flex items-center gap-4">
-                    <button onClick={() => setBlackCount(Math.max(0, blackCount - 1))} className="text-primary hover:text-white transition-colors">
+                    <button type="button" onClick={() => setBlackCount(Math.max(0, blackCount - 1))} className="text-primary hover:text-white transition-colors cursor-pointer">
                       <span className="material-icons text-sm">remove</span>
                     </button>
                     <span className="w-8 text-center text-primary font-bold">{blackCount}</span>
-                    <button onClick={() => setBlackCount(Math.min(10, blackCount + 1))} className="text-primary hover:text-white transition-colors">
+                    <button type="button" onClick={() => setBlackCount(Math.min(10, blackCount + 1))} className="text-primary hover:text-white transition-colors cursor-pointer">
                       <span className="material-icons text-sm">add</span>
                     </button>
                   </div>
@@ -423,20 +423,21 @@ const DiceRoller: React.FC<DiceRollerProps> = ({ onClose }) => {
                 <div className="flex justify-between items-center bg-black/30 p-2 border border-yellow-500/10 clip-tech-tl">
                   <label className="text-[10px] text-yellow-500/70 uppercase">Amarillos</label>
                   <div className="flex items-center gap-4">
-                    <button onClick={() => setYellowCount(Math.max(0, yellowCount - 1))} className="text-yellow-500 hover:text-white transition-colors">
+                    <button type="button" onClick={() => setYellowCount(Math.max(0, yellowCount - 1))} className="text-yellow-500 hover:text-white transition-colors cursor-pointer">
                       <span className="material-icons text-sm">remove</span>
                     </button>
                     <span className="w-8 text-center text-yellow-500 font-bold">{yellowCount}</span>
-                    <button onClick={() => setYellowCount(Math.min(10, yellowCount + 1))} className="text-yellow-500 hover:text-white transition-colors">
+                    <button type="button" onClick={() => setYellowCount(Math.min(10, yellowCount + 1))} className="text-yellow-500 hover:text-white transition-colors cursor-pointer">
                       <span className="material-icons text-sm">add</span>
                     </button>
                   </div>
                 </div>
               </div>
               <button 
+                type="button"
                 onClick={rollDice}
                 disabled={isRolling || (blackCount + yellowCount === 0)}
-                className="w-full h-12 md:h-14 bg-primary text-black font-bold uppercase tracking-widest hover:scale-[1.02] active:scale-95 transition-all shadow-[0_0_20px_rgba(37,244,106,0.2)] disabled:opacity-20 flex items-center justify-center gap-2 overflow-hidden px-4"
+                className="w-full h-12 md:h-14 bg-primary text-black font-bold uppercase tracking-widest hover:scale-[1.02] active:scale-95 transition-all shadow-[0_0_20px_rgba(37,244,106,0.2)] disabled:opacity-20 flex items-center justify-center gap-2 overflow-hidden px-4 cursor-pointer disabled:cursor-not-allowed"
               >
                 {isRolling ? (
                   <span className="material-icons animate-spin text-lg">refresh</span>
@@ -523,7 +524,7 @@ const DiceRoller: React.FC<DiceRollerProps> = ({ onClose }) => {
           </aside>
 
           {/* 3D Arena - Top on mobile (order-1), Right on desktop (order-2) */}
-          <main className="order-1 md:order-2 flex-1 relative bg-black/20 cursor-move h-[35vh] md:h-auto md:min-h-0">
+          <main className="order-1 md:order-2 flex-1 relative bg-black/20 h-[35vh] md:h-auto md:min-h-0">
             <div ref={containerRef} className="absolute inset-0 w-full h-full" />
             
             {/* Arena Overlays */}

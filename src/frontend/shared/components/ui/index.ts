@@ -26,3 +26,7 @@ export { EditableStatsPanel } from './EditableStatsPanel';
 export type { EditableStatsPanelProps } from './EditableStatsPanel';
 
 export { TerminalLog } from './TerminalLog';
+
+export { EmptyState } from './EmptyState';
+
+export { ConfirmDialog } from './ConfirmDialog';

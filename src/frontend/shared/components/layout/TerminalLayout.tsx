@@ -148,14 +148,15 @@ export const TerminalLayout: React.FC<TerminalLayoutProps> = ({
               {/* Campaign Selector Button */}
               {shouldShowCampaignSelector && (
                 <>
-                  {/* <span className="text-primary/30 hidden sm:inline">//</span> */}
-                  <button
-                    onClick={handleCampaignSelectorToggle}
-                    className="flex items-center gap-1 text-[10px] md:text-xs text-primary/60 hover:text-primary transition-colors uppercase tracking-wider group"
-                    aria-expanded={showCampaignSelector}
-                    aria-haspopup="listbox"
-                    aria-label="Seleccionar campaña"
-                  >
+                   {/* <span className="text-primary/30 hidden sm:inline">//</span> */}
+                   <button
+                     type="button"
+                     onClick={handleCampaignSelectorToggle}
+                     className="flex items-center gap-1 text-[10px] md:text-xs text-primary/60 hover:text-primary transition-colors uppercase tracking-wider group cursor-pointer"
+                     aria-expanded={showCampaignSelector}
+                     aria-haspopup="listbox"
+                     aria-label="Seleccionar campaña"
+                   >
                     <span className="material-icons text-xs">public</span>
                     <span className="truncate max-w-[100px] md:max-w-[150px]">
                       {activeCampaign?.name || 'Sin campaña'}
@@ -180,8 +181,9 @@ export const TerminalLayout: React.FC<TerminalLayoutProps> = ({
 
           {/* Dice Roller Button */}
           <button 
+            type="button"
             onClick={() => setShowDice(true)}
-            className="col-span-1 md:col-auto flex items-center gap-2 border border-primary/40 px-2 md:px-3 py-1 text-xs uppercase hover:bg-primary/20 transition-all text-primary font-bold"
+            className="col-span-1 md:col-auto flex items-center gap-2 border border-primary/40 px-2 md:px-3 py-1 text-xs uppercase hover:bg-primary/20 transition-all text-primary font-bold cursor-pointer"
             aria-label="Lanzar dados"
           >
             <span className="material-icons text-sm">casino</span>
@@ -190,8 +192,9 @@ export const TerminalLayout: React.FC<TerminalLayoutProps> = ({
 
           {/* Rules Search Button */}
           <button 
+            type="button"
             onClick={() => setShowRuleQuery(true)}
-            className="col-span-1 md:col-auto flex items-center gap-2 border border-primary/40 px-2 md:px-3 py-1 text-xs uppercase hover:bg-primary/20 transition-all text-primary font-bold"
+            className="col-span-1 md:col-auto flex items-center gap-2 border border-primary/40 px-2 md:px-3 py-1 text-xs uppercase hover:bg-primary/20 transition-all text-primary font-bold cursor-pointer"
             aria-label="Consultar reglas"
           >
             <span className="material-icons text-sm">auto_stories</span>
@@ -204,8 +207,9 @@ export const TerminalLayout: React.FC<TerminalLayoutProps> = ({
           {/* Back Button - Visible in all pages with browser history */}
           {!hideBackButton && location.pathname != "/hub" && (
             <button 
+              type="button"
               onClick={handleBack}
-              className="col-span-1 md:col-auto flex items-center gap-2 border border-primary/40 px-2 md:px-3 py-1 text-xs uppercase hover:bg-primary/20 transition-all text-primary font-bold"
+              className="col-span-1 md:col-auto flex items-center gap-2 border border-primary/40 px-2 md:px-3 py-1 text-xs uppercase hover:bg-primary/20 transition-all text-primary font-bold cursor-pointer"
               aria-label="Volver atrás"
             >
               <span className="material-icons text-sm">arrow_back</span>
@@ -216,8 +220,9 @@ export const TerminalLayout: React.FC<TerminalLayoutProps> = ({
           {/* Back to Hub Button */}
           {!hideBackToHub && (
             <button 
+              type="button"
               onClick={handleBackToHub}
-              className="col-span-1 md:col-auto flex items-center gap-2 border  px-2 md:px-3 py-1 text-xs uppercase border-cyan-500/30 hover:border-cyan-500 hover:bg-cyan-500/40 transition-all font-bold text-cyan-500 group-hover:text-cyan-400"
+              className="col-span-1 md:col-auto flex items-center gap-2 border  px-2 md:px-3 py-1 text-xs uppercase border-cyan-500/30 hover:border-cyan-500 hover:bg-cyan-500/40 transition-all font-bold text-cyan-500 group-hover:text-cyan-400 cursor-pointer"
               aria-label="Volver al hub"
             >
               <span className="material-icons text-sm">home</span>
@@ -227,11 +232,12 @@ export const TerminalLayout: React.FC<TerminalLayoutProps> = ({
           
           {/* Logout Button - Always visible */}
           <button 
+            type="button"
             onClick={async () => {
               await logout();
               window.location.replace('/');
             }}
-            className="col-span-1 md:col-auto flex items-center gap-2 border border-red-500/60 px-2 md:px-3 py-1 text-xs uppercase hover:bg-red-500 hover:text-black transition-colors text-red-500 font-bold"
+            className="col-span-1 md:col-auto flex items-center gap-2 border border-red-500/60 px-2 md:px-3 py-1 text-xs uppercase hover:bg-red-500 hover:text-black transition-colors text-red-500 font-bold cursor-pointer"
             aria-label="Cerrar sesión"
           >
             <span className="material-icons text-sm">logout</span>
@@ -274,9 +280,10 @@ export const TerminalLayout: React.FC<TerminalLayoutProps> = ({
               ) : (
                 campaigns.map(campaign => (
                   <button
+                    type="button"
                     key={campaign.id}
                     onClick={() => handleSelectCampaign(campaign.id)}
-                    className={`w-full p-3 text-left flex items-center justify-between hover:bg-primary/10 transition-colors ${
+                    className={`w-full p-3 text-left flex items-center justify-between hover:bg-primary/10 transition-colors cursor-pointer ${
                       activeCampaign?.id === campaign.id 
                         ? 'bg-primary/20 border-l-2 border-primary' 
                         : 'border-l-2 border-transparent'
@@ -305,32 +312,35 @@ export const TerminalLayout: React.FC<TerminalLayoutProps> = ({
             <div className="p-2 border-t border-primary/20 flex gap-2">
               <>
                 <button
+                  type="button"
                   onClick={() => {
                     setShowCampaignSelector(false);
                     navigate('/campaigns/new');
                   }}
-                  className="flex-1 p-2 text-[10px] text-primary/60 hover:text-primary hover:bg-primary/10 transition-colors uppercase tracking-wider text-center"
+                  className="flex-1 p-2 text-[10px] text-primary/60 hover:text-primary hover:bg-primary/10 transition-colors uppercase tracking-wider text-center cursor-pointer"
                 >
                   + NUEVA
                 </button>
                 <button
+                  type="button"
                   onClick={() => {
                     setShowCampaignSelector(false);
                     if (activeCampaign) {
                       navigate(`/campaigns/${activeCampaign.id}/invitations`);
                     }
                   }}
-                  className="flex-1 p-2 text-[10px] text-primary/60 hover:text-primary hover:bg-primary/10 transition-colors uppercase tracking-wider text-center"
+                  className="flex-1 p-2 text-[10px] text-primary/60 hover:text-primary hover:bg-primary/10 transition-colors uppercase tracking-wider text-center cursor-pointer"
                 >
                   UNIRSE
                 </button>
                 {activeCampaign && user?.role === 'MASTER' && (
                   <button
+                    type="button"
                     onClick={() => {
                       setShowCampaignSelector(false);
                       navigate(`/campaigns/${activeCampaign.id}`);
                     }}
-                    className="flex-1 p-2 text-[10px] text-primary/60 hover:text-primary hover:bg-primary/10 transition-colors uppercase tracking-wider text-center"
+                    className="flex-1 p-2 text-[10px] text-primary/60 hover:text-primary hover:bg-primary/10 transition-colors uppercase tracking-wider text-center cursor-pointer"
                   >
                     CONFIGURAR
                   </button>

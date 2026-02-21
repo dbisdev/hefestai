@@ -13,9 +13,9 @@
  */
 
 import React, { useState, useRef, useEffect, useCallback, KeyboardEvent } from 'react';
-import { documentService, gameSystemService } from '../core/services/api';
-import type { DocumentSearchResult, SemanticSearchResult } from '../core/services/api';
-import type { GameSystem } from '../core/types';
+import { documentService, gameSystemService } from '@core/services/api';
+import type { DocumentSearchResult, SemanticSearchResult } from '@core/services/api';
+import type { GameSystem } from '@core/types';
 
 /**
  * Game system with document availability info

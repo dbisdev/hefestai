@@ -8,114 +8,41 @@
  * - ARIA labels and roles for screen readers
  * - Focus management for modal dialogs
  * - Live region announcements for state changes
+ * 
+ * Refactored using:
+ * - useGalleryEntities: Entity fetching and management
+ * - useEntityActions: CRUD operations
+ * - useGalleryCategories: Category state management
+ * - useConfirmDialog: Confirmation dialogs
  */
 
-import React, { useState, useEffect, useCallback, useRef, KeyboardEvent, forwardRef } from 'react';
+import React, { useState, useEffect, useCallback, useRef, KeyboardEvent, forwardRef, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { TerminalLayout } from '@shared/components/layout';
 import { EntityEditModal, EntityViewModal } from '@shared/components/modals';
+import { EmptyState, ConfirmDialog, TerminalLog } from '@shared/components/ui';
 import { useCampaign, useAuth } from '@core/context';
 import { entityService, entityTemplateService } from '@core/services/api';
-import { useCharacterSheetPdf } from '@core/hooks';
+import { useCharacterSheetPdf, useConfirmDialog, useTerminalLog } from '@core/hooks';
+import { 
+  useGalleryEntities, 
+  useEntityActions, 
+  useGalleryCategories 
+} from '@features/gallery/hooks';
+import { CategoryButton } from '@features/gallery/components';
+import { 
+  ENTITY_CATEGORIES, 
+  ENTITY_CATEGORIES_LABS, 
+  CATEGORY_TO_ROUTE,
+  CATEGORIES_WITHOUT_TEMPLATE,
+  getRouteForTemplate,
+  getIconForEntityType,
+  type CategoryInfo 
+} from '@features/gallery/constants/categories';
 import type { LoreEntity, EntityCategory, CreateLoreEntityInput, EntityTemplateSummary, FieldDefinition } from '@core/types';
 import { CampaignRole, VisibilityLevel } from '@core/types';
 
-/**
- * Category info for sidebar navigation
- */
-type CategoryInfo = {
-  id: EntityCategory;
-  label: string;
-  icon: string;
-};
-
-/**
- * Entity categories available in the gallery
- * These map to backend entityType values (lowercase)
- */
-const ENTITY_CATEGORIES: CategoryInfo[] = [  
-  { id: 'character', label: 'PERSONAJES', icon: 'face' },
-  { id: 'npc', label: 'ACTORES', icon: 'groups' },
-  // { id: 'enemy', label: 'ENEMIGOS', icon: 'pest_control' },
-  { id: 'vehicle', label: 'VEHÍCULOS', icon: 'rocket_launch' },
-  { id: 'mission', label: 'MISIONES', icon: 'assignment' },
-  { id: 'encounter', label: 'ENCUENTROS', icon: 'pest_control' },
-  // { id: 'solar_system', label: 'SISTEMAS SOLARES', icon: 'public' },
-];
-
-
-const ENTITY_CATEGORIES_LABS: CategoryInfo[] = [  
-  { id: 'solar_system', label: 'SISTEMAS SOLARES', icon: 'public' },
-];
-
-/**
- * Map entity category to the corresponding generator route
- */
-const CATEGORY_TO_ROUTE: Record<EntityCategory, string> = {
-  'solar_system': '/gallery/solar-gen',
-  'character': '/gallery/char-gen',
-  'npc': '/gallery/npc-gen',
-  'enemy': '/gallery/enemy-gen',
-  'vehicle': '/gallery/vehi-gen',
-  'mission': '/gallery/mission-gen',
-  'encounter': '/gallery/encounter-gen',
-};
-
-/**
- * Map template entityTypeName to the corresponding generator route.
- * Handles common variations and naming conventions.
- * @param entityTypeName - The entity type name from the template
- * @returns The corresponding route or null if not found
- */
-const getRouteForTemplate = (entityTypeName: string): string | null => {
-  const routeMap: Record<string, string> = {
-    'character': '/gallery/char-gen',
-    'npc': '/gallery/npc-gen',
-    'enemy': '/gallery/enemy-gen',
-    'vehicle': '/gallery/vehi-gen',
-    'mission': '/gallery/mission-gen',
-    'encounter': '/gallery/encounter-gen',
-    'solar_system': '/gallery/solar-gen',
-    'solarsystem': '/gallery/solar-gen',
-    'solar-system': '/gallery/solar-gen',
-  };
-  return routeMap[entityTypeName.toLowerCase()] || null;
-};
-
-/**
- * Get a Material Icons icon name for a template based on its entityTypeName.
- * Uses iconHint from template if available, otherwise falls back to defaults.
- * @param template - The template summary
- * @returns Material icon name
- */
-const getIconForTemplate = (template: EntityTemplateSummary): string => {
-  // Use iconHint if available
-  if (template.iconHint) {
-    return template.iconHint;
-  }
-  
-  // Fallback based on entityTypeName
-  const icons: Record<string, string> = {
-    'player_character': 'face',
-    'character': 'face',
-    'npc': 'groups',
-    'non_player_character': 'groups',
-    'actor': 'groups',
-    'enemy': 'pest_control',
-    'adversary': 'dangerous',
-    'vehicle': 'rocket_launch',
-    'starship': 'rocket',
-    'spacecraft': 'flight',
-    'solar_system': 'public',
-    'star_system': 'public',
-    'planet': 'language',
-    'mission': 'assignment',
-    'quest': 'explore',
-    'encounter': 'pest_control',
-    'combat': 'sports_martial_arts',
-  };
-  return icons[template.entityTypeName.toLowerCase()] || 'category';
-};
+const SOLAR_SYSTEM_GAME_SYSTEM_ID = '376520e8-ff30-44d0-b048-ba07b2fdd12b';
 
 export const GalleryPage: React.FC = () => {
   const navigate = useNavigate();
@@ -129,30 +56,21 @@ export const GalleryPage: React.FC = () => {
     isLoading: isCampaignLoading 
   } = useCampaign();
 
-  const [entities, setEntities] = useState<LoreEntity[]>([]);
   const [selectedEntity, setSelectedEntity] = useState<LoreEntity | null>(null);
-  const [activeCategory, setActiveCategory] = useState<EntityCategory>('character');
-  const [displayCategory, setDisplayCategory] = useState<EntityCategory>('character');
-  const [isLoadingEntities, setIsLoadingEntities] = useState(false);
   const [showInvite, setShowInvite] = useState(false);
   const [showCampaignSelector, setShowCampaignSelector] = useState(false);
   const [showImportDialog, setShowImportDialog] = useState(false);
   const [showEditModal, setShowEditModal] = useState(false);
   const [showViewModal, setShowViewModal] = useState(false);
-  const [transitionStatus, setTransitionStatus] = useState<'idle' | 'out' | 'in'>('idle');
   const [searchTerm, setSearchTerm] = useState<string>('');
   
-  // Confirmed templates for the current campaign's game system (used for dynamic generator links)
   const [confirmedTemplates, setConfirmedTemplates] = useState<EntityTemplateSummary[]>([]);
   const [isLoadingTemplates, setIsLoadingTemplates] = useState(false);
   
-  // Field definitions for the selected entity's type (used for display name mapping)
   const [selectedEntityFieldDefs, setSelectedEntityFieldDefs] = useState<FieldDefinition[]>([]);
   
-  // Accessibility: Screen reader announcement state
   const [announcement, setAnnouncement] = useState<string>('');
   
-  // Refs for focus management
   const categoryNavRef = useRef<HTMLElement>(null);
   const entityGridRef = useRef<HTMLDivElement>(null);
   const detailPanelRef = useRef<HTMLElement>(null);
@@ -162,47 +80,59 @@ export const GalleryPage: React.FC = () => {
   const importFileInputRef = useRef<HTMLInputElement>(null);
   const searchInputRef = useRef<HTMLInputElement>(null);
 
-  // Determine if user is master (either by user role or campaign role)
   const isMaster = user?.role === 'MASTER' || isActiveCampaignMaster;
   
-  // PDF import hook
   const { state: pdfImportState, importFromPdf, clearError: clearPdfError } = useCharacterSheetPdf();
   
-  /**
-   * Accessibility: Announce message to screen readers
-   */
+  const { 
+    isOpen: isConfirmOpen, 
+    config: confirmConfig, 
+    confirm, 
+    handleConfirm, 
+    handleCancel 
+  } = useConfirmDialog();
+  
+  const { 
+    entities, 
+    isLoading: isLoadingEntities, 
+    refresh: refreshEntities,
+    getByCategory 
+  } = useGalleryEntities({ campaignId: activeCampaignId });
+  
+  const { 
+    activeCategory, 
+    displayCategory, 
+    transitionStatus, 
+    setCategory: setCategoryWithTransition,
+    getCategoryLabel 
+  } = useGalleryCategories('character');
+
+  const { logs, addLog } = useTerminalLog({
+    maxLogs: 8,
+    initialLogs: [
+      '> INSPECTOR_ENTIDAD initialized...',
+      '> Awaiting entity selection...'
+    ]
+  });
+  
+  const { 
+    deleteEntity, 
+    updateVisibility, 
+    isDeleting 
+  } = useEntityActions({
+    campaignId: activeCampaignId ?? '',
+    onSuccess: () => {
+      refreshEntities();
+      setSelectedEntity(null);
+    },
+  });
+
   const announce = useCallback((message: string) => {
     setAnnouncement(message);
-    // Clear after announcement to allow repeated messages
     setTimeout(() => setAnnouncement(''), 1000);
   }, []);
 
-  /**
-   * Load entities for the active campaign
-   */
-  const loadEntities = useCallback(async () => {
-    if (!user || !activeCampaignId) {
-      setEntities([]);
-      setIsLoadingEntities(false);
-      return;
-    }
-    
-    setIsLoadingEntities(true);
-    try {
-      const data = await entityService.getByCampaign(activeCampaignId);
-      setEntities(data);
-    } catch (error) {
-      console.error('Failed to load entities:', error);
-      setEntities([]);
-    } finally {
-      setIsLoadingEntities(false);
-    }
-  }, [user, activeCampaignId]);
-
-  // Load entities when campaign changes
-  useEffect(() => {
-    loadEntities();
-  }, [loadEntities]);
+  const loadEntities = refreshEntities;
 
   /**
    * Load confirmed templates for the active campaign's game system.
@@ -237,6 +167,41 @@ export const GalleryPage: React.FC = () => {
     loadTemplates();
   }, [activeCampaign?.gameSystemId]);
 
+  const confirmedEntityTypes = useMemo(() => {
+    return new Set(
+      confirmedTemplates.map(t => t.entityTypeName.toLowerCase())
+    );
+  }, [confirmedTemplates]);
+
+  const isCategoryAvailable = useCallback((categoryId: EntityCategory): boolean => {
+    if (CATEGORIES_WITHOUT_TEMPLATE.includes(categoryId)) {
+      return true;
+    }
+    return confirmedEntityTypes.has(categoryId.toLowerCase());
+  }, [confirmedEntityTypes]);
+
+  const filteredLabsCategories = useMemo(() => {
+    const gameSystemId = activeCampaign?.gameSystemId;
+    
+    return ENTITY_CATEGORIES_LABS.filter(cat => {
+      if (cat.id === 'solar_system') {
+        return gameSystemId === SOLAR_SYSTEM_GAME_SYSTEM_ID;
+      }
+      return true;
+    });
+  }, [activeCampaign?.gameSystemId]);
+
+  useEffect(() => {
+    if (
+      activeCategory === 'solar_system' && 
+      activeCampaign?.gameSystemId !== SOLAR_SYSTEM_GAME_SYSTEM_ID
+    ) {
+      setCategoryWithTransition('character');
+      setSelectedEntity(null);
+      addLog('INFO: Sistema solar no disponible en este sistema de juego. Cambiando a PERSONAJES.');
+    }
+  }, [activeCampaign?.gameSystemId, activeCategory, setCategoryWithTransition, addLog]);
+
   /**
    * Load field definitions when selected entity changes.
    * Used for display name mapping in edit modal and PDF export.
@@ -263,31 +228,24 @@ export const GalleryPage: React.FC = () => {
     loadFieldDefinitions();
   }, [selectedEntity?.entityType, activeCampaign?.gameSystemId]);
 
-  /**
-   * Handle category tab change with transition effect
-   */
   const handleCategoryChange = (newCat: EntityCategory) => {
+    if (!isCategoryAvailable(newCat)) {
+      addLog(`WARNING: No hay plantilla confirmada para ${getCategoryLabel(newCat).toUpperCase()}. Contacta al Master.`);
+      return;
+    }
+    
     if (newCat === activeCategory || transitionStatus !== 'idle') return;
     
-    setTransitionStatus('out');
-    setActiveCategory(newCat);
-    
-    // Announce category change to screen readers
-    const categoryLabel = ENTITY_CATEGORIES.find(c => c.id === newCat)?.label || ENTITY_CATEGORIES_LABS.find(c => c.id === newCat)?.label || newCat;
+    const categoryLabel = getCategoryLabel(newCat);
     announce(`Cambiando a categoría ${categoryLabel}`);
     
+    setCategoryWithTransition(newCat);
+    setSelectedEntity(null);
+    
     setTimeout(() => {
-      setDisplayCategory(newCat);
-      setSelectedEntity(null);
-      setTransitionStatus('in');
-      
-      setTimeout(() => {
-        setTransitionStatus('idle');
-        // Announce completion with entity count
-        const count = entities.filter(e => e.entityType === newCat).length;
-        announce(`Categoría ${categoryLabel} seleccionada. ${count} ${count === 1 ? 'entidad encontrada' : 'entidades encontradas'}.`);
-      }, 500);
-    }, 400);
+      const count = getByCategory(newCat).length;
+      announce(`Categoría ${categoryLabel} seleccionada. ${count} ${count === 1 ? 'entidad encontrada' : 'entidades encontradas'}.`);
+    }, 900);
   };
 
   /**
@@ -326,13 +284,7 @@ export const GalleryPage: React.FC = () => {
     }
   };
 
-  /**
-   * Filter entities by the current display category and search term
-   */
-  const filteredEntities = entities.filter(e => {
-    // Filter by category
-    if (e.entityType !== displayCategory) return false;
-    // Filter by search term (case-insensitive)
+  const filteredEntities = getByCategory(displayCategory).filter(e => {
     if (searchTerm.trim()) {
       const normalizedSearch = searchTerm.toLowerCase().trim();
       const matchesName = e.name.toLowerCase().includes(normalizedSearch);
@@ -342,46 +294,32 @@ export const GalleryPage: React.FC = () => {
     return true;
   });
 
-  /**
-   * Handle entity deletion
-   */
   const handleDelete = async (id: string) => {
     if (!activeCampaignId) return;
     
-    if (confirm('¿Confirmar purga de datos? Esta acción es irreversible.')) {
-      try {
-        await entityService.delete(activeCampaignId, id);
-        setSelectedEntity(null);
+    const confirmed = await confirm({
+      title: 'Confirmar purga de datos',
+      message: 'Esta acción es irreversible. ¿Deseas eliminar esta entidad?',
+      confirmLabel: 'PURGAR',
+      cancelLabel: 'CANCELAR',
+      variant: 'danger',
+    });
+    
+    if (confirmed) {
+      const success = await deleteEntity(id);
+      if (success) {
         announce('Entidad eliminada correctamente');
-        loadEntities();
-      } catch (e: unknown) {
-        const message = e instanceof Error ? e.message : 'Error al eliminar';
-        announce(`Error: ${message}`);
-        alert(message);
+      } else {
+        announce('Error al eliminar entidad');
       }
     }
   };
 
-  /**
-   * Handle entity visibility change
-   * Allows Masters to change an entity's visibility level
-   */
   const handleVisibilityChange = async (entityId: string, newVisibility: VisibilityLevel) => {
     if (!activeCampaignId) return;
     
-    try {
-      const updatedEntity = await entityService.changeVisibility(
-        activeCampaignId, 
-        entityId, 
-        { visibility: newVisibility }
-      );
-      
-      // Update the selected entity with new visibility
-      setSelectedEntity(updatedEntity);
-      
-      // Refresh entities list to reflect change
-      loadEntities();
-      
+    const success = await updateVisibility(entityId, newVisibility);
+    if (success) {
       const visibilityLabels: Record<VisibilityLevel, string> = {
         [VisibilityLevel.Draft]: 'BORRADOR',
         [VisibilityLevel.Private]: 'PRIVADO',
@@ -389,10 +327,9 @@ export const GalleryPage: React.FC = () => {
         [VisibilityLevel.Public]: 'PÚBLICO'
       };
       announce(`Visibilidad cambiada a ${visibilityLabels[newVisibility]}`);
-    } catch (e: unknown) {
-      const message = e instanceof Error ? e.message : 'Error al cambiar visibilidad';
-      announce(`Error: ${message}`);
-      alert(message);
+      refreshEntities();
+    } else {
+      announce('Error al cambiar visibilidad');
     }
   };
 
@@ -407,22 +344,13 @@ export const GalleryPage: React.FC = () => {
     }
   };
 
-  /**
-   * Handle saving edited entity
-   * Clears selection if ownership was transferred to another user
-   */
   const handleSaveEdit = async (updatedEntity: LoreEntity) => {
-    // Check if ownership was transferred to another user
     const ownershipChanged = updatedEntity.ownerId !== selectedEntity?.ownerId;
     
-    // Close modal first
     setShowEditModal(false);
     
-    // Refresh entities list
-    await loadEntities();
+    await refreshEntities();
     
-    // If ownership changed, clear selection (entity may no longer be accessible)
-    // Otherwise, update the selected entity with fresh data
     if (ownershipChanged) {
       setSelectedEntity(null);
       announce(`Propiedad de "${updatedEntity.name}" transferida`);
@@ -564,9 +492,6 @@ export const GalleryPage: React.FC = () => {
     importFileInputRef.current?.click();
   };
   
-  /**
-   * Handle PDF file selection and import
-   */
   const handleImportFileChange = async (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
     if (!file || !activeCampaignId) return;
@@ -575,7 +500,6 @@ export const GalleryPage: React.FC = () => {
       const result = await importFromPdf(file);
       
       if (result) {
-        // Create the entity from imported data
         const entityInput: CreateLoreEntityInput = {
           entityType: result.entityType as EntityCategory,
           name: result.name,
@@ -586,12 +510,10 @@ export const GalleryPage: React.FC = () => {
         
         const createdEntity = await entityService.create(activeCampaignId, entityInput);
         
-        // Refresh entity list and close dialog
-        await loadEntities();
+        await refreshEntities();
         setShowImportDialog(false);
         announce(`Entidad "${createdEntity.name}" importada correctamente`);
         
-        // Navigate to the category of the imported entity
         if (createdEntity.entityType !== displayCategory) {
           handleCategoryChange(createdEntity.entityType);
         }
@@ -601,7 +523,6 @@ export const GalleryPage: React.FC = () => {
       announce('Error al importar PDF');
     }
     
-    // Reset file input
     event.target.value = '';
   };
   
@@ -815,7 +736,7 @@ export const GalleryPage: React.FC = () => {
             <p className="text-[9px] text-primary/40 leading-tight mb-4 max-w-[150px]">
               Comparte este código con nuevos operativos para asociarlos a tu campaña.
             </p>
-            <button onClick={() => setShowInvite(false)} className="w-full bg-primary/20 border border-primary py-1 text-[10px] text-primary uppercase font-bold">CERRAR</button>
+            <button type="button" onClick={() => setShowInvite(false)} className="w-full bg-primary/20 border border-primary py-1 text-[10px] text-primary uppercase font-bold cursor-pointer">CERRAR</button>
           </div>
         )}
 
@@ -909,66 +830,40 @@ export const GalleryPage: React.FC = () => {
                 <span className="md:hidden xs:inline">:: GEN.AI ::</span>
               </div>
               {ENTITY_CATEGORIES.map((cat, index) => (
-                <button
+                <CategoryButton
                   key={cat.id}
-                  role="tab"
-                  aria-selected={activeCategory === cat.id}
-                  aria-controls="entity-grid"
-                  tabIndex={activeCategory === cat.id ? 0 : -1}
+                  category={cat}
+                  isActive={activeCategory === cat.id}
+                  isAvailable={isCategoryAvailable(cat.id)}
+                  isDisabled={transitionStatus !== 'idle' || !activeCampaignId}
+                  variant="primary"
                   onClick={() => handleCategoryChange(cat.id)}
                   onKeyDown={(e) => handleCategoryKeyDown(e, index)}
-                  disabled={transitionStatus !== 'idle' || !activeCampaignId}
-                  className={`group flex items-center gap-3 p-3 border transition-all clip-tech-tl relative overflow-hidden ${
-                    activeCategory === cat.id 
-                      ? 'border-l-4 border-l-primary border-y-primary/30 border-r-primary/30 bg-primary/20 shadow-[inset_0_0_15px_rgba(37,244,106,0.1)]' 
-                      : 'border-primary/30 hover:border-primary hover:bg-primary/5 bg-surface-dark disabled:opacity-50'
-                  }`}
-                >
-                  {activeCategory === cat.id && (
-                    <div className="absolute inset-0 bg-primary/5 animate-pulse pointer-events-none"></div>
-                  )}
-                  <span className={`material-icons text-xl ${activeCategory === cat.id ? 'text-primary' : 'text-primary/60'}`}>{cat.icon}</span>
-                  <span className={`hidden md:inline text-xs font-bold tracking-widest ${activeCategory === cat.id ? 'text-primary text-glow' : 'text-primary/70'}`}>
-                    {cat.label}
-                  </span>
-                  {activeCategory === cat.id && (
-                    <div className="absolute right-2 top-1/2 -translate-y-1/2 w-1 h-1 bg-primary rounded-full animate-ping"></div>
-                  )}
-                </button>
+                  index={index}
+                />
               ))}
               
-              <div className="p-1 border border-cyan-500/50 text-[10px] text-cyan-500 text-center uppercase mt-2 mb-0 bg-cyan-500/5 font-bold tracking-[0.2em]">
-                <span className="hidden md:inline">:: Experimental ::</span>
-                <span className="md:hidden xs:inline">:: LABS.AI ::</span>
-              </div>
-              {ENTITY_CATEGORIES_LABS.map((cat, index) => (
-                <button
-                  key={cat.id}
-                  role="tab"
-                  aria-selected={activeCategory === cat.id}
-                  aria-controls="entity-grid"
-                  tabIndex={activeCategory === cat.id ? 0 : -1}
-                  onClick={() => handleCategoryChange(cat.id)}
-                  onKeyDown={(e) => handleCategoryKeyDown(e, index)}
-                  disabled={transitionStatus !== 'idle' || !activeCampaignId}
-                  className={`group flex items-center gap-3 p-3 border transition-all clip-tech-tl relative overflow-hidden ${
-                    activeCategory === cat.id 
-                      ? 'border-l-4 border-l-cyan-500 border-y-cyan-500/30 border-r-cyan-500/30 bg-cyan-500/20 shadow-[inset_0_0_15px_rgba(37,244,106,0.1)]' 
-                      : 'border-cyan-500/30 hover:border-cyan-500 hover:bg-cyan-500/5 bg-surface-dark disabled:opacity-50'
-                  }`}
-                >
-                  {activeCategory === cat.id && (
-                    <div className="absolute inset-0 bg-cyan-500/5 animate-pulse pointer-events-none"></div>
-                  )}
-                  <span className={`material-icons text-xl ${activeCategory === cat.id ? 'text-cyan-500' : 'text-cyan-500/60'}`}>{cat.icon}</span>
-                  <span className={`hidden md:inline text-xs font-bold tracking-widest ${activeCategory === cat.id ? 'text-cyan-500 text-glow' : 'text-cyan-500/70'}`}>
-                    {cat.label}
-                  </span>
-                  {activeCategory === cat.id && (
-                    <div className="absolute right-2 top-1/2 -translate-y-1/2 w-1 h-1 bg-cyan-500 rounded-full animate-ping"></div>
-                  )}
-                </button>
-              ))}
+              {filteredLabsCategories.length > 0 && (
+                <>
+                  <div className="p-1 border border-cyan-500/50 text-[10px] text-cyan-500 text-center uppercase mt-2 mb-0 bg-cyan-500/5 font-bold tracking-[0.2em]">
+                    <span className="hidden md:inline">:: Experimental ::</span>
+                    <span className="md:hidden xs:inline">:: LABS.AI ::</span>
+                  </div>
+                  {filteredLabsCategories.map((cat, index) => (
+                    <CategoryButton
+                      key={cat.id}
+                      category={cat}
+                      isActive={activeCategory === cat.id}
+                      isAvailable={true}
+                      isDisabled={transitionStatus !== 'idle' || !activeCampaignId}
+                      variant="cyan"
+                      onClick={() => handleCategoryChange(cat.id)}
+                      onKeyDown={(e) => handleCategoryKeyDown(e, index)}
+                      index={index}
+                    />
+                  ))}
+                </>
+              )}
             </nav>
           )}
 
@@ -1193,8 +1088,8 @@ export const GalleryPage: React.FC = () => {
           )}
         </main>
 
-{/* Detail Panel */}
-        {selectedEntity && (
+        {/* Detail Panel + TerminalLog - Always visible */}
+        <div className="hidden lg:flex flex-col w-80 shrink-0 h-full">
           <EntityDetailPanel
             ref={detailPanelRef}
             entity={selectedEntity}
@@ -1207,7 +1102,12 @@ export const GalleryPage: React.FC = () => {
             onEdit={handleEditEntity}
             onView={() => setShowViewModal(true)}
           />
-        )}
+          <TerminalLog 
+            logs={logs} 
+            maxLogs={8} 
+            className="h-24 border border-primary/20 border-t-0 bg-black/60 shrink-0"
+          />
+        </div>
       </div>
       
 {/* Entity Edit Modal */}
@@ -1237,6 +1137,19 @@ export const GalleryPage: React.FC = () => {
           onClose={() => setShowViewModal(false)}
         />
       )}
+      
+      {/* Confirm Dialog */}
+      <ConfirmDialog
+        isOpen={isConfirmOpen}
+        title={confirmConfig?.title ?? ''}
+        message={confirmConfig?.message ?? ''}
+        confirmLabel={confirmConfig?.confirmLabel}
+        cancelLabel={confirmConfig?.cancelLabel}
+        variant={confirmConfig?.variant}
+        onConfirm={handleConfirm}
+        onCancel={handleCancel}
+        isLoading={isDeleting}
+      />
     </TerminalLayout>
   );
 };
@@ -1366,7 +1279,7 @@ const AddNewCard: React.FC<AddNewCardProps> = ({ onClick }) => (
 );
 
 interface EntityDetailPanelProps {
-  entity: LoreEntity;
+  entity: LoreEntity | null;
   isMaster: boolean;
   currentUserId?: string;
   fieldDefinitions?: FieldDefinition[];
@@ -1377,25 +1290,22 @@ interface EntityDetailPanelProps {
   onView: () => void;
 }
 
-/**
- * Entity Detail Panel Component
- * Shows detailed information about a selected entity
- * Supports focus management for accessibility
- * Includes PDF export functionality for character sheets
- */
 const EntityDetailPanel = forwardRef<HTMLElement, EntityDetailPanelProps>(
   ({ entity, isMaster, currentUserId, fieldDefinitions, onClose, onDelete, onVisibilityChange, onEdit, onView }, ref) => {
-    // Fallback image if none provided
-    const imageUrl = entity.imageUrl || 'https://images.unsplash.com/photo-1683322001857-f4d932a40672?q=80&w=400&auto=format&fit=crop';
+    const hasEntity = entity !== null;
+    const imageUrl = entity?.imageUrl || 'https://images.unsplash.com/photo-1683322001857-f4d932a40672?q=80&w=400&auto=format&fit=crop';
+    const scrollContainerRef = useRef<HTMLDivElement>(null);
     
-    // PDF export hook
     const { state: pdfState, exportToPdf } = useCharacterSheetPdf();
     
-    /**
-     * Handle PDF export
-     * Passes field definitions for display name mapping
-     */
+    useEffect(() => {
+      if (hasEntity && scrollContainerRef.current) {
+        scrollContainerRef.current.scrollTop = 0;
+      }
+    }, [entity?.id, hasEntity]);
+    
     const handleExportPdf = async () => {
+      if (!entity) return;
       try {
         await exportToPdf(entity, { fieldDefinitions });
       } catch (error) {
@@ -1407,123 +1317,137 @@ const EntityDetailPanel = forwardRef<HTMLElement, EntityDetailPanelProps>(
       <aside 
         ref={ref}
         role="complementary"
-        aria-label={`Detalles de ${entity.name}`}
+        aria-label={hasEntity ? `Detalles de ${entity.name}` : 'Inspector de entidad'}
         tabIndex={-1}
-        className="hidden lg:flex w-80 flex-col border border-primary bg-surface-dark/95 backdrop-blur-md relative animate-glitch-in focus:outline-none"
+        className={`flex flex-col border relative focus:outline-none overflow-hidden flex-1 min-h-0 ${
+          hasEntity 
+            ? 'border-primary bg-surface-dark/95 backdrop-blur-md animate-glitch-in' 
+            : 'border-primary/30 bg-surface-dark/60'
+        }`}
       >
-        <div className="bg-primary text-black font-bold p-2 text-xs flex justify-between items-center shadow-[0_4px_10px_rgba(0,0,0,0.5)]">
+        <div className={`font-bold p-2 text-xs flex justify-between items-center ${
+          hasEntity 
+            ? 'bg-primary text-black shadow-[0_4px_10px_rgba(0,0,0,0.5)]' 
+            : 'bg-primary/20 text-primary/60'
+        }`}>
           <span className="tracking-widest flex items-center gap-2">
             <span className="material-icons text-sm">analytics</span> &gt; INSPECTOR_ENTIDAD
           </span>
-          <button
-            aria-label="Cerrar panel de detalles"
-            onClick={onClose}
-            className="material-icons text-sm cursor-pointer hover:rotate-90 transition-transform focus:outline-none focus:ring-2 focus:ring-black"
-          >
-            close
-          </button>
+          {hasEntity && (
+            <button
+              aria-label="Cerrar panel de detalles"
+              onClick={onClose}
+              className="material-icons text-sm cursor-pointer hover:rotate-90 transition-transform focus:outline-none focus:ring-2 focus:ring-black"
+            >
+              close
+            </button>
+          )}
         </div>
         
-        <div className="p-6 flex flex-col gap-6 flex-1 overflow-y-auto custom-scrollbar font-mono">
-          <div className="relative w-full aspect-square border-2 border-primary/30 p-1 bg-black shadow-[0_0_15px_rgba(37,244,106,0.1)]">
-            <img src={imageUrl} alt={`Imagen de ${entity.name}`} className="w-full h-full object-cover filter transition-all duration-700" />
-            <div className="absolute top-2 left-2 px-1 bg-primary/80 text-black text-[8px] font-bold">ANALYSIS_LIVE</div>
-            <div className="absolute bottom-2 right-2 flex gap-1">
-              {[...Array(3)].map((_, i) => <div key={i} className="w-1.5 h-1.5 bg-primary/40 animate-pulse" style={{ animationDelay: `${i*0.1}s` }} />)}
+        {hasEntity ? (
+          <div ref={scrollContainerRef} className="p-6 flex flex-col gap-6 flex-1 min-h-0 overflow-y-auto custom-scrollbar font-mono">
+            <div className="relative w-full aspect-square border-2 border-primary/30 p-1 bg-black shadow-[0_0_15px_rgba(37,244,106,0.1)]">
+              <img src={imageUrl} alt={`Imagen de ${entity.name}`} className="w-full h-full object-cover filter transition-all duration-700" />
+              <div className="absolute top-2 left-2 px-1 bg-primary/80 text-black text-[8px] font-bold">ANALYSIS_LIVE</div>
+              <div className="absolute bottom-2 right-2 flex gap-1">
+                {[...Array(3)].map((_, i) => <div key={i} className="w-1.5 h-1.5 bg-primary/40 animate-pulse" style={{ animationDelay: `${i*0.1}s` }} />)}
+              </div>
             </div>
-          </div>
 
-          <div className="space-y-4">
-            <div>
-              <h2 className="text-3xl font-display text-primary text-glow leading-none uppercase">{entity.name}</h2>
-              <div className="h-0.5 w-full bg-gradient-to-r from-primary via-primary/20 to-transparent mt-1"></div>
-            </div>
-            
-            <div className="grid grid-cols-2 gap-2">
-              <div className="bg-black/40 border border-primary/10 p-2 text-[9px]">
-                <span className="text-primary/40 block">TIPO</span>
-                <span className="text-primary font-bold uppercase">{entity.entityType.replace('_', ' ')}</span>
+            <div className="space-y-4">
+              <div>
+                <h2 className="text-3xl font-display text-primary text-glow leading-none uppercase">{entity.name}</h2>
+                <div className="h-0.5 w-full bg-gradient-to-r from-primary via-primary/20 to-transparent mt-1"></div>
               </div>
               
-              {/* Owner Name display */}
+              <div className="grid grid-cols-2 gap-2">
+                <div className="bg-black/40 border border-primary/10 p-2 text-[9px]">
+                  <span className="text-primary/40 block">TIPO</span>
+                  <span className="text-primary font-bold uppercase">{entity.entityType.replace('_', ' ')}</span>
+                </div>
+                
+                <div className="bg-black/40 border border-primary/10 p-2 text-[9px]">
+                  <span className="text-primary/40 block">PROPIETARIO</span>
+                  <span className="text-primary font-bold truncate block" title={entity.ownerName || 'Desconocido'}>
+                    {entity.ownerName || 'Desconocido'}
+                  </span>
+                </div>
+              </div>
+              
               <div className="bg-black/40 border border-primary/10 p-2 text-[9px]">
-                <span className="text-primary/40 block">PROPIETARIO</span>
-                <span className="text-primary font-bold truncate block" title={entity.ownerName || 'Desconocido'}>
-                  {entity.ownerName || 'Desconocido'}
+                <span className="text-primary/40 block">VISIBILIDAD</span>
+                <span className="text-primary font-bold uppercase">
+                  {entity.visibility === 0 ? 'BORRADOR' : 
+                   entity.visibility === 1 ? 'PRIVADO' : 
+                   entity.visibility === 2 ? 'CAMPAÑA' : 'PUBLICO'}
                 </span>
               </div>
-            </div>
-            
-            {/* Visibility - Read-only display */}
-            <div className="bg-black/40 border border-primary/10 p-2 text-[9px]">
-              <span className="text-primary/40 block">VISIBILIDAD</span>
-              <span className="text-primary font-bold uppercase">
-                {entity.visibility === 0 ? 'BORRADOR' : 
-                 entity.visibility === 1 ? 'PRIVADO' : 
-                 entity.visibility === 2 ? 'CAMPAÑA' : 'PUBLICO'}
-              </span>
+
+              <div className="bg-black/60 p-4 border border-primary/20 text-[11px] text-primary/80 leading-relaxed shadow-inner">
+                <p className="text-[9px] text-primary/40 mb-2 uppercase tracking-[0.2em] font-bold">// BITÁCORA_NÚCLEO</p>
+                <p>{entity.description || "Sin descripción adicional en el núcleo de datos. Acceso a metadatos restringido."}</p>
+              </div>
             </div>
 
-            <div className="bg-black/60 p-4 border border-primary/20 text-[11px] text-primary/80 leading-relaxed shadow-inner">
-              <p className="text-[9px] text-primary/40 mb-2 uppercase tracking-[0.2em] font-bold">// BITÁCORA_NÚCLEO</p>
-              <p>{entity.description || "Sin descripción adicional en el núcleo de datos. Acceso a metadatos restringido."}</p>
-            </div>
-          </div>
-
-{/* Action buttons */}
-          <div className="mt-auto flex flex-col gap-2 pt-4 border-t border-primary/10">
-            {/* View Details Button (Available to all users) */}
-            <button 
-              onClick={onView}
-              aria-label={`Ver detalles de ${entity.name}`}
-              className="w-full py-3 border border-primary/60 text-primary text-[10px] hover:bg-primary/20 transition-all font-bold uppercase tracking-[0.2em] flex items-center justify-center gap-2 focus:outline-none focus:ring-2 focus:ring-primary"
-            >
-              <span className="material-icons text-sm">visibility</span> VER_DETALLES
-            </button>
-            
-            {/* Edit Button (Master or Owner can edit) */}
-            {(isMaster || currentUserId === entity.ownerId) && (
+            <div className="mt-auto flex flex-col gap-2 pt-4 border-t border-primary/10">
               <button 
-                onClick={onEdit}
-                aria-label={`Editar ${entity.name}`}
+                onClick={onView}
+                aria-label={`Ver detalles de ${entity.name}`}
                 className="w-full py-3 border border-primary/60 text-primary text-[10px] hover:bg-primary/20 transition-all font-bold uppercase tracking-[0.2em] flex items-center justify-center gap-2 focus:outline-none focus:ring-2 focus:ring-primary"
               >
-                <span className="material-icons text-sm">edit</span> EDITAR_ENTIDAD
+                <span className="material-icons text-sm">visibility</span> VER_DETALLES
               </button>
-            )}
-            
-            {/* PDF Export Button */}
-            <button 
-              onClick={handleExportPdf}
-              disabled={pdfState.isExporting}
-              aria-label={`Exportar ${entity.name} a PDF`}
-              className="w-full py-3 border border-cyan-500/60 text-cyan-500 text-[10px] hover:bg-cyan-500/20 transition-all font-bold uppercase tracking-[0.2em] flex items-center justify-center gap-2 focus:outline-none focus:ring-2 focus:ring-cyan-500 disabled:opacity-50"
-            >
-              {pdfState.isExporting ? (
-                <>
-                  <span className="material-icons text-sm animate-spin">sync</span> EXPORTANDO...
-                </>
-              ) : (
-                <>
-                  <span className="material-icons text-sm">picture_as_pdf</span> EXPORTAR_FICHA
-                </>
+              
+              {(isMaster || currentUserId === entity.ownerId) && (
+                <button 
+                  onClick={onEdit}
+                  aria-label={`Editar ${entity.name}`}
+                  className="w-full py-3 border border-primary/60 text-primary text-[10px] hover:bg-primary/20 transition-all font-bold uppercase tracking-[0.2em] flex items-center justify-center gap-2 focus:outline-none focus:ring-2 focus:ring-primary"
+                >
+                  <span className="material-icons text-sm">edit</span> EDITAR_ENTIDAD
+                </button>
               )}
-            </button>
-            
-            {/* Delete Button (Master or Owner can delete) */}
-            {(isMaster || currentUserId === entity.ownerId) && (
+              
               <button 
-                onClick={() => onDelete(entity.id)}
-                aria-label={`Eliminar ${entity.name}`}
-                className="w-full py-3 border border-danger/60 text-danger text-[10px] hover:bg-danger hover:text-white transition-all font-bold uppercase tracking-[0.2em] flex items-center justify-center gap-2 focus:outline-none focus:ring-2 focus:ring-danger"
+                onClick={handleExportPdf}
+                disabled={pdfState.isExporting}
+                aria-label={`Exportar ${entity.name} a PDF`}
+                className="w-full py-3 border border-cyan-500/60 text-cyan-500 text-[10px] hover:bg-cyan-500/20 transition-all font-bold uppercase tracking-[0.2em] flex items-center justify-center gap-2 focus:outline-none focus:ring-2 focus:ring-cyan-500 disabled:opacity-50"
               >
-                <span className="material-icons text-sm">delete_forever</span> PURGAR_REGISTRO
+                {pdfState.isExporting ? (
+                  <>
+                    <span className="material-icons text-sm animate-spin">sync</span> EXPORTANDO...
+                  </>
+                ) : (
+                  <>
+                    <span className="material-icons text-sm">picture_as_pdf</span> EXPORTAR_FICHA
+                  </>
+                )}
               </button>
-            )}
+              
+              {(isMaster || currentUserId === entity.ownerId) && (
+                <button 
+                  onClick={() => onDelete(entity.id)}
+                  aria-label={`Eliminar ${entity.name}`}
+                  className="w-full py-3 border border-danger/60 text-danger text-[10px] hover:bg-danger hover:text-white transition-all font-bold uppercase tracking-[0.2em] flex items-center justify-center gap-2 focus:outline-none focus:ring-2 focus:ring-danger"
+                >
+                  <span className="material-icons text-sm">delete_forever</span> PURGAR_REGISTRO
+                </button>
+              )}
+            </div>
           </div>
-        </div>
+        ) : (
+          <div className="flex-1 min-h-0 flex flex-col items-center justify-center p-6 text-center overflow-hidden">
+            <span className="material-icons text-5xl text-primary/20 mb-4">touch_app</span>
+            <p className="text-primary/40 text-xs uppercase tracking-widest mb-2">
+              Sin entidad seleccionada
+            </p>
+            <p className="text-primary/30 text-[10px]">
+              Seleccione una entidad de la galería para previsualizar
+            </p>
+          </div>
+        )}
         
-        {/* Aesthetic Side Details */}
         <div className="absolute -left-1 top-1/4 w-1 h-20 bg-primary/20"></div>
         <div className="absolute -right-1 bottom-1/4 w-1 h-20 bg-primary/20"></div>
       </aside>
