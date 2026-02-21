@@ -1,10 +1,6 @@
 import { genkit } from 'genkit';
 import { googleAI } from '@genkit-ai/google-genai';
 
-/**
- * Genkit AI instance configured with Google GenAI plugin.
- * Uses the GOOGLE_GENAI_API_KEY environment variable for authentication.
- */
 export const ai = genkit({
   plugins: [
     googleAI({
@@ -14,3 +10,7 @@ export const ai = genkit({
 });
 
 export { googleAI };
+
+export const geminiModel = googleAI.model('gemini-2.0-flash');
+export const geminiImageModel = googleAI.model('gemini-2.5-flash-image');
+export const embeddingModel = googleAI.embedder('gemini-embedding-001');

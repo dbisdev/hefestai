@@ -16,6 +16,7 @@
 
   <ItemGroup>
     <ProjectReference Include="..\Loremaster.Domain\Loremaster.Domain.csproj" />
+    <ProjectReference Include="..\Loremaster.Shared\Loremaster.Shared.csproj" />
   </ItemGroup>
 
 </Project>
