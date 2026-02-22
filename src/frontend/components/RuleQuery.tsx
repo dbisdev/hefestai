@@ -220,7 +220,7 @@ const RuleQuery: React.FC<RuleQueryProps> = ({ onClose, gameSystemId: propGameSy
 
   return (
     <div
-      className="fixed inset-0 bg-black/90 flex items-center justify-center z-50"
+      className="fixed inset-0 bg-black/80 backdrop-blur-sm z-50 flex items-center justify-center p-4"
       onKeyDown={handleKeyDown}
       role="dialog"
       aria-modal="true"
@@ -238,73 +238,76 @@ const RuleQuery: React.FC<RuleQueryProps> = ({ onClose, gameSystemId: propGameSy
 
       <div
         ref={modalRef}
-        className="bg-background-dark border-2 border-primary w-full max-w-4xl max-h-[90vh] overflow-hidden flex flex-col mx-4"
+        className="w-full max-w-4xl max-h-[90vh] bg-surface-dark border border-primary shadow-2xl animate-glitch-in flex flex-col focus:outline-none"
+        tabIndex={-1}
       >
         {/* Header */}
-        <div className="border-b border-primary/30 p-4 flex justify-between items-start">
-          <div className="flex-1">
-            <h2
-              id="rule-query-title"
-              className="text-xl font-display uppercase tracking-wider text-primary text-glow"
-            >
-              CONSULTA DE REGLAS
-            </h2>
-            {/* Game System Selector - always visible */}
-            <div className="flex items-center gap-2 mt-2 flex-wrap">
-              <label className="text-xs text-primary/60 uppercase tracking-wider">
-                Sistema:
-              </label>
-              {isLoadingGameSystems ? (
-                <span className="text-xs text-primary/40 italic">Cargando sistemas...</span>
-              ) : gameSystemsWithDocs.length === 0 ? (
-                <span className="text-xs text-red-400 flex items-center gap-1">
-                  <span className="material-icons text-xs">warning</span>
-                  No hay sistemas disponibles
-                </span>
-              ) : (
-                <>
-                  <select
-                    value={selectedGameSystemId}
-                    onChange={(e) => setSelectedGameSystemId(e.target.value)}
-                    className="bg-black/50 border border-primary/40 px-2 py-1 text-xs text-primary focus:border-primary focus:outline-none font-mono"
-                    aria-label="Seleccionar sistema de juego"
-                  >
-                    {gameSystemsWithDocs.map((gs) => (
-                      <option 
-                        key={gs.id} 
-                        value={gs.id}                        
-                      >
-                        {gs.name}
-                      </option>
-                    ))}
-                  </select>
-                  {/* Document availability indicator */}
-                  {hasDocuments ? (
-                    <span className="text-xs text-green-400 flex items-center gap-1">
-                      <span className="material-icons text-xs">check_circle</span>
-                      Manuales disponibles
-                    </span>
-                  ) : (
-                    <span className="text-xs text-red-400 flex items-center gap-1">
-                      <span className="material-icons text-xs">warning</span>
-                      Sin manuales cargados
-                    </span>
-                  )}
-                </>
-              )}
-            </div>
-          </div>
+        <div className="bg-primary text-black font-bold p-3 flex justify-between items-center flex-shrink-0">
+          <h2
+            id="rule-query-title"
+            className="text-xs uppercase tracking-widest flex items-center gap-2"
+          >
+            <span className="material-icons text-sm">search</span>
+            CONSULTA_DE_REGLAS
+          </h2>
           <button
             onClick={onClose}
-            className="text-primary hover:text-primary/80 transition-colors p-2"
+            className="material-icons text-sm hover:rotate-90 transition-transform"
             aria-label="Cerrar consulta de reglas"
           >
-            <span className="material-icons">close</span>
+            close
           </button>
         </div>
 
+        {/* Game System Selector */}
+        <div className="p-4 border-b border-primary/20 bg-black/20 flex-shrink-0">
+          <div className="flex items-center gap-2 flex-wrap">
+            <label className="text-xs text-primary/60 uppercase tracking-wider">
+              Sistema:
+            </label>
+            {isLoadingGameSystems ? (
+              <span className="text-xs text-primary/40 italic">Cargando sistemas...</span>
+            ) : gameSystemsWithDocs.length === 0 ? (
+              <span className="text-xs text-red-400 flex items-center gap-1">
+                <span className="material-icons text-xs">warning</span>
+                No hay sistemas disponibles
+              </span>
+            ) : (
+              <>
+                <select
+                  value={selectedGameSystemId}
+                  onChange={(e) => setSelectedGameSystemId(e.target.value)}
+                  className="bg-black/50 border border-primary/40 px-2 py-1 text-xs text-primary focus:border-primary focus:outline-none font-mono"
+                  aria-label="Seleccionar sistema de juego"
+                >
+                  {gameSystemsWithDocs.map((gs) => (
+                    <option 
+                      key={gs.id} 
+                      value={gs.id}                        
+                    >
+                      {gs.name}
+                    </option>
+                  ))}
+                </select>
+                {/* Document availability indicator */}
+                {hasDocuments ? (
+                  <span className="text-xs text-green-400 flex items-center gap-1">
+                    <span className="material-icons text-xs">check_circle</span>
+                    Manuales disponibles
+                  </span>
+                ) : (
+                  <span className="text-xs text-red-400 flex items-center gap-1">
+                    <span className="material-icons text-xs">warning</span>
+                    Sin manuales cargados
+                  </span>
+                )}
+              </>
+            )}
+          </div>
+        </div>
+
         {/* Search Form */}
-        <form onSubmit={handleSubmit} className="p-4 border-b border-primary/20">
+        <form onSubmit={handleSubmit} className="p-4 border-b border-primary/20 flex-shrink-0">
           <div className="flex gap-2">
             <input
               ref={inputRef}

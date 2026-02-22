@@ -4,6 +4,7 @@
  */
 
 export { CampaignDetailModal } from './CampaignDetailModal';
+export { EntityDetailModal } from './EntityDetailModal';
 export { EntityEditModal } from './EntityEditModal';
 export { EntityViewModal } from './EntityViewModal';
 export { GameSystemDetailModal } from './GameSystemDetailModal';

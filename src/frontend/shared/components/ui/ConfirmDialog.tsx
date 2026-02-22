@@ -72,35 +72,40 @@ export const ConfirmDialog: React.FC<ConfirmDialogProps> = ({
     >
       <div
         ref={modalRef}
-        className="bg-surface-dark border border-primary/30 rounded-lg max-w-md w-full p-6 relative"
+        className="w-full max-w-md max-h-[90vh] bg-surface-dark border border-primary shadow-2xl animate-glitch-in flex flex-col focus:outline-none"
         tabIndex={-1}
       >
-        <div className="absolute top-0 left-0 w-4 h-4 border-t-2 border-l-2 border-primary rounded-tl-lg" />
-        <div className="absolute top-0 right-0 w-4 h-4 border-t-2 border-r-2 border-primary rounded-tr-lg" />
-        <div className="absolute bottom-0 left-0 w-4 h-4 border-b-2 border-l-2 border-primary rounded-bl-lg" />
-        <div className="absolute bottom-0 right-0 w-4 h-4 border-b-2 border-r-2 border-primary rounded-br-lg" />
-
-        <div className="flex items-start gap-4">
-          <span className={`material-icons text-3xl ${variant === 'danger' ? 'text-danger' : 'text-primary'}`}>
-            {styles.icon}
-          </span>
-          <div className="flex-1">
-            <h2 
-              id="confirm-dialog-title"
-              className="text-primary text-lg font-display uppercase tracking-wider mb-2"
+        <div className="bg-primary text-black font-bold p-3 flex justify-between items-center flex-shrink-0">
+          <h2
+            id="confirm-dialog-title"
+            className="text-xs uppercase tracking-widest flex items-center gap-2"
+          >
+            <span className={`material-icons text-sm ${variant === 'danger' ? 'text-red-800' : ''}`}>
+              {styles.icon}
+            </span>
+            {title}
+          </h2>
+          {!isLoading && (
+            <button
+              onClick={onCancel}
+              className="material-icons text-sm hover:rotate-90 transition-transform"
+              aria-label="Cerrar"
             >
-              {title}
-            </h2>
-            <p 
-              id="confirm-dialog-message"
-              className="text-primary/70 text-sm mb-6"
-            >
-              {message}
-            </p>
-          </div>
+              close
+            </button>
+          )}
         </div>
 
-        <div className="flex justify-end gap-3">
+        <div className="p-6 font-mono flex-1">
+          <p
+            id="confirm-dialog-message"
+            className="text-primary/70 text-sm"
+          >
+            {message}
+          </p>
+        </div>
+
+        <div className="p-4 border-t border-primary/20 flex justify-end gap-3 flex-shrink-0">
           <Button
             variant="ghost"
             size="sm"

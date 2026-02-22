@@ -240,14 +240,23 @@ export const TemplateFieldEditor: React.FC<TemplateFieldEditorProps> = ({
 
       {/* Field Edit Modal */}
       {editingField && (
-        <div className="fixed inset-0 bg-black/80 flex items-center justify-center z-50 p-4">
-          <div className="border border-cyan-500/50 bg-surface-dark p-6 max-w-lg w-full max-h-[90vh] overflow-y-auto">
-            <h3 className="text-lg text-cyan-400 font-bold mb-4 flex items-center gap-2">
-              <span className="material-icons">edit</span>
-              {isAddingNew ? 'Nuevo Campo' : `Editar Campo: ${editingField.name}`}
-            </h3>
+        <div className="fixed inset-0 bg-black/80 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+          <div className="w-full max-w-lg max-h-[90vh] bg-surface-dark border border-primary shadow-2xl animate-glitch-in flex flex-col">
+            <div className="bg-primary text-black font-bold p-3 flex justify-between items-center flex-shrink-0">
+              <h3 className="text-xs uppercase tracking-widest flex items-center gap-2">
+                <span className="material-icons text-sm">edit</span>
+                {isAddingNew ? 'NUEVO_CAMPO' : 'EDITAR_CAMPO'}
+              </h3>
+              <button
+                onClick={handleCancelFieldEdit}
+                className="material-icons text-sm hover:rotate-90 transition-transform"
+                aria-label="Cerrar"
+              >
+                close
+              </button>
+            </div>
             
-            <div className="space-y-4">
+            <div className="p-6 space-y-4 font-mono overflow-y-auto flex-1 custom-scrollbar">
               {/* Field Name (identifier) */}
               <div>
                 <label className="block text-xs text-primary/60 uppercase mb-1">Identificador (name)</label>
@@ -368,11 +377,11 @@ export const TemplateFieldEditor: React.FC<TemplateFieldEditorProps> = ({
             </div>
             
             {/* Modal Actions */}
-            <div className="flex justify-end gap-2 mt-6">
-              <Button variant="secondary" onClick={handleCancelFieldEdit}>
+            <div className="p-4 border-t border-primary/20 flex justify-end gap-2 flex-shrink-0">
+              <Button variant="secondary" size="sm" onClick={handleCancelFieldEdit}>
                 CANCELAR
               </Button>
-              <Button onClick={handleSaveFieldEdit}>
+              <Button variant="primary" size="sm" onClick={handleSaveFieldEdit}>
                 APLICAR
               </Button>
             </div>

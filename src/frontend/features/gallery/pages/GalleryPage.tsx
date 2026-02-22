@@ -19,7 +19,7 @@
 import React, { useState, useEffect, useCallback, useRef, KeyboardEvent, forwardRef, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { TerminalLayout } from '@shared/components/layout';
-import { EntityEditModal, EntityViewModal } from '@shared/components/modals';
+import { EntityEditModal, EntityViewModal, EntityDetailModal } from '@shared/components/modals';
 import { EmptyState, ConfirmDialog, TerminalLog } from '@shared/components/ui';
 import { useCampaign, useAuth } from '@core/context';
 import { entityService, entityTemplateService } from '@core/services/api';
@@ -62,6 +62,7 @@ export const GalleryPage: React.FC = () => {
   const [showImportDialog, setShowImportDialog] = useState(false);
   const [showEditModal, setShowEditModal] = useState(false);
   const [showViewModal, setShowViewModal] = useState(false);
+  const [showMobileModal, setShowMobileModal] = useState(false);
   const [searchTerm, setSearchTerm] = useState<string>('');
   
   const [confirmedTemplates, setConfirmedTemplates] = useState<EntityTemplateSummary[]>([]);
@@ -82,7 +83,7 @@ export const GalleryPage: React.FC = () => {
 
   const isMaster = user?.role === 'MASTER' || isActiveCampaignMaster;
   
-  const { state: pdfImportState, importFromPdf, clearError: clearPdfError } = useCharacterSheetPdf();
+  const { state: pdfImportState, importFromPdf, exportToPdf, clearError: clearPdfError } = useCharacterSheetPdf();
   
   const { 
     isOpen: isConfirmOpen, 
@@ -366,10 +367,16 @@ export const GalleryPage: React.FC = () => {
   const handleEntitySelect = (entity: LoreEntity) => {
     setSelectedEntity(entity);
     announce(`Entidad seleccionada: ${entity.name}`);
-    // Move focus to detail panel when entity is selected
-    setTimeout(() => {
-      detailPanelRef.current?.focus();
-    }, 100);
+    
+    // Open modal on mobile
+    if (window.innerWidth < 1024) {
+      setShowMobileModal(true);
+    } else {
+      // Move focus to detail panel when entity is selected (desktop)
+      setTimeout(() => {
+        detailPanelRef.current?.focus();
+      }, 100);
+    }
   };
 
   /**
@@ -380,6 +387,18 @@ export const GalleryPage: React.FC = () => {
     announce('Panel de detalles cerrado');
     // Return focus to the entity grid
     entityGridRef.current?.focus();
+  };
+
+  /**
+   * Handle exporting entity to PDF
+   */
+  const handleExportPdf = async () => {
+    if (!selectedEntity) return;
+    try {
+      await exportToPdf(selectedEntity, { fieldDefinitions: selectedEntityFieldDefs });
+    } catch (error) {
+      console.error('PDF export failed:', error);
+    }
   };
 
   /**
@@ -1135,6 +1154,23 @@ export const GalleryPage: React.FC = () => {
           entity={selectedEntity}
           fieldDefinitions={selectedEntityFieldDefs}
           onClose={() => setShowViewModal(false)}
+        />
+      )}
+
+      {/* Mobile Modal for Entity Detail */}
+      {showMobileModal && selectedEntity && (
+        <EntityDetailModal
+          entity={selectedEntity}
+          isMaster={isMaster}
+          currentUserId={user?.id}
+          fieldDefinitions={selectedEntityFieldDefs}
+          isExportingPdf={pdfImportState.isExporting}
+          onClose={() => setShowMobileModal(false)}
+          onDelete={handleDelete}
+          onVisibilityChange={handleVisibilityChange}
+          onEdit={() => { handleEditEntity(); setShowMobileModal(false); }}
+          onView={() => { setShowViewModal(true); setShowMobileModal(false); }}
+          onExportPdf={handleExportPdf}
         />
       )}
       

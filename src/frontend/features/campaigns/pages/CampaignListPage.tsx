@@ -535,7 +535,7 @@ export const CampaignListPage: React.FC = () => {
                     return (
                       <div
                         key={campaign.id}
-                        className={`border p-4 cursor-pointer transition-all ${
+                        className={`relative border p-4 cursor-pointer transition-all clip-tech-br ${
                           isSelected 
                             ? 'border-cyan-500 bg-cyan-500/10' 
                             : 'border-primary/20 bg-black/40 hover:border-primary/40'

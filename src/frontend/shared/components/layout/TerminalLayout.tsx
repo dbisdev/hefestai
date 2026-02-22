@@ -196,7 +196,7 @@ export const TerminalLayout: React.FC<TerminalLayoutProps> = ({
           <button 
             type="button"
             onClick={() => setShowRuleQuery(true)}
-            className="order-6 col-span-1 md:col-auto flex items-center gap-2 border border-primary/40 px-2 md:px-3 py-1 text-xs md:text-sm uppercase hover:bg-primary/20 transition-all text-primary font-bold cursor-pointer"
+            className="order-6 lg:order-5 col-span-1 md:col-auto flex items-center gap-2 border border-primary/40 px-2 md:px-3 py-1 text-xs md:text-sm uppercase hover:bg-primary/20 transition-all text-primary font-bold cursor-pointer"
             aria-label="Consultar reglas"
           >
             <span className="material-icons text-sm">auto_stories</span>
@@ -211,7 +211,7 @@ export const TerminalLayout: React.FC<TerminalLayoutProps> = ({
             <button 
               type="button"
               onClick={handleBack}
-              className="order-4 col-span-1 md:col-auto flex items-center gap-2 border border-primary/40 px-2 md:px-3 py-1 text-xs md:text-sm uppercase hover:bg-primary/20 transition-all text-primary font-bold cursor-pointer"
+              className="order-4 lg:order-2 col-span-1 md:col-auto flex items-center gap-2 border border-primary/40 px-2 md:px-3 py-1 text-xs md:text-sm uppercase hover:bg-primary/20 transition-all text-primary font-bold cursor-pointer"
               aria-label="Volver atrás"
             >
               <span className="material-icons text-sm">arrow_back</span>

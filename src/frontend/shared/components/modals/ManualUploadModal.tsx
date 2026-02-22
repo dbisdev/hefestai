@@ -176,7 +176,7 @@ export const ManualUploadModal: React.FC<ManualUploadModalProps> = ({
 
 return (
     <div 
-      className="fixed inset-0 bg-black/90 backdrop-blur-sm z-[100] flex items-center justify-center p-4"
+      className="fixed inset-0 bg-black/80 backdrop-blur-sm z-50 flex items-center justify-center p-4"
     >
       <div
         ref={modalRef}
@@ -184,10 +184,10 @@ return (
         aria-modal="true"
         aria-labelledby="upload-modal-title"
         tabIndex={-1}
-        className="w-full max-w-xl bg-surface-dark border border-primary shadow-2xl animate-glitch-in focus:outline-none"
+        className="w-full max-w-xl max-h-[90vh] bg-surface-dark border border-primary shadow-2xl animate-glitch-in flex flex-col focus:outline-none"
       >
         {/* Header */}
-        <div className="bg-primary text-black font-bold p-3 flex justify-between items-center">
+        <div className="bg-primary text-black font-bold p-3 flex justify-between items-center flex-shrink-0">
           <h2 id="upload-modal-title" className="text-xs uppercase tracking-widest flex items-center gap-2">
             <span className="material-icons text-sm">upload_file</span>
             CARGAR MANUAL RAG
@@ -205,7 +205,7 @@ return (
 
         {uploadResult ? (
           /* Success State */
-          <div className="p-6 space-y-4">
+          <div className="p-6 space-y-4 overflow-y-auto flex-1 custom-scrollbar">
             <div className="text-center">
               <span className="material-icons text-6xl text-green-400 mb-4 block">check_circle</span>
               <h3 className="text-lg text-primary font-bold uppercase mb-2">Manual Cargado</h3>
@@ -234,9 +234,9 @@ return (
               CERRAR
             </button>
           </div>
-        ) : (
+) : (
           /* Upload Form */
-          <form onSubmit={handleSubmit} className="p-6 space-y-4 font-mono">
+          <form onSubmit={handleSubmit} className="p-6 space-y-4 font-mono overflow-y-auto flex-1 custom-scrollbar">
             {/* Game System Info */}
             <div className="bg-black/40 border border-primary/20 p-3 flex items-center gap-3">
               <span className="material-icons text-primary/60">sports_esports</span>
@@ -292,7 +292,7 @@ return (
 
             {/* Title Field */}
             <div>
-              <label className="block text-xs text-primary/60 uppercase mb-1">
+              <label className="block text-sm text-primary/60 uppercase mb-1">
                 Título del Manual (opcional)
               </label>
               <input
@@ -307,7 +307,7 @@ return (
 
             {/* Source Type */}
             <div>
-              <label className="block text-xs text-primary/60 uppercase mb-2">
+              <label className="block text-sm text-primary/60 uppercase mb-2">
                 Tipo de Fuente
               </label>
               <div className="grid grid-cols-3 gap-2">
@@ -323,8 +323,8 @@ return (
                         : 'border-primary/30 hover:border-primary/60 text-primary/60'
                     } disabled:opacity-50`}
                   >
-                    <span className="text-[10px] font-bold block">{option.label}</span>
-                    <span className="text-[8px] text-primary/40 hidden sm:block">{option.description}</span>
+                    <span className="text-[10px] sm:text-sm font-bold block">{option.label}</span>
+                    <span className="text-[8px] sm:text-xs text-primary/40 hidden sm:block">{option.description}</span>
                   </button>
                 ))}
               </div>
@@ -332,7 +332,7 @@ return (
 
             {/* Version Field */}
             <div>
-              <label className="block text-xs text-primary/60 uppercase mb-1">
+              <label className="block text-sm text-primary/60 uppercase mb-1">
                 Versión (opcional)
               </label>
               <input
@@ -363,20 +363,20 @@ return (
               </div>
             )}
 
-            {/* Action Buttons */}
-            <div className="flex gap-3 pt-4 border-t border-primary/20">
+{/* Action Buttons */}
+            <div className="flex gap-3 pt-4 border-t border-primary/20 flex-shrink-0">
               <button
                 type="button"
                 onClick={onClose}
                 disabled={isUploading}
-                className="flex-1 py-3 border border-primary/40 text-primary/80 text-xs uppercase tracking-widest hover:bg-primary/10 transition-colors disabled:opacity-50"
+                className="flex-1 py-3 border border-primary/40 text-primary/80 text-xs sm:text-sm uppercase tracking-widest hover:bg-primary/10 transition-colors disabled:opacity-50"
               >
                 CANCELAR
               </button>
               <button
                 type="submit"
                 disabled={!selectedFile || isUploading}
-                className="flex-1 py-3 bg-primary text-black text-xs uppercase tracking-widest font-bold hover:bg-primary/80 transition-colors disabled:opacity-50 flex items-center justify-center gap-2"
+                className="flex-1 py-3 bg-primary text-black text-xs sm:text-sm uppercase tracking-widest font-bold hover:bg-primary/80 transition-colors disabled:opacity-50 flex items-center justify-center gap-2"
               >
                 {isUploading ? (
                   <>

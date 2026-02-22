@@ -384,19 +384,16 @@ const DiceRoller: React.FC<DiceRollerProps> = ({ onClose }) => {
   const fails = currentResults.filter(r => r.value === 1 && r.color === 'yellow').length;
 
   return (
-    <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/90 backdrop-blur-md p-2 md:p-4 font-mono">
-      <div className="w-full max-w-6xl h-[95vh] md:h-[85vh] bg-surface-dark border-2 border-primary/40 rounded-lg overflow-hidden flex flex-col shadow-[0_0_80px_rgba(37,244,106,0.15)] relative">
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 backdrop-blur-sm p-2 md:p-4 font-mono">
+      <div className="w-full max-w-6xl h-[95vh] md:h-[85vh] bg-surface-dark border border-primary shadow-2xl animate-glitch-in overflow-hidden flex flex-col relative">
         {/* Header */}
-        <div className="bg-primary/5 border-b border-primary/20 p-3 md:p-4 flex justify-between items-center z-10">
-          <div className="flex items-center gap-2 md:gap-3">
-            <span className="material-icons text-primary animate-pulse text-lg md:text-2xl">view_in_ar</span>
-            <div className="flex flex-col">
-              <span className="text-xs md:text-sm font-bold tracking-widest text-primary uppercase">Dice_Gen</span>
-              <span className="text-[8px] md:text-[10px] text-primary/40 uppercase hidden sm:block">Simulación Física: Precision H-99</span>
-            </div>
+        <div className="bg-primary text-black font-bold p-3 flex justify-between items-center flex-shrink-0">
+          <div className="flex items-center gap-2">
+            <span className="material-icons text-sm">casino</span>
+            <span className="text-xs uppercase tracking-widest">DICE_GEN</span>
           </div>
-          <button type="button" onClick={onClose} className="text-primary/60 hover:text-primary transition-colors hover:rotate-90 cursor-pointer">
-            <span className="material-icons">close</span>
+          <button type="button" onClick={onClose} className="material-icons text-sm hover:rotate-90 transition-transform">
+            close
           </button>
         </div>
 

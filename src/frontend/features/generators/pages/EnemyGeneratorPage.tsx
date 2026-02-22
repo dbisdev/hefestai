@@ -13,7 +13,7 @@ import { parseJsonResponse } from '@core/utils';
 import { useEntityGeneration } from '@core/hooks';
 import type { EnemyData } from '@core/types';
 
-const UNKNOWN_ENEMY_IMAGE = "https://images.unsplash.com/photo-1614728263952-84ea256f9679?q=80&w=400&auto=format&fit=crop";
+const UNKNOWN_ENEMY_IMAGE = "https://images.unsplash.com/photo-1509558273944-9ea880029528?q=80&w=400&auto=format&fit=crop";
 
 const SPECIES_OPTIONS = [
   { value: '', label: 'Seleccionar Especie...' },
@@ -382,8 +382,6 @@ export const EnemyGeneratorPage: React.FC<EnemyGeneratorPageProps> = ({ onBack }
                 )}
               </div>
             )}
-
-            <TerminalLog logs={logs} maxLogs={6} className="h-24" />
 
             <EditableStatsPanel
               stats={editableData?.stats || null}

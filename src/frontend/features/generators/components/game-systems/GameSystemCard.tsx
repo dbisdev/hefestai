@@ -31,7 +31,7 @@ export const GameSystemCard: React.FC<GameSystemCardProps> = ({
   return (
     <div
       onClick={handleClick}
-      className={`border p-4 cursor-pointer transition-all ${
+      className={`border p-4 cursor-pointer transition-all clip-tech-br ${
         isSelected
           ? 'border-cyan-500 bg-cyan-500/10'
           : 'border-primary/20 bg-black/40 hover:border-primary/40'

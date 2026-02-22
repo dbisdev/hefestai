@@ -4,7 +4,7 @@
  * DRY: Single form for both operations
  */
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { Button, Input } from '@shared/components/ui';
 import type { GameSystem, CreateGameSystemRequest, UpdateGameSystemRequest } from '@core/types';
 
@@ -23,6 +23,7 @@ export const GameSystemForm: React.FC<GameSystemFormProps> = ({
   onCancel,
   isLoading,
 }) => {
+  const modalRef = useRef<HTMLDivElement>(null);
   const [formData, setFormData] = useState({
     code: '',
     name: '',
@@ -56,6 +57,17 @@ export const GameSystemForm: React.FC<GameSystemFormProps> = ({
     setError(null);
   }, [mode, initialData]);
 
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape' && !isLoading) {
+        onCancel();
+      }
+    };
+    document.addEventListener('keydown', handleKeyDown);
+    modalRef.current?.focus();
+    return () => document.removeEventListener('keydown', handleKeyDown);
+  }, [onCancel, isLoading]);
+
   const handleChange = (field: string, value: string) => {
     setFormData((prev) => ({ ...prev, [field]: value }));
     setError(null);
@@ -77,7 +89,7 @@ export const GameSystemForm: React.FC<GameSystemFormProps> = ({
 
     const data = mode === 'create'
       ? {
-          code: formData.code.trim().toUpperCase(),
+          code: formData.code.trim().toLowerCase(),
           name: formData.name.trim(),
           publisher: formData.publisher.trim() || undefined,
           version: formData.version.trim() || undefined,
@@ -101,50 +113,77 @@ export const GameSystemForm: React.FC<GameSystemFormProps> = ({
   return (
     <div className="fixed inset-0 bg-black/80 backdrop-blur-sm z-50 flex items-center justify-center p-4">
       <div
-        className="bg-surface-dark border border-primary/30 rounded-lg max-w-lg w-full p-6 relative"
+        ref={modalRef}
+        className="w-full max-w-lg max-h-[90vh] bg-surface-dark border border-primary shadow-2xl animate-glitch-in flex flex-col focus:outline-none"
         role="dialog"
         aria-modal="true"
         aria-labelledby="form-title"
+        tabIndex={-1}
       >
-        <div className="absolute top-0 left-0 w-4 h-4 border-t-2 border-l-2 border-primary rounded-tl-lg" />
-        <div className="absolute top-0 right-0 w-4 h-4 border-t-2 border-r-2 border-primary rounded-tr-lg" />
-        <div className="absolute bottom-0 left-0 w-4 h-4 border-b-2 border-l-2 border-primary rounded-bl-lg" />
-        <div className="absolute bottom-0 right-0 w-4 h-4 border-b-2 border-r-2 border-primary rounded-br-lg" />
+        <div className="bg-primary text-black font-bold p-3 flex justify-between items-center flex-shrink-0">
+          <h2 id="form-title" className="text-xs uppercase tracking-widest flex items-center gap-2">
+            <span className="material-icons text-sm">sports_esports</span>
+            {mode === 'create' ? 'NUEVO_SISTEMA' : 'EDITAR_SISTEMA'}
+          </h2>
+          {!isLoading && (
+            <button
+              onClick={onCancel}
+              className="material-icons text-sm hover:rotate-90 transition-transform"
+              aria-label="Cerrar"
+            >
+              close
+            </button>
+          )}
+        </div>
 
-        <h2
-          id="form-title"
-          className="text-primary text-lg font-display uppercase tracking-wider mb-4 flex items-center gap-2"
-        >
-          <span className="material-icons">sports_esports</span>
-          {mode === 'create' ? 'Nuevo Sistema' : 'Editar Sistema'}
-        </h2>
+        <form onSubmit={handleSubmit} className="p-6 space-y-4 font-mono overflow-y-auto flex-1 custom-scrollbar">
+          {error && (
+            <div className="bg-danger/20 border border-danger/50 p-3 text-danger text-xs flex items-center gap-2">
+              <span className="material-icons text-sm">error</span>
+              {error}
+            </div>
+          )}
 
-        <form onSubmit={handleSubmit} className="space-y-4">
-          <div className="grid grid-cols-2 gap-4">
-            <Input
-              label="Código"
-              value={formData.code}
-              onChange={(e) => handleChange('code', e.target.value)}
-              placeholder="Ej: DND5E"
-              disabled={mode === 'edit'}
-              icon="tag"
-            />
-            <Input
-              label="Nombre"
+         <div>
+            <label className="block text-primary/70 text-sm uppercase mb-1 tracking-wider">
+              <span className="material-icons text-xs mr-1 align-middle">sports_esports</span>
+              Nombre
+            </label>
+            <input
+              type="text"
               value={formData.name}
               onChange={(e) => handleChange('name', e.target.value)}
               placeholder="Ej: Dungeons & Dragons 5e"
-              icon="sports_esports"
+              className="w-full bg-black/40 border border-primary/30 p-2 text-primary 
+                focus:outline-none focus:border-primary transition-colors text-sm
+                placeholder:text-primary/30"
+            />
+          </div>
+
+          <div>
+            <label className="block text-primary/70 text-sm uppercase mb-1 tracking-wider">
+              <span className="material-icons text-xs mr-1 align-middle">business</span>
+              Editorial
+            </label>
+            <input
+              type="text"
+              value={formData.publisher}
+              onChange={(e) => handleChange('publisher', e.target.value)}
+              placeholder="Ej: Wizards of the Coast"
+              className="w-full bg-black/40 border border-primary/30 p-2 text-primary 
+                focus:outline-none focus:border-primary transition-colors text-sm
+                placeholder:text-primary/30"
             />
           </div>
 
           <div className="grid grid-cols-2 gap-4">
             <Input
-              label="Editorial"
-              value={formData.publisher}
-              onChange={(e) => handleChange('publisher', e.target.value)}
-              placeholder="Ej: Wizards of the Coast"
-              icon="business"
+              label="Código"
+              value={formData.code}
+              onChange={(e) => handleChange('code', e.target.value)}
+              placeholder="Ej: dark-trophy"
+              disabled={mode === 'edit'}
+              icon="tag"
             />
             <Input
               label="Versión"
@@ -155,8 +194,10 @@ export const GameSystemForm: React.FC<GameSystemFormProps> = ({
             />
           </div>
 
+          
+
           <div>
-            <label className="block text-primary/70 text-[10px] uppercase mb-1 tracking-wider">
+            <label className="block text-primary/70 text-sm uppercase mb-1 tracking-wider">
               <span className="material-icons text-xs mr-1 align-middle">category</span>
               Tipos de Entidad (separados por coma)
             </label>
@@ -165,52 +206,37 @@ export const GameSystemForm: React.FC<GameSystemFormProps> = ({
               value={formData.entityTypesInput}
               onChange={(e) => handleChange('entityTypesInput', e.target.value)}
               placeholder="character, npc, vehicle, mission"
-              className="w-full bg-black/40 border border-primary/30 rounded p-2 text-primary 
+              className="w-full bg-black/40 border border-primary/30 p-2 text-primary 
                 focus:outline-none focus:border-primary transition-colors text-sm
                 placeholder:text-primary/30"
             />
           </div>
 
           <div>
-            <label className="block text-primary/70 text-[10px] uppercase mb-1 tracking-wider">
+            <label className="block text-primary/70 text-sm uppercase mb-1 tracking-wider">
               <span className="material-icons text-xs mr-1 align-middle">description</span>
-              Descripción
+              Descripción (Opcional)
             </label>
             <textarea
               value={formData.description}
               onChange={(e) => handleChange('description', e.target.value)}
               placeholder="Descripción del sistema de juego..."
               rows={3}
-              className="w-full bg-black/40 border border-primary/30 rounded p-2 text-primary 
+              className="w-full bg-black/40 border border-primary/30 p-2 text-primary 
                 focus:outline-none focus:border-primary transition-colors text-sm
                 placeholder:text-primary/30 resize-none"
             />
           </div>
-
-          {error && (
-            <div className="bg-danger/20 border border-danger/50 p-2 rounded text-danger text-xs">
-              {error}
-            </div>
-          )}
-
-          <div className="flex justify-end gap-3 pt-4 border-t border-primary/10">
-            <Button variant="ghost" size="sm" type="button" onClick={onCancel} disabled={isLoading}>
-              Cancelar
-            </Button>
-            <Button variant="primary" size="sm" type="submit" isLoading={isLoading}>
-              {mode === 'create' ? 'Crear' : 'Guardar'}
-            </Button>
-          </div>
         </form>
 
-        <button
-          type="button"
-          onClick={onCancel}
-          className="absolute top-2 right-2 text-primary/40 hover:text-primary transition-colors cursor-pointer"
-          aria-label="Cerrar"
-        >
-          <span className="material-icons text-sm">close</span>
-        </button>
+        <div className="p-4 border-t border-primary/20 flex justify-end gap-3 flex-shrink-0">
+          <Button variant="ghost" size="sm" type="button" onClick={onCancel} disabled={isLoading}>
+            Cancelar
+          </Button>
+          <Button variant="primary" size="sm" onClick={handleSubmit} isLoading={isLoading}>
+            {mode === 'create' ? 'Crear' : 'Guardar'}
+          </Button>
+        </div>
       </div>
     </div>
   );
