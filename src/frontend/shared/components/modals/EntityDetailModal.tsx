@@ -79,7 +79,7 @@ export const EntityDetailModal: React.FC<EntityDetailModalProps> = ({
         tabIndex={-1}
       >
         <div className="bg-primary text-black font-bold p-3 flex justify-between items-center flex-shrink-0">
-          <h2 id="entity-detail-title" className="text-xs uppercase tracking-widest flex items-center gap-2">
+          <h2 id="entity-detail-title" className="text-sm uppercase tracking-widest flex items-center gap-2">
             <span className="material-icons text-sm">analytics</span>
             INSPECTOR_ENTIDAD
           </h2>
@@ -99,9 +99,10 @@ export const EntityDetailModal: React.FC<EntityDetailModalProps> = ({
               alt={`Imagen de ${entity.name}`} 
               className="w-full h-full object-cover" 
             />
-            <div className="absolute top-2 left-2 px-1 bg-primary/80 text-black text-[8px] font-bold">
-              ANALYSIS_LIVE
-            </div>
+            <div className="absolute top-2 left-2 px-1 bg-primary/80 text-black text-[8px] font-bold">ANALYSIS_LIVE</div>
+              <div className="absolute bottom-2 right-2 flex gap-1">
+                {[...Array(3)].map((_, i) => <div key={i} className="w-1.5 h-1.5 bg-primary/40 animate-pulse" style={{ animationDelay: `${i*0.1}s` }} />)}
+              </div>
           </div>
 
           <div className="space-y-3">
@@ -110,21 +111,21 @@ export const EntityDetailModal: React.FC<EntityDetailModalProps> = ({
               <div className="h-0.5 w-full bg-gradient-to-r from-primary via-primary/20 to-transparent mt-1"></div>
             </div>
 
-            <div className="grid grid-cols-2 gap-2 text-xs">
+            <div className="grid grid-cols-2 gap-2 text-sm">
               <div className="bg-black/40 border border-primary/20 p-2">
-                <span className="text-primary/40 block text-[10px] uppercase">Tipo</span>
+                <span className="text-primary/40 block text-xs uppercase">Tipo</span>
                 <span className="text-primary font-bold uppercase">{entity.entityType.replace('_', ' ')}</span>
               </div>
               <div className="bg-black/40 border border-primary/20 p-2">
-                <span className="text-primary/40 block text-[10px] uppercase">Propietario</span>
+                <span className="text-primary/40 block text-xs uppercase">Propietario</span>
                 <span className="text-primary font-bold truncate block" title={entity.ownerName || 'Desconocido'}>
                   {entity.ownerName || 'Desconocido'}
                 </span>
               </div>
             </div>
 
-            <div className="bg-black/40 border border-primary/20 p-2 text-xs">
-              <span className="text-primary/40 block text-[10px] uppercase mb-1">Visibilidad</span>
+            <div className="bg-black/40 border border-primary/20 p-2 text-sm">
+              <span className="text-primary/40 block text-xs uppercase mb-1">Visibilidad</span>
               <div className="flex items-center justify-between">
                 <span className={`font-bold uppercase ${visibilityInfo.color}`}>{visibilityInfo.label}</span>
               </div>
@@ -132,8 +133,8 @@ export const EntityDetailModal: React.FC<EntityDetailModalProps> = ({
 
             {entity.description && (
               <div className="bg-black/40 border border-primary/20 p-3">
-                <p className="text-[10px] text-primary/40 uppercase tracking-wider mb-1">// Descripción</p>
-                <p className="text-xs text-primary/80">{entity.description}</p>
+                <p className="text-xs text-primary/40 uppercase tracking-wider mb-1">// Descripción</p>
+                <p className="text-sm text-primary/80">{entity.description}</p>
               </div>
             )}
           </div>
@@ -142,26 +143,26 @@ export const EntityDetailModal: React.FC<EntityDetailModalProps> = ({
         <div className="p-4 border-t border-primary/20 space-y-2 flex-shrink-0">
           <button
             onClick={() => { onView(); onClose(); }}
-            className="w-full py-2.5 border border-primary/60 text-primary text-xs hover:bg-primary/20 transition-all font-bold uppercase tracking-wider flex items-center justify-center gap-2"
+            className="cursor-pointer w-full py-2.5 border border-primary/60 text-primary text-xs hover:bg-primary/20 transition-all font-bold uppercase tracking-wider flex items-center justify-center gap-2"
           >
             <span className="material-icons text-sm">visibility</span>
-            Ver Detalles
+            MÁS_DATOS
           </button>
 
           {canEdit && (
             <button
               onClick={() => { onEdit(); onClose(); }}
-              className="w-full py-2.5 border border-primary/60 text-primary text-xs hover:bg-primary/20 transition-all font-bold uppercase tracking-wider flex items-center justify-center gap-2"
+              className="cursor-pointer w-full py-2.5 border border-primary/60 text-primary text-xs hover:bg-primary/20 transition-all font-bold uppercase tracking-wider flex items-center justify-center gap-2"
             >
               <span className="material-icons text-sm">edit</span>
-              Editar
+              EDITAR_ENTIDAD
             </button>
           )}
 
           <button
             onClick={onExportPdf}
             disabled={isExportingPdf}
-            className="w-full py-2.5 border border-cyan-500/60 text-cyan-400 text-xs hover:bg-cyan-500/20 transition-all font-bold uppercase tracking-wider flex items-center justify-center gap-2 disabled:opacity-50"
+            className="cursor-pointer w-full py-2.5 border border-cyan-500/60 text-cyan-400 text-xs hover:bg-cyan-500/20 transition-all font-bold uppercase tracking-wider flex items-center justify-center gap-2 disabled:opacity-50"
           >
             {isExportingPdf ? (
               <>
@@ -171,7 +172,7 @@ export const EntityDetailModal: React.FC<EntityDetailModalProps> = ({
             ) : (
               <>
                 <span className="material-icons text-sm">picture_as_pdf</span>
-                Exportar Ficha
+                Exportar_Ficha
               </>
             )}
           </button>
@@ -179,10 +180,10 @@ export const EntityDetailModal: React.FC<EntityDetailModalProps> = ({
           {canEdit && (
             <button
               onClick={() => { onDelete(entity.id); onClose(); }}
-              className="w-full py-2.5 border border-danger/60 text-danger text-xs hover:bg-danger hover:text-white transition-all font-bold uppercase tracking-wider flex items-center justify-center gap-2"
+              className="cursor-pointer w-full py-2.5 border border-danger/60 text-danger text-xs hover:bg-danger hover:text-white transition-all font-bold uppercase tracking-wider flex items-center justify-center gap-2"
             >
               <span className="material-icons text-sm">delete_forever</span>
-              Eliminar
+              PURGAR_REGISTRO
             </button>
           )}
         </div>

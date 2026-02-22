@@ -210,7 +210,7 @@ export const NpcGeneratorPage: React.FC<NpcGeneratorPageProps> = ({ onBack }) =>
         <div className="flex-1 flex flex-col gap-6 overflow-y-auto pr-2">
           <div className="space-y-6">
             <div>
-              <label className="text-primary text-[10px] uppercase tracking-widest mb-2 flex items-center gap-2">
+              <label className="text-primary text-xs uppercase tracking-widest mb-2 flex items-center gap-2">
                 <span className="material-icons text-sm">fingerprint</span> Especie
               </label>
               <div className="grid grid-cols-3 gap-2">
@@ -218,7 +218,7 @@ export const NpcGeneratorPage: React.FC<NpcGeneratorPageProps> = ({ onBack }) =>
                   <button
                     key={spec.value}
                     onClick={() => setForm({ ...form, species: spec.value })}
-                    className={`h-10 border font-mono text-[9px] uppercase transition-all ${form.species === spec.value
+                    className={`h-10 border font-mono text-xs uppercase transition-all ${form.species === spec.value
                       ? 'bg-primary text-black border-primary font-bold'
                       : 'border-primary/30 text-white bg-surface-dark hover:border-primary'
                       }`}
@@ -230,7 +230,7 @@ export const NpcGeneratorPage: React.FC<NpcGeneratorPageProps> = ({ onBack }) =>
             </div>
 
             <div>
-              <label className="text-primary text-[10px] uppercase tracking-widest mb-2 flex items-center gap-2">
+              <label className="text-primary text-xs uppercase tracking-widest mb-2 flex items-center gap-2">
                 <span className="material-icons text-sm">work</span> Ocupacion
               </label>
               <select
@@ -245,7 +245,7 @@ export const NpcGeneratorPage: React.FC<NpcGeneratorPageProps> = ({ onBack }) =>
             </div>
 
             <div>
-              <label className="text-primary text-[10px] uppercase tracking-widest mb-2 flex items-center gap-2">
+              <label className="text-primary text-xs uppercase tracking-widest mb-2 flex items-center gap-2">
                 <span className="material-icons text-sm">psychology</span> Personalidad
               </label>
               <select

@@ -102,59 +102,63 @@ export const EntityViewModal: React.FC<EntityViewModalProps> = ({
         <div className="p-6 space-y-4 font-mono overflow-y-auto flex-1 custom-scrollbar">
           {/* Entity Image */}
           {entity.imageUrl && (
-            <div className="w-full h-48 overflow-hidden border border-primary/30 mb-4">
+            <div className="relative w-full aspect-square border border-primary/30 p-1 bg-black shadow-[0_0_15px_rgba(37,244,106,0.1)]">
               <img 
                 src={entity.imageUrl} 
                 alt={entity.name}
                 className="w-full h-full object-cover"
               />
+              <div className="absolute top-2 left-2 px-1 bg-primary/80 text-black text-[8px] font-bold">ANALYSIS_LIVE</div>
+              <div className="absolute bottom-2 right-2 flex gap-1">
+                {[...Array(3)].map((_, i) => <div key={i} className="w-1.5 h-1.5 bg-primary/40 animate-pulse" style={{ animationDelay: `${i*0.1}s` }} />)}
+              </div>
             </div>
           )}
 
           {/* Basic Info Section */}
           <div className="space-y-4">
-            <p className="text-[9px] text-primary/40 uppercase tracking-[0.2em] font-bold border-b border-primary/20 pb-1">
+            <p className="text-xs text-primary/40 uppercase tracking-[0.2em] font-bold border-b border-primary/20 pb-1">
               // INFORMACIÓN_BÁSICA
             </p>
 
             {/* Name */}
             <div className="bg-black/40 border border-primary/20 p-3">
-              <span className="text-[9px] text-primary/40 uppercase block mb-1">Nombre</span>
+              <span className="text-xs text-primary/40 uppercase block mb-1">Nombre</span>
               <span className="text-lg text-primary font-bold">{entity.name}</span>
             </div>
 
             {/* Type */}
             <div className="bg-black/40 border border-primary/20 p-3">
-              <span className="text-[9px] text-primary/40 uppercase block mb-1">Tipo</span>
+              <span className="text-xs text-primary/40 uppercase block mb-1">Tipo</span>
               <span className="text-sm text-primary uppercase">{entity.entityType.replace('_', ' ')}</span>
             </div>
 
             {/* Description */}
             {entity.description && (
               <div className="bg-black/40 border border-primary/20 p-3">
-                <span className="text-[9px] text-primary/40 uppercase block mb-1">Descripción</span>
+                <span className="text-xs text-primary/40 uppercase block mb-1">Descripción</span>
                 <p className="text-sm text-primary/80 whitespace-pre-wrap">{entity.description}</p>
               </div>
             )}
 
             {/* Owner */}
             <div className="bg-black/40 border border-primary/20 p-3">
-              <span className="text-[9px] text-primary/40 uppercase block mb-1">Propietario</span>
+              <span className="text-xs text-primary/40 uppercase block mb-1">Propietario</span>
               <span className="text-sm text-primary">{entity.ownerName || 'Desconocido'}</span>
             </div>
 
             {/* Visibility */}
             <div className="bg-black/40 border border-primary/20 p-3">
-              <span className="text-[9px] text-primary/40 uppercase block mb-1">Visibilidad</span>
+              <span className="text-xs text-primary/40 uppercase block mb-1">Visibilidad</span>
               <span className="text-sm text-primary font-bold">{visibilityInfo.label}</span>
-              <span className="text-[9px] text-primary/40 block mt-1">{visibilityInfo.description}</span>
+              <span className="text-xs text-primary/40 block mt-1">{visibilityInfo.description}</span>
             </div>
           </div>
 
           {/* Attributes Section */}
           {hasAttributes && (
             <div className="space-y-4">
-              <p className="text-[9px] text-primary/40 uppercase tracking-[0.2em] font-bold border-b border-primary/20 pb-1">
+              <p className="text-xs text-primary/40 uppercase tracking-[0.2em] font-bold border-b border-primary/20 pb-1">
                 // ATRIBUTOS
               </p>
 
@@ -163,7 +167,7 @@ export const EntityViewModal: React.FC<EntityViewModalProps> = ({
                 <div className="grid grid-cols-2 md:grid-cols-3 gap-2">
                   {numericAttrs.map(([key, value]) => (
                     <div key={key} className="bg-black/40 border border-primary/20 p-3">
-                      <span className="text-[9px] text-primary/40 uppercase block mb-1">
+                      <span className="text-xs text-primary/40 uppercase block mb-1">
                         {getDisplayLabel(key, labelMap)}
                       </span>
                       <span className="text-xl text-primary font-bold font-mono">{value}</span>
@@ -177,7 +181,7 @@ export const EntityViewModal: React.FC<EntityViewModalProps> = ({
                 <div className="space-y-2">
                   {stringAttrs.map(([key, value]) => (
                     <div key={key} className="bg-black/40 border border-primary/20 p-3">
-                      <span className="text-[9px] text-primary/40 uppercase block mb-1">
+                      <span className="text-xs text-primary/40 uppercase block mb-1">
                         {getDisplayLabel(key, labelMap)}
                       </span>
                       <span className="text-sm text-primary">{value}</span>
@@ -189,13 +193,13 @@ export const EntityViewModal: React.FC<EntityViewModalProps> = ({
               {/* Nested Attributes (like SKILLS) */}
               {nestedAttrs.map(([parentKey, nestedObj]) => (
                 <div key={parentKey} className="space-y-2">
-                  <p className="text-[10px] text-primary/50 uppercase tracking-wider">
+                  <p className="text-xs text-primary/50 uppercase tracking-wider">
                     {getDisplayLabel(parentKey, labelMap)}
                   </p>
                   <div className="grid grid-cols-2 md:grid-cols-3 gap-2">
                     {Object.entries(nestedObj).map(([childKey, childValue]) => (
                       <div key={childKey} className="bg-black/40 border border-primary/20 p-2">
-                        <span className="text-[9px] text-primary/40 uppercase block mb-1">
+                        <span className="text-xs text-primary/40 uppercase block mb-1">
                           {getDisplayLabel(childKey, labelMap)}
                         </span>
                         <span className="text-lg text-primary font-bold font-mono">
@@ -212,11 +216,11 @@ export const EntityViewModal: React.FC<EntityViewModalProps> = ({
           {/* Metadata Section */}
           {entity.metadata && Object.keys(entity.metadata).length > 0 && (
             <div className="space-y-2">
-              <p className="text-[9px] text-primary/40 uppercase tracking-[0.2em] font-bold border-b border-primary/20 pb-1">
+              <p className="text-xs text-primary/40 uppercase tracking-[0.2em] font-bold border-b border-primary/20 pb-1">
                 // METADATOS
               </p>
               <div className="bg-black/40 border border-primary/20 p-3">
-                <pre className="text-[10px] text-primary/60 overflow-x-auto">
+                <pre className="text-xs text-primary/60 overflow-x-auto">
                   {JSON.stringify(entity.metadata, null, 2)}
                 </pre>
               </div>
@@ -225,7 +229,7 @@ export const EntityViewModal: React.FC<EntityViewModalProps> = ({
 
           {/* Timestamps */}
           <div className="space-y-2 pt-4 border-t border-primary/10">
-            <div className="flex justify-between text-[9px] text-primary/40">
+            <div className="flex justify-between text-xs text-primary/40">
               <span>Creado: {new Date(entity.createdAt).toLocaleString()}</span>
               {entity.updatedAt && (
                 <span>Actualizado: {new Date(entity.updatedAt).toLocaleString()}</span>
@@ -238,7 +242,7 @@ export const EntityViewModal: React.FC<EntityViewModalProps> = ({
         <div className="p-4 border-t border-primary/20 flex justify-end flex-shrink-0">
           <button
             onClick={onClose}
-            className="px-6 py-2 border border-primary/60 text-primary text-xs uppercase tracking-wider hover:bg-primary/20 transition-colors"
+            className="cursor-pointer px-6 py-2 border border-primary/60 text-primary text-xs uppercase tracking-wider hover:bg-primary/20 transition-colors"
           >
             Cerrar
           </button>

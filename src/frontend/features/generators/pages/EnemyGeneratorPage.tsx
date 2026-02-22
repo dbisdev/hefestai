@@ -223,7 +223,7 @@ export const EnemyGeneratorPage: React.FC<EnemyGeneratorPageProps> = ({ onBack }
         <div className="flex-1 flex flex-col gap-6 overflow-y-auto pr-2">
           <div className="space-y-6">
             <div>
-              <label className="text-primary text-[10px] uppercase tracking-widest mb-2 flex items-center gap-2">
+              <label className="text-primary text-xs uppercase tracking-widest mb-2 flex items-center gap-2">
                 <span className="material-icons text-sm">bug_report</span> Especie Hostil
               </label>
               <select
@@ -238,7 +238,7 @@ export const EnemyGeneratorPage: React.FC<EnemyGeneratorPageProps> = ({ onBack }
             </div>
 
             <div>
-              <label className="text-primary text-[10px] uppercase tracking-widest mb-2 flex items-center gap-2">
+              <label className="text-primary text-xs uppercase tracking-widest mb-2 flex items-center gap-2">
                 <span className="material-icons text-sm">warning</span> Nivel de Amenaza
               </label>
               <div className="grid grid-cols-5 gap-1">
@@ -246,7 +246,7 @@ export const EnemyGeneratorPage: React.FC<EnemyGeneratorPageProps> = ({ onBack }
                   <button
                     key={threat.value}
                     onClick={() => setForm({ ...form, threatLevel: threat.value })}
-                    className={`h-12 border font-mono text-[8px] uppercase transition-all flex flex-col items-center justify-center ${form.threatLevel === threat.value
+                    className={`h-12 border font-mono text-xs uppercase transition-all flex flex-col items-center justify-center ${form.threatLevel === threat.value
                       ? `bg-primary/20 border-primary font-bold ${threat.color}`
                       : 'border-primary/30 text-white/60 bg-surface-dark hover:border-primary'
                       }`}
@@ -265,7 +265,7 @@ export const EnemyGeneratorPage: React.FC<EnemyGeneratorPageProps> = ({ onBack }
             </div>
 
             <div>
-              <label className="text-primary text-[10px] uppercase tracking-widest mb-2 flex items-center gap-2">
+              <label className="text-primary text-xs uppercase tracking-widest mb-2 flex items-center gap-2">
                 <span className="material-icons text-sm">psychology</span> Comportamiento
               </label>
               <select
@@ -394,7 +394,7 @@ export const EnemyGeneratorPage: React.FC<EnemyGeneratorPageProps> = ({ onBack }
               disabled={!editableData}
             />
 
-            <div className="bg-black/60 border border-yellow-500/30 p-3">
+            {/* <div className="bg-black/60 border border-yellow-500/30 p-3">
               <p className="text-[8px] text-yellow-500/60 uppercase tracking-widest mb-1">
                 <span className="material-icons text-sm align-middle mr-1">tips_and_updates</span>
                 Debilidad Detectada
@@ -407,7 +407,7 @@ export const EnemyGeneratorPage: React.FC<EnemyGeneratorPageProps> = ({ onBack }
                 rows={2}
                 disabled={!editableData}
               />
-            </div>
+            </div> */}
           </div>
 
           <TerminalLog logs={logs} maxLogs={6} className="h-24 shrink-0" />

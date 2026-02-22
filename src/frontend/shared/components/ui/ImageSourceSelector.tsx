@@ -293,7 +293,7 @@ export const ImageSourceSelector: React.FC<ImageSourceSelectorProps> = ({
   return (
     <div className={`space-y-3 ${className}`}>
       {/* Mode Label */}
-      <label className="text-primary text-[10px] uppercase tracking-widest flex items-center gap-2">
+      <label className="text-primary text-xs uppercase tracking-widest flex items-center gap-2">
         <span className="material-icons text-sm">image</span> Fuente de Imagen
       </label>
 
@@ -313,9 +313,9 @@ export const ImageSourceSelector: React.FC<ImageSourceSelectorProps> = ({
           >
             <div className="flex items-center gap-2 mb-1">
               <span className="material-icons text-sm">{option.icon}</span>
-              <span className="text-[10px] font-bold uppercase">{option.label}</span>
+              <span className="text-sm font-bold uppercase">{option.label}</span>
             </div>
-            <span className="text-[8px] text-primary/40 block">{option.description}</span>
+            <span className="text-xs text-primary/40 block">{option.description}</span>
           </button>
         ))}
       </div>
@@ -378,7 +378,7 @@ export const ImageSourceSelector: React.FC<ImageSourceSelectorProps> = ({
               <span className="material-icons text-3xl text-primary/40 mb-2 block">
                 {dragActive ? 'download' : 'cloud_upload'}
               </span>
-              <p className="text-[10px] text-primary/60 mb-1">
+              <p className="text-sm text-primary/60 mb-1">
                 {dragActive ? (
                   'Suelta el archivo aquí'
                 ) : (
@@ -388,7 +388,7 @@ export const ImageSourceSelector: React.FC<ImageSourceSelectorProps> = ({
                   </>
                 )}
               </p>
-              <p className="text-[8px] text-primary/40">
+              <p className="text-sm text-primary/40">
                 PNG, JPG, WEBP • Máx. {formatFileSize(maxFileSizeBytes)}
               </p>
             </div>
@@ -398,13 +398,13 @@ export const ImageSourceSelector: React.FC<ImageSourceSelectorProps> = ({
 
       {/* Helper Text for other modes */}
       {mode === 'none' && (
-        <p className="text-[9px] text-white/50 flex items-center gap-1">
+        <p className="text-xs text-white/50 flex items-center gap-1">
           <span className="material-icons text-xs">info</span>
           Se usará una imagen de placeholder por defecto
         </p>
       )}
       {mode === 'generate' && (
-        <p className="text-[9px] text-white/50 flex items-center gap-1">
+        <p className="text-xs text-white/50 flex items-center gap-1">
           <span className="material-icons text-xs">info</span>
           La IA generará una imagen basada en los parámetros
         </p>

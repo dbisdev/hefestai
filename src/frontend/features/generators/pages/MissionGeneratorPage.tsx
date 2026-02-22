@@ -192,7 +192,7 @@ export const MissionGeneratorPage: React.FC<MissionGeneratorPageProps> = ({ onBa
       <div className="flex flex-col lg:flex-row gap-8 h-full font-mono">
         <div className="flex-1 flex flex-col gap-6 overflow-y-auto pr-2">
           {!activeCampaignId && (
-            <div className="border border-yellow-500/50 bg-yellow-500/10 p-3 text-[10px] text-yellow-500 uppercase">
+            <div className="border border-yellow-500/50 bg-yellow-500/10 p-3 text-xs text-yellow-500 uppercase">
               <span className="material-icons text-sm mr-1 align-middle">warning</span>
               Selecciona una campana para guardar entidades
             </div>
@@ -200,7 +200,7 @@ export const MissionGeneratorPage: React.FC<MissionGeneratorPageProps> = ({ onBa
 
           <div className="space-y-6">
             <div>
-              <label className="text-primary text-[10px] uppercase tracking-widest mb-2 flex items-center gap-2">
+              <label className="text-primary text-xs uppercase tracking-widest mb-2 flex items-center gap-2">
                 <span className="material-icons text-sm">assignment</span> Tipo de Mision
               </label>
               <select
@@ -215,7 +215,7 @@ export const MissionGeneratorPage: React.FC<MissionGeneratorPageProps> = ({ onBa
             </div>
 
             <div>
-              <label className="text-primary text-[10px] uppercase tracking-widest mb-2 flex items-center gap-2">
+              <label className="text-primary text-xs uppercase tracking-widest mb-2 flex items-center gap-2">
                 <span className="material-icons text-sm">trending_up</span> Dificultad
               </label>
               <div className="grid grid-cols-4 gap-2">
@@ -223,7 +223,7 @@ export const MissionGeneratorPage: React.FC<MissionGeneratorPageProps> = ({ onBa
                   <button
                     key={diff.value}
                     onClick={() => setForm({ ...form, difficulty: diff.value })}
-                    className={`h-14 border font-mono text-[9px] uppercase transition-all flex flex-col items-center justify-center ${form.difficulty === diff.value
+                    className={`h-14 border font-mono text-xs uppercase transition-all flex flex-col items-center justify-center ${form.difficulty === diff.value
                       ? `bg-primary/20 border-primary font-bold ${diff.color}`
                       : 'border-primary/30 text-white/60 bg-surface-dark hover:border-primary'
                       }`}
@@ -236,7 +236,7 @@ export const MissionGeneratorPage: React.FC<MissionGeneratorPageProps> = ({ onBa
             </div>
 
             <div>
-              <label className="text-primary text-[10px] uppercase tracking-widest mb-2 flex items-center gap-2">
+              <label className="text-primary text-xs uppercase tracking-widest mb-2 flex items-center gap-2">
                 <span className="material-icons text-sm">location_on</span> Entorno
               </label>
               <div className="grid grid-cols-3 gap-2">
@@ -244,7 +244,7 @@ export const MissionGeneratorPage: React.FC<MissionGeneratorPageProps> = ({ onBa
                   <button
                     key={env.value}
                     onClick={() => setForm({ ...form, environment: env.value })}
-                    className={`h-10 border font-mono text-[8px] uppercase transition-all ${form.environment === env.value
+                    className={`h-10 border font-mono text-xs uppercase transition-all ${form.environment === env.value
                       ? 'bg-primary text-black border-primary font-bold'
                       : 'border-primary/30 text-white bg-surface-dark hover:border-primary'
                       }`}

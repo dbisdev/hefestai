@@ -156,7 +156,7 @@ export const CampaignDetailModal: React.FC<CampaignDetailModalProps> = ({
             {members && members.length > 0 && (
               <div className="pt-2 mt-2 border-t border-primary/20">
                 <span className="text-primary/40 text-xs uppercase">Miembros ({members.length}):</span>
-                <div className="mt-1 space-y-1 max-h-24 overflow-y-auto">
+                <div className="mt-1 space-y-1 max-h-24">
                   {[...members]
                     .sort((a, b) => {
                       if (a.role === CampaignRole.Master && b.role !== CampaignRole.Master) return -1;
@@ -210,7 +210,7 @@ export const CampaignDetailModal: React.FC<CampaignDetailModalProps> = ({
             </Button>
           )}
 
-          {campaign.userRole === CampaignRole.Master && (
+          {/* {campaign.userRole === CampaignRole.Master && (
             <Button
               onClick={() => {
                 onSettings(campaign);
@@ -223,7 +223,7 @@ export const CampaignDetailModal: React.FC<CampaignDetailModalProps> = ({
               <span className="material-icons text-sm mr-2">settings</span>
               CONFIGURACIÓN AVANZADA
             </Button>
-          )}
+          )} */}
 
           <Button
             onClick={() => {

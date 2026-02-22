@@ -148,7 +148,7 @@ export const SolarSystemGeneratorPage: React.FC<SolarSystemGeneratorPageProps> =
             </h2>
 
             <div className="space-y-4">
-              <label className="text-[10px] uppercase tracking-wider text-primary/70">Clase Espectral Estelar</label>
+              <label className="text-xs uppercase tracking-wider text-primary/70">Clase Espectral Estelar</label>
               <div className="grid grid-cols-3 gap-2">
                 {SPECTRAL_CLASSES.map(cls => (
                   <button
@@ -158,14 +158,14 @@ export const SolarSystemGeneratorPage: React.FC<SolarSystemGeneratorPageProps> =
                       }`}
                   >
                     <span className="block text-lg">{cls.value}</span>
-                    <span className="text-[8px] opacity-70">{cls.label}</span>
+                    <span className="text-xs opacity-70">{cls.label}</span>
                   </button>
                 ))}
               </div>
             </div>
 
             <div className="space-y-4">
-              <div className="flex justify-between text-[10px] uppercase text-primary/70">
+              <div className="flex justify-between text-xs uppercase text-primary/70">
                 <label>Cantidad de Planetas</label>
                 <span className="bg-primary/10 px-2 text-primary">{form.planetCount.toString().padStart(2, '0')}</span>
               </div>
@@ -384,15 +384,15 @@ const PlanetCard: React.FC<PlanetCardProps> = ({ planet, index, onHover, isHighl
             <h4 className="text-sm font-bold text-white">
               {planet.name || `Planeta ${index + 1}`}
             </h4>
-            <p className="text-[9px] text-primary/60 uppercase">{planetType}</p>
+            <p className="text-xs text-primary/60 uppercase">{planetType}</p>
           </div>
         </div>
-        <span className="text-[8px] bg-black/50 px-2 py-0.5 border border-primary/20 text-primary/70">
+        <span className="text-xs bg-black/50 px-2 py-0.5 border border-primary/20 text-primary/70">
           ORB-{(planet.orbital_position ?? index + 1).toString().padStart(2, '0')}
         </span>
       </div>
 
-      <div className="grid grid-cols-2 gap-2 text-[9px] mb-2">
+      <div className="grid grid-cols-2 gap-2 text-xs mb-2">
         <div className="bg-black/30 p-1.5 border-l-2 border-primary/30">
           <span className="text-primary/50 uppercase block">Tamano</span>
           <span className="text-white font-mono">
@@ -418,16 +418,16 @@ const PlanetCard: React.FC<PlanetCardProps> = ({ planet, index, onHover, isHighl
       </div>
 
       {planet.features && (
-        <div className="text-[9px] mb-2">
+        <div className="text-xs mb-2">
           <span className="text-primary/50 uppercase">Caracteristicas: </span>
           <span className="text-white/70">{planet.features}</span>
         </div>
       )}
 
       {planet.resources && (
-        <div className="text-[9px] bg-black/40 p-1.5 border border-primary/10">
+        <div className="text-xs bg-black/40 p-1.5 border border-primary/10">
           <span className="text-yellow-500/70 uppercase flex items-center gap-1">
-            <span className="material-icons text-[10px]">inventory_2</span>
+            <span className="material-icons text-xs">inventory_2</span>
             Recursos:
           </span>
           <span className="text-white/80">{planet.resources}</span>

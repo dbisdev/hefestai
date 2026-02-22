@@ -317,7 +317,7 @@ return (
                     type="button"
                     onClick={() => setSourceType(option.value)}
                     disabled={isUploading}
-                    className={`p-2 border text-left transition-colors ${
+                    className={`cursor-pointer p-2 border text-left transition-colors ${
                       sourceType === option.value
                         ? 'border-primary bg-primary/20 text-primary'
                         : 'border-primary/30 hover:border-primary/60 text-primary/60'
@@ -369,14 +369,14 @@ return (
                 type="button"
                 onClick={onClose}
                 disabled={isUploading}
-                className="flex-1 py-3 border border-primary/40 text-primary/80 text-xs sm:text-sm uppercase tracking-widest hover:bg-primary/10 transition-colors disabled:opacity-50"
+                className="cursor-pointer flex-1 py-3 border border-primary/40 text-primary/80 text-xs sm:text-sm uppercase tracking-widest hover:bg-primary/10 transition-colors disabled:opacity-50"
               >
                 CANCELAR
               </button>
               <button
                 type="submit"
                 disabled={!selectedFile || isUploading}
-                className="flex-1 py-3 bg-primary text-black text-xs sm:text-sm uppercase tracking-widest font-bold hover:bg-primary/80 transition-colors disabled:opacity-50 flex items-center justify-center gap-2"
+                className="cursor-pointer flex-1 py-3 bg-primary text-black text-xs sm:text-sm uppercase tracking-widest font-bold hover:bg-primary/80 transition-colors disabled:opacity-50 flex items-center justify-center gap-2"
               >
                 {isUploading ? (
                   <>

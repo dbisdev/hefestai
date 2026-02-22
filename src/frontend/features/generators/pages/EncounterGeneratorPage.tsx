@@ -200,7 +200,7 @@ export const EncounterGeneratorPage: React.FC<EncounterGeneratorPageProps> = ({ 
         <div className="flex-1 flex flex-col gap-6 overflow-y-auto pr-2">
           <div className="space-y-6">
             <div>
-              <label className="text-primary text-[10px] uppercase tracking-widest mb-2 flex items-center gap-2">
+              <label className="text-primary text-xs uppercase tracking-widest mb-2 flex items-center gap-2">
                 <span className="material-icons text-sm">pest_control</span> Tipo de Encuentro
               </label>
               <select
@@ -215,7 +215,7 @@ export const EncounterGeneratorPage: React.FC<EncounterGeneratorPageProps> = ({ 
             </div>
 
             <div>
-              <label className="text-primary text-[10px] uppercase tracking-widest mb-2 flex items-center gap-2">
+              <label className="text-primary text-xs uppercase tracking-widest mb-2 flex items-center gap-2">
                 <span className="material-icons text-sm">trending_up</span> Dificultad
               </label>
               <div className="grid grid-cols-4 gap-2">
@@ -223,7 +223,7 @@ export const EncounterGeneratorPage: React.FC<EncounterGeneratorPageProps> = ({ 
                   <button
                     key={diff.value}
                     onClick={() => setForm({ ...form, difficulty: diff.value })}
-                    className={`h-10 border font-mono text-[9px] uppercase transition-all ${form.difficulty === diff.value
+                    className={`h-10 border font-mono text-sm uppercase transition-all ${form.difficulty === diff.value
                       ? `bg-primary/20 border-primary font-bold ${diff.color}`
                       : 'border-primary/30 text-white/60 bg-surface-dark hover:border-primary'
                       }`}
@@ -235,7 +235,7 @@ export const EncounterGeneratorPage: React.FC<EncounterGeneratorPageProps> = ({ 
             </div>
 
             <div>
-              <label className="text-primary text-[10px] uppercase tracking-widest mb-2 flex items-center gap-2">
+              <label className="text-primary text-xs uppercase tracking-widest mb-2 flex items-center gap-2">
                 <span className="material-icons text-sm">terrain</span> Terreno
               </label>
               <div className="grid grid-cols-3 gap-2">
@@ -243,7 +243,7 @@ export const EncounterGeneratorPage: React.FC<EncounterGeneratorPageProps> = ({ 
                   <button
                     key={env.value}
                     onClick={() => setForm({ ...form, environment: env.value })}
-                    className={`h-10 border font-mono text-[8px] uppercase transition-all ${form.environment === env.value
+                    className={`h-10 border font-mono text-xs uppercase transition-all ${form.environment === env.value
                       ? 'bg-primary text-black border-primary font-bold'
                       : 'border-primary/30 text-white bg-surface-dark hover:border-primary'
                       }`}
@@ -255,7 +255,7 @@ export const EncounterGeneratorPage: React.FC<EncounterGeneratorPageProps> = ({ 
             </div>
 
             <div>
-              <label className="text-primary text-[10px] uppercase tracking-widest mb-2 flex items-center gap-2">
+              <label className="text-primary text-xs uppercase tracking-widest mb-2 flex items-center gap-2">
                 <span className="material-icons text-sm">groups</span> Cantidad de Enemigos
               </label>
               <div className="grid grid-cols-4 gap-2">
@@ -263,7 +263,7 @@ export const EncounterGeneratorPage: React.FC<EncounterGeneratorPageProps> = ({ 
                   <button
                     key={count.value}
                     onClick={() => setForm({ ...form, enemyCount: count.value })}
-                    className={`h-10 border font-mono text-[8px] uppercase transition-all ${form.enemyCount === count.value
+                    className={`h-10 border font-mono text-xs uppercase transition-all ${form.enemyCount === count.value
                       ? 'bg-primary text-black border-primary font-bold'
                       : 'border-primary/30 text-white bg-surface-dark hover:border-primary'
                       }`}

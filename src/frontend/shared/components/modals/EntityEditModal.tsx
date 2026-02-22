@@ -341,7 +341,7 @@ export const EntityEditModal: React.FC<EntityEditModalProps> = ({
           {/* Visibility Field - Only shown if user can edit */}
           {canEditVisibility ? (
             <div className="space-y-2">
-              <p className="text-[9px] text-primary/40 uppercase tracking-[0.2em] font-bold border-b border-primary/20 pb-1">
+              <p className="text-xs text-primary/40 uppercase tracking-[0.2em] font-bold border-b border-primary/20 pb-1">
                 // VISIBILIDAD
               </p>
               <div className="grid grid-cols-2 gap-2">
@@ -351,25 +351,25 @@ export const EntityEditModal: React.FC<EntityEditModalProps> = ({
                     type="button"
                     onClick={() => handleChange('visibility', option.value)}
                     disabled={isSaving}
-                    className={`p-2 border text-left transition-colors ${
+                    className={`cursor-pointer p-2 border text-left transition-colors ${
                       formData.visibility === option.value
                         ? 'border-primary bg-primary/20 text-primary'
                         : 'border-primary/30 hover:border-primary/60 text-primary/60'
                     } disabled:opacity-50`}
                   >
-                    <span className="text-xs font-bold block">{option.label}</span>
-                    <span className="text-[9px] text-primary/40">{option.description}</span>
+                    <span className="text-sm font-bold block">{option.label}</span>
+                    <span className="text-xs text-primary/40">{option.description}</span>
                   </button>
                 ))}
               </div>
             </div>
           ) : (
             <div className="bg-black/40 border border-primary/10 p-3">
-              <p className="text-[9px] text-primary/40 uppercase mb-1">Visibilidad (solo lectura)</p>
+              <p className="text-xs text-primary/40 uppercase mb-1">Visibilidad (solo lectura)</p>
               <p className="text-sm text-primary uppercase font-bold">
                 {visibilityOptions.find(o => o.value === formData.visibility)?.label || 'DESCONOCIDO'}
               </p>
-              <p className="text-[9px] text-primary/30 mt-1">
+              <p className="text-xs text-primary/30 mt-1">
                 Solo el propietario o el master pueden cambiar la visibilidad
               </p>
             </div>
@@ -378,7 +378,7 @@ export const EntityEditModal: React.FC<EntityEditModalProps> = ({
           {/* Ownership Transfer Section - Only shown if user can edit ownership */}
           {canEditOwnership ? (
             <div className="space-y-2">
-              <p className="text-[9px] text-primary/40 uppercase tracking-[0.2em] font-bold border-b border-primary/20 pb-1">
+              <p className="text-xs text-primary/40 uppercase tracking-[0.2em] font-bold border-b border-primary/20 pb-1">
                 // PROPIETARIO
               </p>
               {isLoadingMembers ? (
@@ -416,11 +416,11 @@ export const EntityEditModal: React.FC<EntityEditModalProps> = ({
             </div>
           ) : (
             <div className="bg-black/40 border border-primary/10 p-3">
-              <p className="text-[9px] text-primary/40 uppercase mb-1">Propietario (solo lectura)</p>
+              <p className="text-xs text-primary/40 uppercase mb-1">Propietario (solo lectura)</p>
               <p className="text-sm text-primary uppercase font-bold">
                 {entity.ownerName || 'Desconocido'}
               </p>
-              <p className="text-[9px] text-primary/30 mt-1">
+              <p className="text-xs text-primary/30 mt-1">
                 Solo el propietario o el master pueden transferir la propiedad
               </p>
             </div>
@@ -429,7 +429,7 @@ export const EntityEditModal: React.FC<EntityEditModalProps> = ({
           {/* Dynamic Attributes Section */}
           {hasAttributes && (
             <div className="space-y-3">
-              <p className="text-[9px] text-primary/40 uppercase tracking-[0.2em] font-bold border-b border-primary/20 pb-1">
+              <p className="text-xs text-primary/40 uppercase tracking-[0.2em] font-bold border-b border-primary/20 pb-1">
                 // ATRIBUTOS
               </p>
 
@@ -440,7 +440,7 @@ export const EntityEditModal: React.FC<EntityEditModalProps> = ({
                     <div key={key} className="bg-black/40 border border-primary/20 p-2">
                       <label 
                         htmlFor={`attr-${key}`}
-                        className="block text-[9px] text-primary/40 uppercase mb-1 truncate"
+                        className="block text-xs text-primary/40 uppercase mb-1 truncate"
                         title={key}
                       >
                         {getDisplayLabel(key, labelMap)}
@@ -463,7 +463,7 @@ export const EntityEditModal: React.FC<EntityEditModalProps> = ({
                 <div key={key} className="bg-black/40 border border-primary/20 p-3">
                   <label 
                     htmlFor={`attr-${key}`}
-                    className="block text-[9px] text-primary/40 uppercase mb-1"
+                    className="block text-xs text-primary/40 uppercase mb-1"
                     title={key}
                   >
                     {getDisplayLabel(key, labelMap)}
@@ -474,7 +474,7 @@ export const EntityEditModal: React.FC<EntityEditModalProps> = ({
                     onChange={(e) => handleAttributeChange(key, e.target.value)}
                     rows={2}
                     disabled={isSaving}
-                    className="w-full bg-black/60 border border-primary/30 text-primary p-2 text-xs focus:border-primary focus:outline-none resize-none disabled:opacity-50"
+                    className="w-full bg-black/60 border border-primary/30 text-primary p-2 text-sm focus:border-primary focus:outline-none resize-none disabled:opacity-50"
                   />
                 </div>
               ))}
@@ -483,7 +483,7 @@ export const EntityEditModal: React.FC<EntityEditModalProps> = ({
               {nestedAttrs.map(([parentKey, nestedObj]) => (
                 <div key={parentKey} className="bg-black/40 border border-primary/20 p-3">
                   <p 
-                    className="text-[9px] text-primary/40 uppercase mb-2 flex items-center gap-1"
+                    className="text-xs text-primary/40 uppercase mb-2 flex items-center gap-1"
                     title={parentKey}
                   >
                     <span className="material-icons text-xs">folder_open</span>
@@ -494,7 +494,7 @@ export const EntityEditModal: React.FC<EntityEditModalProps> = ({
                       <div key={childKey} className="flex items-center gap-2">
                         <label 
                           htmlFor={`attr-${parentKey}-${childKey}`}
-                          className="text-[9px] text-primary/60 uppercase flex-1 truncate"
+                          className="text-xs text-primary/60 uppercase flex-1 truncate"
                           title={childKey}
                         >
                           {getDisplayLabel(childKey, labelMap)}
@@ -510,7 +510,7 @@ export const EntityEditModal: React.FC<EntityEditModalProps> = ({
                               parseFloat(e.target.value) || 0
                             )}
                             disabled={isSaving}
-                            className="w-16 bg-black/60 border border-primary/30 text-primary p-1 text-xs text-center font-bold focus:border-primary focus:outline-none disabled:opacity-50"
+                            className="w-16 bg-black/60 border border-primary/30 text-primary p-1 text-sm text-center font-bold focus:border-primary focus:outline-none disabled:opacity-50"
                           />
                         ) : (
                           <input
@@ -523,7 +523,7 @@ export const EntityEditModal: React.FC<EntityEditModalProps> = ({
                               e.target.value
                             )}
                             disabled={isSaving}
-                            className="flex-1 bg-black/60 border border-primary/30 text-primary p-1 text-xs focus:border-primary focus:outline-none disabled:opacity-50"
+                            className="flex-1 bg-black/60 border border-primary/30 text-primary p-1 text-sm focus:border-primary focus:outline-none disabled:opacity-50"
                           />
                         )}
                       </div>
@@ -536,7 +536,7 @@ export const EntityEditModal: React.FC<EntityEditModalProps> = ({
 
           {/* Entity Type (read-only info) */}
           <div className="bg-black/40 border border-primary/10 p-3">
-            <p className="text-[9px] text-primary/40 uppercase mb-1">Tipo de Entidad</p>
+            <p className="text-xs text-primary/40 uppercase mb-1">Tipo de Entidad</p>
             <p className="text-sm text-primary uppercase font-bold">
               {entity.entityType.replace('_', ' ')}
             </p>
@@ -548,14 +548,14 @@ export const EntityEditModal: React.FC<EntityEditModalProps> = ({
               type="button"
               onClick={onClose}
               disabled={isSaving}
-              className="flex-1 py-3 border border-primary/40 text-primary/80 text-xs uppercase tracking-widest hover:bg-primary/10 transition-colors disabled:opacity-50"
+              className="cursor-pointer flex-1 py-3 border border-primary/40 text-primary/80 text-xs uppercase tracking-widest hover:bg-primary/10 transition-colors disabled:opacity-50"
             >
               CANCELAR
             </button>
             <button
               type="submit"
               disabled={isSaving}
-              className="flex-1 py-3 bg-primary text-black text-xs uppercase tracking-widest font-bold hover:bg-primary/80 transition-colors disabled:opacity-50 flex items-center justify-center gap-2"
+              className="cursor-pointer flex-1 py-3 bg-primary text-black text-xs uppercase tracking-widest font-bold hover:bg-primary/80 transition-colors disabled:opacity-50 flex items-center justify-center gap-2"
             >
               {isSaving ? (
                 <>

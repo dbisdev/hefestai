@@ -64,7 +64,7 @@ export const GameSystemCard: React.FC<GameSystemCardProps> = ({
           )}
         </div>
         
-        {isOwned && (
+        {/* {isOwned && (
           <button
             type="button"
             onClick={handleEditClick}
@@ -74,7 +74,7 @@ export const GameSystemCard: React.FC<GameSystemCardProps> = ({
           >
             <span className="material-icons text-sm">edit</span>
           </button>
-        )}
+        )} */}
       </div>
       
       {system.description && (

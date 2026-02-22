@@ -34,7 +34,7 @@ export const Input: React.FC<InputProps> = ({
       )}
       <input
         id={inputId}
-        className={`w-full bg-black/40 border border-primary/30 rounded p-2 text-primary 
+        className={`w-full bg-black/40 border border-primary/30 p-2 text-primary 
           focus:outline-none focus:border-primary transition-colors text-md md:text-sm
           placeholder:text-primary/30 disabled:opacity-50 disabled:cursor-not-allowed
           ${error ? 'border-danger/50 focus:border-danger' : ''}

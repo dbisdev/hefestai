@@ -208,7 +208,7 @@ export const CharacterGeneratorPage: React.FC<CharacterGeneratorPageProps> = ({ 
 
           <div className="space-y-6">
             <div>
-              <label className="text-primary text-[10px] uppercase tracking-widest mb-2 flex items-center gap-2">
+              <label className="text-primary text-xs uppercase tracking-widest mb-2 flex items-center gap-2">
                 <span className="material-icons text-sm">fingerprint</span> Genotype
               </label>
               <select
@@ -223,7 +223,7 @@ export const CharacterGeneratorPage: React.FC<CharacterGeneratorPageProps> = ({ 
             </div>
 
             <div>
-              <label className="text-primary text-[10px] uppercase tracking-widest mb-2 flex items-center gap-2">
+              <label className="text-primary text-xs uppercase tracking-widest mb-2 flex items-center gap-2">
                 <span className="material-icons text-sm">badge</span> Role
               </label>
               <select
@@ -238,7 +238,7 @@ export const CharacterGeneratorPage: React.FC<CharacterGeneratorPageProps> = ({ 
             </div>
 
             <div>
-              <label className="text-primary text-[10px] uppercase tracking-widest mb-2 flex items-center gap-2">
+              <label className="text-primary text-xs uppercase tracking-widest mb-2 flex items-center gap-2">
                 <span className="material-icons text-sm">wc</span> Morphology
               </label>
               <div className="grid grid-cols-3 gap-3">
@@ -246,7 +246,7 @@ export const CharacterGeneratorPage: React.FC<CharacterGeneratorPageProps> = ({ 
                   <button
                     key={morph}
                     onClick={() => setForm({ ...form, morphology: morph })}
-                    className={`h-10 border font-mono text-[10px] uppercase transition-all ${form.morphology === morph
+                    className={`h-10 border font-mono text-sm uppercase transition-all ${form.morphology === morph
                       ? 'bg-primary text-black border-primary font-bold'
                       : 'border-primary/30 text-white bg-surface-dark hover:border-primary'
                       }`}

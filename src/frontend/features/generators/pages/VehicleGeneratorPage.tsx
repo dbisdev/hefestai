@@ -166,7 +166,7 @@ export const VehicleGeneratorPage: React.FC<VehicleGeneratorPageProps> = ({ onBa
         <div className="flex-1 flex flex-col gap-6 overflow-y-auto">
           <div className="space-y-4">
             <div>
-              <label className="text-primary text-[10px] uppercase block mb-1">Tipo de Vehiculo</label>
+              <label className="text-primary text-xs uppercase block mb-1">Tipo de Vehiculo</label>
               <select
                 className="w-full bg-surface-dark border border-primary/30 p-2 text-sm text-white"
                 value={form.type}
@@ -178,7 +178,7 @@ export const VehicleGeneratorPage: React.FC<VehicleGeneratorPageProps> = ({ onBa
               </select>
             </div>
             <div>
-              <label className="text-primary text-[10px] uppercase block mb-1">Clase de Chasis</label>
+              <label className="text-primary text-xs uppercase block mb-1">Clase de Chasis</label>
               <select
                 className="w-full bg-surface-dark border border-primary/30 p-2 text-sm text-white"
                 value={form.class}

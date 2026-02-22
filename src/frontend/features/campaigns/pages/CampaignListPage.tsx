@@ -13,12 +13,13 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { TerminalLayout } from '@shared/components/layout';
-import { Button, TerminalLog } from '@shared/components/ui';
-import { CampaignDetailModal } from '@shared/components/modals';
+import { Button, TerminalLog, ConfirmDialog } from '@shared/components/ui';
+import { CampaignCreateModal, CampaignDetailModal, CampaignEditModal } from '@shared/components/modals';
 import { useAuth, useCampaign } from '@core/context';
 import { gameSystemService, campaignService } from '@core/services/api';
 import { useTerminalLog } from '@core/hooks/useTerminalLog';
-import type { Campaign, GameSystem, UpdateCampaignInput, CampaignMember } from '@core/types';
+import { useConfirmDialog } from '@core/hooks';
+import type { Campaign, CampaignDetail, GameSystem, UpdateCampaignInput, CampaignMember } from '@core/types';
 import { CampaignRole } from '@core/types';
 
 export const CampaignListPage: React.FC = () => {
@@ -28,9 +29,12 @@ export const CampaignListPage: React.FC = () => {
     campaigns, 
     activeCampaign,
     selectCampaign, 
+    createCampaign,
     leaveCampaign,
+    deleteCampaign,
     updateCampaign,
     updateCampaignStatus,
+    regenerateJoinCode,
     isLoading,
     error,
     clearError
@@ -39,10 +43,12 @@ export const CampaignListPage: React.FC = () => {
   // Local state
   const [gameSystems, setGameSystems] = useState<GameSystem[]>([]);
   const [isLoadingGameSystems, setIsLoadingGameSystems] = useState(true);
-  const [selectedCampaign, setSelectedCampaign] = useState<Campaign | null>(null);
+  const [selectedCampaign, setSelectedCampaign] = useState<CampaignDetail | null>(null);
   const [filter, setFilter] = useState<'all' | 'master' | 'player'>('all');
   const [operationInProgress, setOperationInProgress] = useState<string | null>(null);
   const [showMobileModal, setShowMobileModal] = useState(false);
+  const [showCreateModal, setShowCreateModal] = useState(false);
+  const [isCreating, setIsCreating] = useState(false);
   
   // Campaign members state - maps campaignId to members array
   const [campaignMembers, setCampaignMembers] = useState<Record<string, CampaignMember[]>>({});
@@ -50,10 +56,12 @@ export const CampaignListPage: React.FC = () => {
   // Edit form state
   const [showEditForm, setShowEditForm] = useState(false);
   const [isUpdating, setIsUpdating] = useState(false);
-  const [editForm, setEditForm] = useState<UpdateCampaignInput>({
-    name: '',
-    description: '',
-  });
+  const [isTogglingStatus, setIsTogglingStatus] = useState(false);
+  const [isRegeneratingCode, setIsRegeneratingCode] = useState(false);
+  const [isDeletingCampaign, setIsDeletingCampaign] = useState(false);
+  
+  // Confirm dialog
+  const { isOpen: isConfirmOpen, config: confirmConfig, confirm, handleConfirm, handleCancel } = useConfirmDialog();
   
   const { logs, addLog } = useTerminalLog({
     maxLogs: 10,
@@ -139,62 +147,179 @@ export const CampaignListPage: React.FC = () => {
 
   /**
    * Populates the edit form with the selected campaign's data and shows the edit form
+   * Loads full campaign details including joinCode
    */
-  const handleStartEdit = (campaign: Campaign) => {
-    setEditForm({
-      name: campaign.name,
-      description: campaign.description || '',
-    });
-    setShowEditForm(true);
-    addLog(`EDITANDO: ${campaign.name.toUpperCase()}`);
+  const handleStartEdit = async (campaign: Campaign) => {
+    addLog(`CARGANDO DETALLES: ${campaign.name.toUpperCase()}...`);
+    
+    try {
+      const campaignDetails = await campaignService.getById(campaign.id);
+      setSelectedCampaign(campaignDetails);
+      setShowEditForm(true);
+      addLog(`[SUCCESS] Detalles cargados`);
+    } catch (error: unknown) {
+      const message = error instanceof Error ? error.message : 'ERROR AL CARGAR DETALLES';
+      addLog(`ERROR: ${message}`);
+    }
   };
 
   /**
-   * Validates the edit form
+   * Handles creating a new campaign
    */
-  const validateEditForm = (): boolean => {
-    if (!editForm.name.trim()) {
-      addLog('ERROR: NOMBRE REQUERIDO');
-      return false;
+  const handleCreateCampaign = async (name: string, description: string | undefined, gameSystemId: string) => {
+    setIsCreating(true);
+    addLog('INICIALIZANDO NUEVA CAMPAÑA...');
+
+    try {
+      const campaign = await createCampaign(name, description, gameSystemId);
+      addLog(`[SUCCESS] Campaña creada: ${campaign.name.toUpperCase()}`);
+      setShowCreateModal(false);
+    } catch (error: unknown) {
+      const message = error instanceof Error ? error.message : 'ERROR AL CREAR CAMPAÑA';
+      addLog(`ERROR_CRITICO: ${message}`);
+      throw error;
+    } finally {
+      setIsCreating(false);
     }
-    return true;
   };
 
   /**
    * Handles updating an existing campaign
    */
-  const handleUpdate = async () => {
+  const handleUpdate = async (data: UpdateCampaignInput) => {
     if (!selectedCampaign) {
       addLog('ERROR: NO HAY CAMPAÑA SELECCIONADA');
       return;
     }
-    
-    if (!validateEditForm()) return;
 
     setIsUpdating(true);
     addLog(`ACTUALIZANDO ${selectedCampaign.name.toUpperCase()}...`);
 
     try {
-      const request: UpdateCampaignInput = {
-        name: editForm.name.trim(),
-        description: editForm.description?.trim() || undefined,
-      };
-
-      await updateCampaign(selectedCampaign.id, request);
+      await updateCampaign(selectedCampaign.id, data);
       
       // Update selected campaign locally
-      setSelectedCampaign(prev => prev ? { ...prev, ...request } : null);
-      addLog(`[SUCCESS] Campaña actualizada: ${request.name.toUpperCase()}`);
+      setSelectedCampaign(prev => prev ? { ...prev, ...data } : null);
+      addLog(`[SUCCESS] Campaña actualizada: ${data.name.toUpperCase()}`);
       
-      // Reset edit form and close
       setShowEditForm(false);
-      setEditForm({ name: '', description: '' });
     } catch (error: unknown) {
       const message = error instanceof Error ? error.message : 'ERROR AL ACTUALIZAR CAMPAÑA';
       addLog(`ERROR_CRITICO: ${message}`);
+      throw error;
     } finally {
       setIsUpdating(false);
     }
+  };
+
+  /**
+   * Handle toggling campaign status from modal
+   */
+  const handleToggleCampaignStatus = async () => {
+    if (!selectedCampaign) return;
+    
+    setIsTogglingStatus(true);
+    const newStatus = !selectedCampaign.isActive;
+    const statusText = newStatus ? 'ACTIVANDO' : 'DESACTIVANDO';
+    
+    addLog(`${statusText} ${selectedCampaign.name.toUpperCase()}...`);
+
+    try {
+      await updateCampaignStatus(selectedCampaign.id, newStatus);
+      setSelectedCampaign(prev => prev ? { ...prev, isActive: newStatus } : null);
+      addLog(`[SUCCESS] Campaña ${newStatus ? 'ACTIVADA' : 'DESACTIVADA'}`);
+    } catch (error: unknown) {
+      const message = error instanceof Error ? error.message : 'ERROR AL CAMBIAR ESTADO';
+      addLog(`ERROR: ${message}`);
+    } finally {
+      setIsTogglingStatus(false);
+    }
+  };
+
+  /**
+   * Open confirm dialog for regenerating join code
+   */
+  const handleConfirmRegenerateCode = useCallback(() => {
+    confirm({
+      title: 'Regenerar Código',
+      message: '¿Regenerar código de acceso? El código anterior dejará de funcionar.',
+      confirmLabel: 'Regenerar',
+      cancelLabel: 'Cancelar',
+      variant: 'warning',
+    });
+  }, [confirm]);
+
+  /**
+   * Handle regenerating join code
+   */
+  const handleRegenerateJoinCode = async () => {
+    if (!selectedCampaign) return;
+    
+    setIsRegeneratingCode(true);
+    addLog('REGENERANDO CÓDIGO DE ACCESO...');
+
+    try {
+      const newCode = await regenerateJoinCode(selectedCampaign.id);
+      setSelectedCampaign(prev => prev ? { ...prev, joinCode: newCode } : null);
+      addLog(`[SUCCESS] Nuevo código: ${newCode}`);
+    } catch (error: unknown) {
+      const message = error instanceof Error ? error.message : 'ERROR AL REGENERAR CÓDIGO';
+      addLog(`ERROR: ${message}`);
+    } finally {
+      setIsRegeneratingCode(false);
+    }
+  };
+
+  /**
+   * Open confirm dialog for deleting campaign
+   */
+  const handleConfirmDelete = useCallback(() => {
+    if (!selectedCampaign) return;
+    
+    confirm({
+      title: 'Eliminar Campaña',
+      message: `¿Eliminar PERMANENTEMENTE "${selectedCampaign.name}"? Esta acción NO se puede deshacer. Todos los datos se perderán.`,
+      confirmLabel: 'ELIMINAR',
+      cancelLabel: 'Cancelar',
+      variant: 'danger',
+    });
+  }, [confirm, selectedCampaign]);
+
+  /**
+   * Handle deleting campaign
+   */
+  const handleDeleteCampaign = async () => {
+    if (!selectedCampaign) return;
+    
+    setIsDeletingCampaign(true);
+    addLog('ELIMINANDO CAMPAÑA...');
+
+    try {
+      await deleteCampaign(selectedCampaign.id);
+      addLog(`[SUCCESS] Campaña eliminada: ${selectedCampaign.name}`);
+      setShowEditForm(false);
+      setSelectedCampaign(null);
+    } catch (error: unknown) {
+      const message = error instanceof Error ? error.message : 'ERROR AL ELIMINAR CAMPAÑA';
+      addLog(`ERROR: ${message}`);
+    } finally {
+      setIsDeletingCampaign(false);
+    }
+  };
+
+  /**
+   * Handle confirm dialog action
+   */
+  const onConfirmAction = async () => {
+    if (!confirmConfig) return;
+    
+    if (confirmConfig.title === 'Regenerar Código') {
+      await handleRegenerateJoinCode();
+    } else if (confirmConfig.title === 'Eliminar Campaña') {
+      await handleDeleteCampaign();
+    }
+    
+    handleCancel();
   };
 
   /**
@@ -360,7 +485,7 @@ export const CampaignListPage: React.FC = () => {
                 {/* Only Masters can create new campaigns */}
                 {isMaster && (
                   <Button 
-                    onClick={() => navigate('/campaigns/new')}
+                    onClick={() => setShowCreateModal(true)}
                     variant="primary"
                     size="sm"
                   >
@@ -380,87 +505,6 @@ export const CampaignListPage: React.FC = () => {
               </div>
             </div>
           </div>
-
-          {/* Edit Form */}
-          {showEditForm && selectedCampaign && (
-            <div className="border border-yellow-500/30 bg-black/60 p-6">
-              <div className="flex items-center justify-between mb-4">
-                <h2 className="text-sm text-yellow-500/60 uppercase tracking-widest flex items-center gap-2">
-                  <span className="material-icons text-xs">edit</span>
-                  Editar Campaña: <span className="text-yellow-400 font-mono ml-1">{selectedCampaign.name}</span>
-                </h2>
-                <button
-                  onClick={() => setShowEditForm(false)}
-                  className="text-primary/40 hover:text-primary transition-colors"
-                >
-                  <span className="material-icons text-sm">close</span>
-                </button>
-              </div>
-              
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                {/* Name */}
-                <div>
-                  <label className="block text-xs text-primary/40 uppercase mb-1">
-                    Nombre *
-                  </label>
-                  <input
-                    type="text"
-                    value={editForm.name}
-                    onChange={(e) => setEditForm(prev => ({ ...prev, name: e.target.value }))}
-                    placeholder="Nombre de la campaña"
-                    className="w-full bg-black/40 border border-primary/30 text-primary p-3 text-sm focus:border-yellow-500 focus:outline-none placeholder:text-primary/20"
-                    disabled={isUpdating}
-                  />
-                </div>
-
-                {/* Game System (read-only) */}
-                <div>
-                  <label className="block text-xs text-primary/40 uppercase mb-1">
-                    Sistema de Juego (no editable)
-                  </label>
-                  <input
-                    type="text"
-                    value={getGameSystemName(selectedCampaign.gameSystemId)}
-                    className="w-full bg-black/20 border border-primary/20 text-primary/50 p-3 text-sm cursor-not-allowed"
-                    disabled
-                  />
-                </div>
-
-                {/* Description */}
-                <div className="md:col-span-2">
-                  <label className="block text-xs text-primary/40 uppercase mb-1">
-                    Descripción
-                  </label>
-                  <textarea
-                    value={editForm.description || ''}
-                    onChange={(e) => setEditForm(prev => ({ ...prev, description: e.target.value }))}
-                    placeholder="Descripción de la campaña..."
-                    rows={2}
-                    className="w-full bg-black/40 border border-primary/30 text-primary p-3 text-sm focus:border-yellow-500 focus:outline-none placeholder:text-primary/20 resize-none"
-                    disabled={isUpdating}
-                  />
-                </div>
-              </div>
-
-              {/* Update Buttons */}
-              <div className="mt-4 flex justify-end gap-2">
-                <Button 
-                  onClick={() => setShowEditForm(false)} 
-                  variant="secondary"
-                  disabled={isUpdating}
-                >
-                  CANCELAR
-                </Button>
-                <Button 
-                  onClick={handleUpdate} 
-                  disabled={isUpdating}
-                  className="min-w-[200px]"
-                >
-                  {isUpdating ? 'ACTUALIZANDO...' : 'GUARDAR CAMBIOS'}
-                </Button>
-              </div>
-            </div>
-          )}
 
           {/* Error Display */}
           {error && (
@@ -494,7 +538,7 @@ export const CampaignListPage: React.FC = () => {
                   <button
                     key={tab.id}
                     onClick={() => setFilter(tab.id as typeof filter)}
-                    className={`px-3 py-1 text-[9px] uppercase tracking-widest transition-all flex items-center gap-1 ${
+                    className={`cursor-pointer px-3 py-1 text-[9px] uppercase tracking-widest transition-all flex items-center gap-1 ${
                       filter === tab.id
                         ? 'bg-primary text-black font-bold'
                         : 'text-primary/60 hover:text-primary hover:bg-primary/5'
@@ -576,7 +620,7 @@ export const CampaignListPage: React.FC = () => {
                           </div>
                           
                           {/* Toggle Status Button (Master only) */}
-                          {campaign.userRole === CampaignRole.Master && (
+                          {/* {campaign.userRole === CampaignRole.Master && (
                             <button
                               onClick={(e) => {
                                 e.stopPropagation();
@@ -591,7 +635,7 @@ export const CampaignListPage: React.FC = () => {
                             >
                               {campaign.isActive ? 'toggle_on' : 'toggle_off'}
                             </button>
-                          )}
+                          )} */}
                         </div>
                         
                         {campaign.description && (
@@ -718,7 +762,7 @@ export const CampaignListPage: React.FC = () => {
                 )}
                 
                 {/* Settings Button (Master only) */}
-                {selectedCampaign.userRole === CampaignRole.Master && (
+                {/* {selectedCampaign.userRole === CampaignRole.Master && (
                   <Button
                     onClick={async () => {
                       await selectCampaign(selectedCampaign.id);
@@ -731,7 +775,7 @@ export const CampaignListPage: React.FC = () => {
                     <span className="material-icons text-sm mr-2">settings</span>
                     CONFIGURACIÓN AVANZADA
                   </Button>
-                )}
+                )} */}
                 
                 {/* Leave/Delete Button */}
                 <Button
@@ -766,6 +810,48 @@ export const CampaignListPage: React.FC = () => {
 
 
         </div>
+
+        {/* Create Campaign Modal */}
+        {showCreateModal && (
+          <CampaignCreateModal
+            gameSystems={gameSystems}
+            isLoadingGameSystems={isLoadingGameSystems}
+            isLoading={isCreating}
+            onClose={() => setShowCreateModal(false)}
+            onCreate={handleCreateCampaign}
+          />
+        )}
+
+        {/* Edit Campaign Modal */}
+        {showEditForm && selectedCampaign && (
+          <CampaignEditModal
+            campaign={selectedCampaign}
+            gameSystemName={getGameSystemName(selectedCampaign.gameSystemId)}
+            members={campaignMembers[selectedCampaign.id]}
+            isLoading={isUpdating}
+            isTogglingStatus={isTogglingStatus}
+            isRegeneratingCode={isRegeneratingCode}
+            isDeleting={isDeletingCampaign}
+            onClose={() => setShowEditForm(false)}
+            onSave={handleUpdate}
+            onToggleStatus={handleToggleCampaignStatus}
+            onConfirmRegenerate={handleConfirmRegenerateCode}
+            onConfirmDelete={handleConfirmDelete}
+          />
+        )}
+
+        {/* Confirm Dialog */}
+        <ConfirmDialog
+          isOpen={isConfirmOpen}
+          title={confirmConfig?.title ?? ''}
+          message={confirmConfig?.message ?? ''}
+          confirmLabel={confirmConfig?.confirmLabel}
+          cancelLabel={confirmConfig?.cancelLabel}
+          variant={confirmConfig?.variant}
+          onConfirm={onConfirmAction}
+          onCancel={handleCancel}
+          isLoading={isRegeneratingCode || isDeletingCampaign}
+        />
 
         {/* Mobile Modal for Campaign Details */}
         {showMobileModal && selectedCampaign && (

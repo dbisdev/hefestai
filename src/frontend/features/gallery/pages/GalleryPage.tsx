@@ -1396,22 +1396,22 @@ const EntityDetailPanel = forwardRef<HTMLElement, EntityDetailPanelProps>(
                 <div className="h-0.5 w-full bg-gradient-to-r from-primary via-primary/20 to-transparent mt-1"></div>
               </div>
               
-              <div className="grid grid-cols-2 gap-2">
-                <div className="bg-black/40 border border-primary/10 p-2 text-[9px]">
-                  <span className="text-primary/40 block">TIPO</span>
+              <div className="grid grid-cols-2 gap-2 text-sm">
+                <div className="bg-black/40 border border-primary/10 p-2">
+                  <span className="text-primary/40 block text-xs">TIPO</span>
                   <span className="text-primary font-bold uppercase">{entity.entityType.replace('_', ' ')}</span>
                 </div>
                 
-                <div className="bg-black/40 border border-primary/10 p-2 text-[9px]">
-                  <span className="text-primary/40 block">PROPIETARIO</span>
+                <div className="bg-black/40 border border-primary/10 p-2">
+                  <span className="text-primary/40 block text-xs">PROPIETARIO</span>
                   <span className="text-primary font-bold truncate block" title={entity.ownerName || 'Desconocido'}>
                     {entity.ownerName || 'Desconocido'}
                   </span>
                 </div>
               </div>
               
-              <div className="bg-black/40 border border-primary/10 p-2 text-[9px]">
-                <span className="text-primary/40 block">VISIBILIDAD</span>
+              <div className="bg-black/40 border border-primary/10 p-2 text-sm">
+                <span className="text-primary/40 block text-xs">VISIBILIDAD</span>
                 <span className="text-primary font-bold uppercase">
                   {entity.visibility === 0 ? 'BORRADOR' : 
                    entity.visibility === 1 ? 'PRIVADO' : 
@@ -1419,8 +1419,8 @@ const EntityDetailPanel = forwardRef<HTMLElement, EntityDetailPanelProps>(
                 </span>
               </div>
 
-              <div className="bg-black/60 p-4 border border-primary/20 text-[11px] text-primary/80 leading-relaxed shadow-inner">
-                <p className="text-[9px] text-primary/40 mb-2 uppercase tracking-[0.2em] font-bold">// BITÁCORA_NÚCLEO</p>
+              <div className="bg-black/60 p-4 border border-primary/20 text-sm text-primary/80 leading-relaxed shadow-inner">
+                <p className="text-xs text-primary/40 mb-2 uppercase tracking-[0.2em] font-bold">// BITÁCORA_NÚCLEO</p>
                 <p>{entity.description || "Sin descripción adicional en el núcleo de datos. Acceso a metadatos restringido."}</p>
               </div>
             </div>
@@ -1429,16 +1429,16 @@ const EntityDetailPanel = forwardRef<HTMLElement, EntityDetailPanelProps>(
               <button 
                 onClick={onView}
                 aria-label={`Ver detalles de ${entity.name}`}
-                className="w-full py-3 border border-primary/60 text-primary text-[10px] hover:bg-primary/20 transition-all font-bold uppercase tracking-[0.2em] flex items-center justify-center gap-2 focus:outline-none focus:ring-2 focus:ring-primary"
+                className="cursor-pointer w-full py-3 border border-primary/60 text-primary text-xs hover:bg-primary/20 transition-all font-bold uppercase tracking-[0.2em] flex items-center justify-center gap-2 focus:outline-none focus:ring-2 focus:ring-primary"
               >
-                <span className="material-icons text-sm">visibility</span> VER_DETALLES
+                <span className="material-icons text-sm">visibility</span> MÁS_DATOS
               </button>
               
               {(isMaster || currentUserId === entity.ownerId) && (
                 <button 
                   onClick={onEdit}
                   aria-label={`Editar ${entity.name}`}
-                  className="w-full py-3 border border-primary/60 text-primary text-[10px] hover:bg-primary/20 transition-all font-bold uppercase tracking-[0.2em] flex items-center justify-center gap-2 focus:outline-none focus:ring-2 focus:ring-primary"
+                  className="cursor-pointer w-full py-3 border border-primary/60 text-primary text-xs hover:bg-primary/20 transition-all font-bold uppercase tracking-[0.2em] flex items-center justify-center gap-2 focus:outline-none focus:ring-2 focus:ring-primary"
                 >
                   <span className="material-icons text-sm">edit</span> EDITAR_ENTIDAD
                 </button>
@@ -1448,7 +1448,7 @@ const EntityDetailPanel = forwardRef<HTMLElement, EntityDetailPanelProps>(
                 onClick={handleExportPdf}
                 disabled={pdfState.isExporting}
                 aria-label={`Exportar ${entity.name} a PDF`}
-                className="w-full py-3 border border-cyan-500/60 text-cyan-500 text-[10px] hover:bg-cyan-500/20 transition-all font-bold uppercase tracking-[0.2em] flex items-center justify-center gap-2 focus:outline-none focus:ring-2 focus:ring-cyan-500 disabled:opacity-50"
+                className="cursor-pointer w-full py-3 border border-cyan-500/60 text-cyan-500 text-xs hover:bg-cyan-500/20 transition-all font-bold uppercase tracking-[0.2em] flex items-center justify-center gap-2 focus:outline-none focus:ring-2 focus:ring-cyan-500 disabled:opacity-50"
               >
                 {pdfState.isExporting ? (
                   <>
@@ -1465,7 +1465,7 @@ const EntityDetailPanel = forwardRef<HTMLElement, EntityDetailPanelProps>(
                 <button 
                   onClick={() => onDelete(entity.id)}
                   aria-label={`Eliminar ${entity.name}`}
-                  className="w-full py-3 border border-danger/60 text-danger text-[10px] hover:bg-danger hover:text-white transition-all font-bold uppercase tracking-[0.2em] flex items-center justify-center gap-2 focus:outline-none focus:ring-2 focus:ring-danger"
+                  className="cursor-pointer w-full py-3 border border-danger/60 text-danger text-xs hover:bg-danger hover:text-white transition-all font-bold uppercase tracking-[0.2em] flex items-center justify-center gap-2 focus:outline-none focus:ring-2 focus:ring-danger"
                 >
                   <span className="material-icons text-sm">delete_forever</span> PURGAR_REGISTRO
                 </button>
