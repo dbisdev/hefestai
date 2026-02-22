@@ -21,6 +21,8 @@ export {
 } from './entity.types';
 
 export type {
+  TemplateEntityType,
+  GeneratedEntityType,
   EntityCategory,
   LoreEntity,
   CreateLoreEntityInput,

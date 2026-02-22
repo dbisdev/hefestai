@@ -6,7 +6,12 @@
 
 import { useState, useCallback } from 'react';
 import type { EntityCategory } from '@core/types';
-import { ENTITY_CATEGORIES, ENTITY_CATEGORIES_LABS, type CategoryInfo } from '../constants/categories';
+import { 
+  ENTITY_CATEGORIES, 
+  TEMPLATE_ENTITY_TYPES,
+  GENERATED_ENTITY_TYPES, 
+  type CategoryInfo 
+} from '../constants/categories';
 
 type TransitionStatus = 'idle' | 'out' | 'in';
 
@@ -17,6 +22,7 @@ interface UseGalleryCategoriesReturn {
   setCategory: (category: EntityCategory) => void;
   categories: CategoryInfo[];
   labCategories: CategoryInfo[];
+  templateCategories: CategoryInfo[];
   getCategoryLabel: (category: EntityCategory) => string;
 }
 
@@ -44,8 +50,7 @@ export function useGalleryCategories(
   }, [activeCategory, transitionStatus]);
 
   const getCategoryLabel = useCallback((category: EntityCategory): string => {
-    const allCategories = [...ENTITY_CATEGORIES, ...ENTITY_CATEGORIES_LABS];
-    const found = allCategories.find((c) => c.id === category);
+    const found = ENTITY_CATEGORIES.find((c) => c.id === category);
     return found?.label || category;
   }, []);
 
@@ -55,7 +60,8 @@ export function useGalleryCategories(
     transitionStatus,
     setCategory,
     categories: ENTITY_CATEGORIES,
-    labCategories: ENTITY_CATEGORIES_LABS,
+    labCategories: GENERATED_ENTITY_TYPES,
+    templateCategories: TEMPLATE_ENTITY_TYPES,
     getCategoryLabel,
   };
 }

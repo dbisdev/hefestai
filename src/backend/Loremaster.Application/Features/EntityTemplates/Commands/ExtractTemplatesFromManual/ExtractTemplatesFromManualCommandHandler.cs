@@ -26,12 +26,20 @@ public class ExtractTemplatesFromManualCommandHandler
     /// Prompt for RAG to extract entity types from manuals.
     /// NOTE: Genkit limit is 2000 chars for query - keep this concise!
     /// </summary>
-    private const string EntityTypeExtractionPrompt = @"Extract ALL entity types from this RPG rulebook (characters, NPCs, vehicles, starships, monsters, locations, items).
+    private const string EntityTypeExtractionPrompt = @"Extract ALL entity types from this RPG rulebook (characters, NPCs, vehicles, starships, monsters).
+
+IMPORTANT: Always use English for 'entityTypeName' field, regardless of manual language.
+Prefer these canonical names when applicable:
+- ""character"" (player characters)
+- ""actor"" (NPCs, enemies, allies, contacts)
+- ""vehicle"" (starships, aircraft, mechs)
+- ""monster"" (creatures, beasts, aliens)
+
 Important search ATTRIBUTES and based or dependant SKILLS.
 Return JSON array with nested field structure:
 ```json
 [{
-  ""entityTypeName"": ""player_character"",
+  ""entityTypeName"": ""character"",
   ""displayName"": ""Player Character"",
   ""description"": ""Playable character"",
   ""schema"": {
@@ -53,6 +61,7 @@ Return JSON array with nested field structure:
   }
 }]
 ```
+displayName and description can be in the manual's language.
 Include ALL attributes, skills, derived stats, identity fields, gear from the rulebook.";
 
     /// <summary>
@@ -63,9 +72,82 @@ Include ALL attributes, skills, derived stats, identity fields, gear from the ru
         "player character creation stats attributes abilities skills life path resolve stress",
         "npc non-player character enemies allies contacts",
         "vehicle car bike aircraft stats speed armor starship spacecraft ship hull weapons shields",
-        "monster creature beast alien stats combat",
-        "location place planet system city base settlement star base station",
-        "equipment weapons armor gear items cybernetics"
+        "monster creature beast alien stats combat"
+    };
+
+    /// <summary>
+    /// Maps entity type names extracted by LLM (English or Spanish) to canonical type names.
+    /// Ensures consistent entity type naming regardless of manual language.
+    /// </summary>
+    private static readonly Dictionary<string, string> EntityTypeNormalization = new(StringComparer.OrdinalIgnoreCase)
+    {
+        // character
+        ["player_character"] = "character",
+        ["playercharacter"] = "character",
+        ["player"] = "character",
+        ["pc"] = "character",
+        ["hero"] = "character",
+        ["personaje"] = "character",
+        ["personaje_jugador"] = "character",
+        ["pj"] = "character",
+        ["protagonista"] = "character",
+        
+        // actor
+        ["npc"] = "actor",
+        ["non_player_character"] = "actor",
+        ["nonplayercharacter"] = "actor",
+        ["enemy"] = "actor",
+        ["enemies"] = "actor",
+        ["ally"] = "actor",
+        ["allies"] = "actor",
+        ["contact"] = "actor",
+        ["contacts"] = "actor",
+        ["antagonist"] = "actor",
+        ["pnj"] = "actor",
+        ["personaje_no_jugador"] = "actor",
+        ["enemigo"] = "actor",
+        ["enemigos"] = "actor",
+        ["aliado"] = "actor",
+        ["aliados"] = "actor",
+        ["contacto"] = "actor",
+        ["adversario"] = "actor",
+        
+        // vehicle
+        ["starship"] = "vehicle",
+        ["spacecraft"] = "vehicle",
+        ["ship"] = "vehicle",
+        ["car"] = "vehicle",
+        ["bike"] = "vehicle",
+        ["aircraft"] = "vehicle",
+        ["mech"] = "vehicle",
+        ["robot"] = "vehicle",
+        ["vehiculo"] = "vehicle",
+        ["vehículo"] = "vehicle",
+        ["nave"] = "vehicle",
+        ["nave_espacial"] = "vehicle",
+        ["astronave"] = "vehicle",
+        ["coche"] = "vehicle",
+        ["motocicleta"] = "vehicle",
+        ["avion"] = "vehicle",
+        ["avión"] = "vehicle",
+        
+        // monster
+        ["creature"] = "monster",
+        ["beast"] = "monster",
+        ["alien"] = "monster",
+        ["monsters"] = "monster",
+        ["creatures"] = "monster",
+        ["animals"] = "monster",
+        ["fauna"] = "monster",
+        ["monstruo"] = "monster",
+        ["monstruos"] = "monster",
+        ["criatura"] = "monster",
+        ["criaturas"] = "monster",
+        ["bestia"] = "monster",
+        ["bestias"] = "monster",
+        ["extraterrestre"] = "monster",
+        ["alienigena"] = "monster",
+        ["alienígena"] = "monster",
     };
 
     public ExtractTemplatesFromManualCommandHandler(
@@ -426,6 +508,31 @@ Include ALL attributes, skills, derived stats, identity fields, gear from the ru
         return sanitized;
     }
 
+    /// <summary>
+    /// Normalizes an extracted entity type name to a canonical type name.
+    /// Supports both English and Spanish input for internationalization.
+    /// </summary>
+    /// <param name="extractedName">The entity type name extracted by LLM</param>
+    /// <returns>Canonical entity type name (character, actor, vehicle, monster, location, item)</returns>
+    private static string NormalizeEntityTypeName(string extractedName)
+    {
+        if (string.IsNullOrWhiteSpace(extractedName))
+            return "unknown";
+        
+        var normalized = extractedName.ToLowerInvariant().Trim();
+        
+        if (EntityTypeNormalization.TryGetValue(normalized, out var canonical))
+            return canonical;
+        
+        foreach (var kvp in EntityTypeNormalization)
+        {
+            if (normalized.Contains(kvp.Key) || kvp.Key.Contains(normalized))
+                return kvp.Value;
+        }
+        
+        return SanitizeFieldName(normalized);
+    }
+
     private static FieldType ParseFieldType(string fieldType)
     {
         return fieldType.ToLowerInvariant() switch
@@ -471,6 +578,8 @@ Include ALL attributes, skills, derived stats, identity fields, gear from the ru
             {
                 foreach (var entityType in extracted)
                 {
+                    entityType.EntityTypeName = NormalizeEntityTypeName(entityType.EntityTypeName);
+                    
                     if (entityType.Schema.HasValue && !entityType.Fields.Any())
                     {
                         entityType.Fields = FlattenSchemaToFields(entityType.Schema.Value);
@@ -511,7 +620,7 @@ Include ALL attributes, skills, derived stats, identity fields, gear from the ru
                 {
                     result.Add(new ExtractedEntityType
                     {
-                        EntityTypeName = match.Groups[1].Value,
+                        EntityTypeName = NormalizeEntityTypeName(match.Groups[1].Value),
                         DisplayName = match.Groups[2].Value,
                         Fields = new List<ExtractedField>()
                     });

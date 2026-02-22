@@ -35,6 +35,7 @@ interface UseTemplatesReturn {
   isConfirming: boolean;
   isExtracting: boolean;
   isSavingFields: boolean;
+  isReverting: boolean;
   extractionResult: ExtractedTemplateInfo[] | null;
   newlyExtractedIds: Set<string>;
   comparisonExtractedFields: FieldDefinition[] | null;
@@ -52,6 +53,7 @@ interface UseTemplatesReturn {
   viewSkippedExtraction: (info: ExtractedTemplateInfo) => Promise<void>;
   addFieldFromComparison: (field: FieldDefinition) => Promise<boolean>;
   addAllNewFieldsFromComparison: () => Promise<boolean>;
+  revertToDraft: () => Promise<boolean>;
   closeComparison: () => void;
 }
 
@@ -69,6 +71,7 @@ export function useTemplates({
   const [isConfirming, setIsConfirming] = useState(false);
   const [isExtracting, setIsExtracting] = useState(false);
   const [isSavingFields, setIsSavingFields] = useState(false);
+  const [isReverting, setIsReverting] = useState(false);
   const [extractionResult, setExtractionResult] = useState<ExtractedTemplateInfo[] | null>(null);
   const [newlyExtractedIds, setNewlyExtractedIds] = useState<Set<string>>(new Set());
   const [comparisonExtractedFields, setComparisonExtractedFields] = useState<FieldDefinition[] | null>(null);
@@ -302,7 +305,9 @@ export function useTemplates({
       await refresh();
       return true;
     } catch (err) {
-      const message = err instanceof Error ? err.message : 'Error adding field';
+     
+      const message = err instanceof Error ? err.message : 'Error añadiendo campo';
+      log(`ERROR: ${message}`);
       setError(message);
       return false;
     } finally {
@@ -378,6 +383,31 @@ export function useTemplates({
     setComparisonTemplateName('');
   }, []);
 
+  const revertToDraft = useCallback(async (): Promise<boolean> => {
+    if (!gameSystemId || !selectedTemplate) return false;
+
+    setIsReverting(true);
+    log('Revirtiendo plantilla a borrador...');
+
+    try {
+      await entityTemplateService.revertToDraft(gameSystemId, selectedTemplate.id);
+      log('[SUCCESS] Plantilla revertida a borrador');
+
+      const updated = await entityTemplateService.getById(gameSystemId, selectedTemplate.id);
+      setSelectedTemplate(updated);
+
+      await refresh();
+      return true;
+    } catch (err) {
+      const message = err instanceof Error ? err.message : 'Error al revertir plantilla';
+      log(`ERROR: ${message}`);
+      setError(message);
+      return false;
+    } finally {
+      setIsReverting(false);
+    }
+  }, [gameSystemId, selectedTemplate, refresh, log]);
+
   return {
     templates,
     selectedTemplate,
@@ -386,6 +416,7 @@ export function useTemplates({
     isConfirming,
     isExtracting,
     isSavingFields,
+    isReverting,
     extractionResult,
     newlyExtractedIds,
     comparisonExtractedFields,
@@ -403,6 +434,7 @@ export function useTemplates({
     viewSkippedExtraction,
     addFieldFromComparison,
     addAllNewFieldsFromComparison,
+    revertToDraft,
     closeComparison,
   };
 }

@@ -11,6 +11,7 @@ namespace Loremaster.Application.Features.EntityTemplates.Commands.UpdateTemplat
 /// <param name="GameSystemId">The game system ID for authorization.</param>
 /// <param name="OwnerId">The owner ID for authorization.</param>
 /// <param name="DisplayName">New display name.</param>
+/// <param name="EntityTypeName">New entity type name (optional, e.g., "character", "actor").</param>
 /// <param name="Description">New description.</param>
 /// <param name="IconHint">New icon hint.</param>
 /// <param name="Version">New version.</param>
@@ -21,6 +22,7 @@ public record UpdateTemplateCommand(
     Guid GameSystemId,
     Guid OwnerId,
     string DisplayName,
+    string? EntityTypeName = null,
     string? Description = null,
     string? IconHint = null,
     string? Version = null,

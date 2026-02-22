@@ -5,17 +5,29 @@
  */
 
 /**
- * Entity category for gallery filtering
- * Maps to entityType field in backend
+ * Canonical entity types with templates (extracted from manuals).
+ * These types have configurable field schemas.
  */
-export type EntityCategory = 
-  | 'solar_system' 
+export type TemplateEntityType = 
   | 'character' 
-  | 'npc' 
-  | 'enemy' 
-  | 'vehicle'
-  | 'mission'
-  | 'encounter';
+  | 'actor' 
+  | 'vehicle' 
+  | 'monster';
+
+/**
+ * Entity types generated directly (no templates from manuals).
+ * These have fixed schemas defined in code.
+ */
+export type GeneratedEntityType = 
+  | 'mission' 
+  | 'encounter' 
+  | 'solar_system';
+
+/**
+ * Entity category for gallery filtering.
+ * Union of template-based and generated entity types.
+ */
+export type EntityCategory = TemplateEntityType | GeneratedEntityType;
 
 /**
  * Visibility level for lore entities

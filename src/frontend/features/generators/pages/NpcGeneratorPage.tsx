@@ -94,14 +94,14 @@ export const NpcGeneratorPage: React.FC<NpcGeneratorPageProps> = ({ onBack }) =>
     const occupation = params.metadata?.occupation as string | undefined;
 
     await entityService.create(activeCampaignId, {
-      entityType: 'npc',
+      entityType: 'actor',
       name: params.name,
       description: params.description,
       imageUrl: params.imageUrl,
       attributes: params.attributes,
       metadata: {
         generatedAt: new Date().toISOString(),
-        generator: 'npc_generator',
+        generator: 'actor_generator',
         generationParams: {
           species: form.species,
           occupation: occupation || form.occupation,
@@ -114,7 +114,7 @@ export const NpcGeneratorPage: React.FC<NpcGeneratorPageProps> = ({ onBack }) =>
   }, [activeCampaignId, form.species, form.occupation, form.personality, form.setting]);
 
   const getFieldDefinitions = useCallback(async (gameSystemId: string) => {
-    return entityTemplateService.getFieldDefinitions(gameSystemId, 'npc');
+    return entityTemplateService.getFieldDefinitions(gameSystemId, 'actor');
   }, []);
 
   const {
@@ -134,7 +134,7 @@ export const NpcGeneratorPage: React.FC<NpcGeneratorPageProps> = ({ onBack }) =>
     setImageMode,
     setUploadedImageData
   } = useEntityGeneration<NpcData>({
-    entityType: 'npc',
+    entityType: 'actor',
     placeholderImage: UNKNOWN_NPC_IMAGE,
     initialLogs: [
       '> Actor database initialized...',

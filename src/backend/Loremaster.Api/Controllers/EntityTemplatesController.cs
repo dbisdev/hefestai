@@ -2,6 +2,7 @@ using Loremaster.Application.Features.EntityTemplates.Commands.ConfirmTemplate;
 using Loremaster.Application.Features.EntityTemplates.Commands.CreateTemplate;
 using Loremaster.Application.Features.EntityTemplates.Commands.DeleteTemplate;
 using Loremaster.Application.Features.EntityTemplates.Commands.ExtractTemplatesFromManual;
+using Loremaster.Application.Features.EntityTemplates.Commands.RevertTemplateToDraft;
 using Loremaster.Application.Features.EntityTemplates.Commands.UpdateTemplate;
 using Loremaster.Application.Features.EntityTemplates.DTOs;
 using Loremaster.Application.Features.EntityTemplates.Queries.GetTemplateById;
@@ -199,6 +200,7 @@ public class EntityTemplatesController : ControllerBase
             gameSystemId,
             userId,
             request.DisplayName,
+            request.EntityTypeName,
             request.Description,
             request.IconHint,
             request.Version,
@@ -267,6 +269,51 @@ public class EntityTemplatesController : ControllerBase
         catch (InvalidOperationException ex)
         {
             return BadRequest(ex.Message);
+        }
+    }
+
+    /// <summary>
+    /// Revert a confirmed template back to draft for modifications.
+    /// </summary>
+    /// <param name="gameSystemId">The game system ID.</param>
+    /// <param name="templateId">The template ID to revert.</param>
+    /// <param name="cancellationToken">Cancellation token.</param>
+    [HttpPost("{templateId:guid}/revert-to-draft")]
+    [Authorize(Policy = "RequireMasterRole")]
+    [ProducesResponseType(StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status400BadRequest)]
+    [ProducesResponseType(StatusCodes.Status404NotFound)]
+    [ProducesResponseType(StatusCodes.Status401Unauthorized)]
+    public async Task<ActionResult> RevertTemplateToDraft(
+        [FromRoute] Guid gameSystemId,
+        [FromRoute] Guid templateId,
+        CancellationToken cancellationToken = default)
+    {
+        var userId = GetCurrentUserId();
+        var isAdmin = IsCurrentUserAdmin();
+        
+        var command = new RevertTemplateToDraftCommand(
+            templateId,
+            gameSystemId,
+            userId,
+            isAdmin);
+        
+        try
+        {
+            await _mediator.Send(command, cancellationToken);
+            return Ok(new { message = "Template reverted to draft successfully" });
+        }
+        catch (ArgumentException ex)
+        {
+            return NotFound(new { error = ex.Message });
+        }
+        catch (UnauthorizedAccessException ex)
+        {
+            return StatusCode(StatusCodes.Status403Forbidden, new { error = ex.Message });
+        }
+        catch (InvalidOperationException ex)
+        {
+            return BadRequest(new { error = ex.Message });
         }
     }
 
@@ -406,6 +453,7 @@ public record ExtractTemplatesRequest
 public record UpdateTemplateRequest
 {
     public string DisplayName { get; init; } = null!;
+    public string? EntityTypeName { get; init; }
     public string? Description { get; init; }
     public string? IconHint { get; init; }
     public string? Version { get; init; }

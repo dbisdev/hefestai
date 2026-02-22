@@ -178,6 +178,22 @@ export const entityTemplateService = {
   },
 
   /**
+   * Revert a confirmed template back to draft for modifications
+   * Backend endpoint: POST /api/game-systems/{gameSystemId}/templates/{templateId}/revert-to-draft
+   * @param gameSystemId - The game system ID
+   * @param templateId - The template ID
+   */
+  async revertToDraft(
+    gameSystemId: string,
+    templateId: string
+  ): Promise<void> {
+    await httpClient.post(
+      `/game-systems/${gameSystemId}/templates/${templateId}/revert-to-draft`,
+      {}
+    );
+  },
+
+  /**
    * Delete a template
    * Backend endpoint: DELETE /api/game-systems/{gameSystemId}/templates/{templateId}
    * @param gameSystemId - The game system ID

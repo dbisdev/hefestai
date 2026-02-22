@@ -1,4 +1,6 @@
 using Loremaster.Application.Common.Interfaces;
+using Loremaster.Domain.Constants;
+using Loremaster.Domain.Enums;
 using Loremaster.Domain.ValueObjects;
 using MediatR;
 using Microsoft.Extensions.Logging;
@@ -36,7 +38,6 @@ public class UpdateTemplateCommandHandler : IRequestHandler<UpdateTemplateComman
             "Updating template {TemplateId} by user {UserId} (IsAdmin: {IsAdmin})",
             request.TemplateId, request.OwnerId, request.IsAdmin);
 
-        // Get template without owner filter - we'll check permissions after
         var template = await _templateRepository.GetByIdAsync(
             request.TemplateId, cancellationToken);
 
@@ -45,7 +46,6 @@ public class UpdateTemplateCommandHandler : IRequestHandler<UpdateTemplateComman
             throw new ArgumentException($"Template with ID {request.TemplateId} not found");
         }
 
-        // Verify game system ownership
         var gameSystem = await _gameSystemRepository.GetByIdAsync(
             request.GameSystemId, cancellationToken);
         
@@ -54,7 +54,6 @@ public class UpdateTemplateCommandHandler : IRequestHandler<UpdateTemplateComman
             throw new ArgumentException($"Game system with ID {request.GameSystemId} not found");
         }
 
-        // Check if user is Admin or owner of the game system
         var isSystemOwner = gameSystem.OwnerId == request.OwnerId;
         if (!request.IsAdmin && !isSystemOwner)
         {
@@ -63,7 +62,21 @@ public class UpdateTemplateCommandHandler : IRequestHandler<UpdateTemplateComman
                 "Only the system owner or an Admin can update templates.");
         }
 
-        // Update metadata (pass adminOverride flag)
+        if (!string.IsNullOrWhiteSpace(request.EntityTypeName))
+        {
+            if (!CanonicalEntityTypes.IsValid(request.EntityTypeName))
+            {
+                throw new ArgumentException(
+                    $"Invalid entity type '{request.EntityTypeName}'. " +
+                    $"Valid types are: {string.Join(", ", CanonicalEntityTypes.All)}");
+            }
+
+            template.ChangeEntityTypeName(request.EntityTypeName, adminOverride: request.IsAdmin);
+            _logger.LogInformation(
+                "Changed entity type of template {TemplateId} to {EntityTypeName}",
+                request.TemplateId, request.EntityTypeName);
+        }
+
         template.Update(
             request.DisplayName,
             request.Description,
@@ -71,22 +84,34 @@ public class UpdateTemplateCommandHandler : IRequestHandler<UpdateTemplateComman
             request.Version,
             adminOverride: request.IsAdmin);
 
-        // Update fields if provided (pass adminOverride flag)
         if (request.Fields != null)
         {
-            var fields = request.Fields.Select(f => FieldDefinition.Create(
-                f.Name,
-                f.DisplayName,
-                f.FieldType,
-                f.IsRequired,
-                f.DefaultValue,
-                f.Description,
-                f.Order,
-                f.Options,
-                f.MinValue,
-                f.MaxValue,
-                f.ValidationPattern
-            )).ToList();
+            var fields = request.Fields.Select(f =>
+            {
+                var fieldType = f.FieldType;
+                var options = f.Options;
+                
+                if ((fieldType == FieldType.Select || fieldType == FieldType.MultiSelect) 
+                    && (options == null || !options.Any()))
+                {
+                    fieldType = FieldType.Text;
+                    options = null;
+                }
+                
+                return FieldDefinition.Create(
+                    f.Name,
+                    f.DisplayName,
+                    fieldType,
+                    f.IsRequired,
+                    f.DefaultValue,
+                    f.Description,
+                    f.Order,
+                    options,
+                    f.MinValue,
+                    f.MaxValue,
+                    f.ValidationPattern
+                );
+            }).ToList();
 
             template.SetFieldDefinitions(fields, adminOverride: request.IsAdmin);
         }

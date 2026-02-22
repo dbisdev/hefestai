@@ -8,7 +8,7 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { AdminLayout, TerminalLayout } from '@shared/components/layout';
-import { Button, TerminalLog, EmptyState, ConfirmDialog } from '@shared/components/ui';
+import { Button, TerminalLog, EmptyState, ConfirmDialog, Select } from '@shared/components/ui';
 import { useAuth } from '@core/context';
 import { useTerminalLog, useConfirmDialog } from '@core/hooks';
 import { gameSystemService } from '@core/services/api';
@@ -23,6 +23,7 @@ import {
   ExtractionResultList,
   ComparisonPanel,
 } from '@features/generators/components/templates';
+import { CANONICAL_ENTITY_TYPE_OPTIONS } from '@features/gallery/constants/categories';
 import type { 
   GameSystem,
   FieldDefinition,
@@ -84,6 +85,8 @@ export const TemplatesPage: React.FC = () => {
     addFieldFromComparison,
     addAllNewFieldsFromComparison,
     closeComparison,
+    revertToDraft,
+    isReverting,
   } = useTemplates({
     gameSystemId: selectedGameSystem?.id ?? null,
     userId: user?.id,
@@ -98,6 +101,7 @@ export const TemplatesPage: React.FC = () => {
     startEditing,
     cancelEditing,
     saveFields,
+    updateEntityTypeName,
   } = useTemplateFields({
     gameSystemId: selectedGameSystem?.id ?? null,
     onSuccess: () => {
@@ -187,6 +191,25 @@ export const TemplatesPage: React.FC = () => {
       iconHint: selectedTemplate.iconHint,
       version: selectedTemplate.version,
     });
+  };
+
+  const handleEntityTypeChange = async (newEntityType: string) => {
+    if (!selectedTemplate) return;
+    
+    const success = await updateEntityTypeName(
+      selectedTemplate.id,
+      newEntityType,
+      {
+        displayName: selectedTemplate.displayName,
+        description: selectedTemplate.description,
+        iconHint: selectedTemplate.iconHint,
+        version: selectedTemplate.version,
+      }
+    );
+    
+    if (success) {
+      addLog(`[SUCCESS] Tipo cambiado a "${newEntityType}"`);
+    }
   };
 
   const getStatusColor = (status: TemplateStatus): string => {
@@ -408,7 +431,7 @@ export const TemplatesPage: React.FC = () => {
             {/* Template Header */}
             <div className="border border-primary/30 bg-black/60 p-4">
               <div className="flex items-start justify-between">
-                <div>
+                <div className="flex-1">
                   <div className="flex items-center gap-3 flex-wrap">
                     <h2 className="text-lg text-primary font-bold">{selectedTemplate.displayName}</h2>
                     <span className={`text-xs px-2 py-0.5 border ${getStatusColor(selectedTemplate.status)}`}>
@@ -420,7 +443,16 @@ export const TemplatesPage: React.FC = () => {
                       </span>
                     )}
                   </div>
-                  <p className="text-xs text-cyan-400 font-mono mt-1">{selectedTemplate.entityTypeName}</p>
+                  <div className="mt-2 max-w-xs">
+                    <Select
+                      label="Tipo de Entidad"
+                      options={CANONICAL_ENTITY_TYPE_OPTIONS}
+                      value={selectedTemplate.entityTypeName}
+                      onChange={(e) => handleEntityTypeChange(e.target.value)}
+                      disabled={isSaving || (selectedTemplate.status === TemplateStatus.Confirmed && !isAdmin)}
+                      className="text-xs"
+                    />
+                  </div>
                   {selectedTemplate.description && (
                     <p className="text-sm text-primary/60 mt-2">{selectedTemplate.description}</p>
                   )}
@@ -434,6 +466,28 @@ export const TemplatesPage: React.FC = () => {
                     icon="check_circle"
                   >
                     {isConfirming ? 'CONFIRMANDO...' : 'CONFIRMAR'}
+                  </Button>
+                )}
+                
+                {selectedTemplate.status === TemplateStatus.Confirmed && (
+                  <Button
+                    onClick={async () => {
+                      const confirmed = await confirm({
+                        title: 'Revertir a Borrador',
+                        message: '¿Estás seguro de que quieres revertir esta plantilla a borrador? Esto permitirá modificar sus campos.',
+                        confirmLabel: 'REVERTIR',
+                        variant: 'warning',
+                      });
+                      if (confirmed) {
+                        await revertToDraft();
+                      }
+                    }}
+                    disabled={isReverting}
+                    size="sm"
+                    icon="undo"
+                    variant="secondary"
+                  >
+                    {isReverting ? 'REVIRTIENDO...' : 'REVERTIR A BORRADOR'}
                   </Button>
                 )}
               </div>

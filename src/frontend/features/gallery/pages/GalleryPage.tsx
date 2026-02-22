@@ -32,7 +32,7 @@ import {
 import { CategoryButton } from '@features/gallery/components';
 import { 
   ENTITY_CATEGORIES, 
-  ENTITY_CATEGORIES_LABS, 
+  GENERATED_ENTITY_TYPES, 
   CATEGORY_TO_ROUTE,
   CATEGORIES_WITHOUT_TEMPLATE,
   getRouteForTemplate,
@@ -174,7 +174,7 @@ export const GalleryPage: React.FC = () => {
   }, [confirmedTemplates]);
 
   const isCategoryAvailable = useCallback((categoryId: EntityCategory): boolean => {
-    if (CATEGORIES_WITHOUT_TEMPLATE.includes(categoryId)) {
+    if ((CATEGORIES_WITHOUT_TEMPLATE as readonly string[]).includes(categoryId)) {
       return true;
     }
     return confirmedEntityTypes.has(categoryId.toLowerCase());
@@ -183,7 +183,7 @@ export const GalleryPage: React.FC = () => {
   const filteredLabsCategories = useMemo(() => {
     const gameSystemId = activeCampaign?.gameSystemId;
     
-    return ENTITY_CATEGORIES_LABS.filter(cat => {
+    return GENERATED_ENTITY_TYPES.filter(cat => {
       if (cat.id === 'solar_system') {
         return gameSystemId === SOLAR_SYSTEM_GAME_SYSTEM_ID;
       }
@@ -1054,7 +1054,7 @@ export const GalleryPage: React.FC = () => {
                 ref={entityGridRef}
               id="entity-grid"
               role="grid"
-              aria-label={`Entidades de tipo ${ENTITY_CATEGORIES.find(c => c.id === displayCategory)?.label || ENTITY_CATEGORIES_LABS.find(c => c.id === displayCategory)?.label || displayCategory}`}
+              aria-label={`Entidades de tipo ${ENTITY_CATEGORIES.find(c => c.id === displayCategory)?.label || GENERATED_ENTITY_TYPES.find(c => c.id === displayCategory)?.label || displayCategory}`}
               tabIndex={0}
               onKeyDown={handleEntityGridKeyDown}
               className={`grid grid-cols-1 md:grid-cols-2 lg:grid-cols-2 xl:grid-cols-3 gap-6 pb-8 transition-all duration-300 ${

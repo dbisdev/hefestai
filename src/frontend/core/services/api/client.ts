@@ -196,8 +196,9 @@ export async function apiRequest<T>(
 async function parseErrorResponse(response: Response): Promise<ApiError> {
   try {
     const data = await response.json();
+    console.log('parseErrorResponse data:', data);  // TEMPORAL
     return {
-      message: data.message || data.title || `Request failed with status ${response.status}`,
+      message: data.message || data.title || data.error || `Request failed with status ${response.status}`,
       code: data.code,
       errors: data.errors,
       status: response.status,

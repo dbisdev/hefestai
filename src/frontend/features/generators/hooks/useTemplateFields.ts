@@ -27,6 +27,7 @@ interface UseTemplateFieldsReturn {
   startEditing: (fields: FieldDefinition[]) => void;
   cancelEditing: () => void;
   saveFields: (templateId: string, fields: FieldDefinition[], templateData: TemplateData) => Promise<boolean>;
+  updateEntityTypeName: (templateId: string, entityTypeName: string, templateData: TemplateData) => Promise<boolean>;
 }
 
 export function useTemplateFields({
@@ -77,6 +78,35 @@ export function useTemplateFields({
     }
   }, [gameSystemId, onSuccess]);
 
+  const updateEntityTypeName = useCallback(async (
+    templateId: string,
+    entityTypeName: string,
+    templateData: TemplateData
+  ): Promise<boolean> => {
+    if (!gameSystemId) return false;
+
+    setIsSaving(true);
+    setError(null);
+
+    try {
+      await entityTemplateService.update(gameSystemId, templateId, {
+        displayName: templateData.displayName,
+        entityTypeName,
+        description: templateData.description,
+        iconHint: templateData.iconHint,
+        version: templateData.version,
+      });
+      onSuccess?.();
+      return true;
+    } catch (err) {
+      const message = err instanceof Error ? err.message : 'Error updating entity type';
+      setError(message);
+      return false;
+    } finally {
+      setIsSaving(false);
+    }
+  }, [gameSystemId, onSuccess]);
+
   return {
     isEditing,
     isSaving,
@@ -84,5 +114,6 @@ export function useTemplateFields({
     startEditing,
     cancelEditing,
     saveFields,
+    updateEntityTypeName,
   };
 }

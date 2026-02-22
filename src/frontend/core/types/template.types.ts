@@ -187,6 +187,7 @@ export interface CreateTemplateResult {
  */
 export interface UpdateTemplateRequest {
   displayName: string;
+  entityTypeName?: string;
   description?: string;
   iconHint?: string;
   version?: string;

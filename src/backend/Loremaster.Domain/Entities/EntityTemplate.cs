@@ -253,6 +253,26 @@ public class EntityTemplate : AuditableEntity
     }
 
     /// <summary>
+    /// Changes the entity type name of this template.
+    /// Only allowed in Draft or PendingReview status, unless adminOverride is true.
+    /// </summary>
+    /// <param name="newEntityTypeName">The new entity type name.</param>
+    /// <param name="adminOverride">If true, allows updating even if template is Confirmed.</param>
+    public void ChangeEntityTypeName(string newEntityTypeName, bool adminOverride = false)
+    {
+        if (!adminOverride && Status == TemplateStatus.Confirmed)
+            throw new InvalidOperationException("Cannot change entity type of a confirmed template");
+        
+        if (Status == TemplateStatus.Rejected)
+            throw new InvalidOperationException("Cannot modify a rejected template");
+        
+        if (string.IsNullOrWhiteSpace(newEntityTypeName))
+            throw new ArgumentException("Entity type name cannot be empty", nameof(newEntityTypeName));
+
+        EntityTypeName = NormalizeEntityTypeName(newEntityTypeName);
+    }
+
+    /// <summary>
     /// Submits the template for review.
     /// </summary>
     public void SubmitForReview()
@@ -297,12 +317,18 @@ public class EntityTemplate : AuditableEntity
 
     /// <summary>
     /// Reverts a confirmed or rejected template back to draft for modifications.
+    /// Only the game system owner or an admin can perform this action.
     /// </summary>
-    public void RevertToDraft()
+    /// <param name="adminOverride">If true, skips status validation (for admin users).</param>
+    public void RevertToDraft(bool adminOverride = false)
     {
+        if (!adminOverride && Status == TemplateStatus.Draft)
+            return;
+        
         Status = TemplateStatus.Draft;
         ConfirmedAt = null;
         ConfirmedByUserId = null;
+        ReviewNotes = null;
     }
 
     /// <summary>

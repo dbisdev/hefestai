@@ -94,14 +94,14 @@ export const EnemyGeneratorPage: React.FC<EnemyGeneratorPageProps> = ({ onBack }
     const abilities = params.description;
 
     await entityService.create(activeCampaignId, {
-      entityType: 'enemy',
+      entityType: 'monster',
       name: params.name,
       description: abilities,
       imageUrl: params.imageUrl,
       attributes: params.attributes,
       metadata: {
         generatedAt: new Date().toISOString(),
-        generator: 'enemy_generator',
+        generator: 'monster_generator',
         generationParams: {
           species: species || form.species,
           threatLevel: form.threatLevel,
@@ -115,7 +115,7 @@ export const EnemyGeneratorPage: React.FC<EnemyGeneratorPageProps> = ({ onBack }
   }, [activeCampaignId, form.species, form.threatLevel, form.behavior, form.environment]);
 
   const getFieldDefinitions = useCallback(async (gameSystemId: string) => {
-    return entityTemplateService.getFieldDefinitions(gameSystemId, 'enemy');
+    return entityTemplateService.getFieldDefinitions(gameSystemId, 'monster');
   }, []);
 
   const {
@@ -135,7 +135,7 @@ export const EnemyGeneratorPage: React.FC<EnemyGeneratorPageProps> = ({ onBack }
     setImageMode,
     setUploadedImageData
   } = useEntityGeneration<EnemyData>({
-    entityType: 'enemy',
+    entityType: 'monster',
     placeholderImage: UNKNOWN_ENEMY_IMAGE,
     initialLogs: [
       '> Threat analysis system online...',

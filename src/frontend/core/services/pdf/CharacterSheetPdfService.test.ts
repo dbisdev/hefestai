@@ -141,7 +141,7 @@ describe('CharacterSheetPdfService', () => {
     });
 
     it('should handle different entity types', async () => {
-      const entityTypes: EntityCategory[] = ['character', 'npc', 'enemy', 'vehicle', 'mission', 'encounter', 'solar_system'];
+      const entityTypes: EntityCategory[] = ['character', 'actor', 'monster', 'vehicle', 'mission', 'encounter', 'solar_system', 'location', 'item'];
       
       for (const entityType of entityTypes) {
         const entity = createMockEntity({ entityType });
@@ -322,7 +322,7 @@ describe('CharacterSheetPdfService', () => {
       const originalEntity = createMockEntity({
         name: 'Round Trip Test',
         description: 'Testing export then import',
-        entityType: 'npc',
+        entityType: 'actor',
         attributes: {
           CHA: 14,
           INT: 16,

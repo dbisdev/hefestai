@@ -90,8 +90,8 @@ public class TemplateResolutionService : ITemplateResolutionService
     ""resources"": ""Trace amounts of common metals""
   }]}}",
         "vehicle" => @"{""name"":""Phantom-X7"",""description"":""A stealth interceptor..."",""stats"":{""SPEED"":95,""ARMOR"":40,""CARGO"":20}}",
-        "npc" => @"{""name"":""Vex Morrow"",""description"":""Former corporate spy turned information broker..."",""stats"":{""occupation"":""Information Broker"",""personality"":""Cunning but fair"",""CHA"":85,""INT"":75,""WIS"":60}}",
-        "enemy" => @"{""name"":""Void Stalker"",""description"":""An alien predator with cloaking abilities..."",""stats"":{""species"":""Alien Predator"",""threatLevel"":""dangerous"",""abilities"":""Cloaking field, venomous claws"",""weakness"":""Sensitive to bright light"",""HP"":150,""ATK"":75,""DEF"":40,""SPD"":90}}",
+        "actor" or "npc" => @"{""name"":""Vex Morrow"",""description"":""Former corporate spy turned information broker..."",""stats"":{""occupation"":""Information Broker"",""personality"":""Cunning but fair"",""CHA"":85,""INT"":75,""WIS"":60}}",
+        "monster" or "enemy" => @"{""name"":""Void Stalker"",""description"":""An alien predator with cloaking abilities..."",""stats"":{""species"":""Alien Predator"",""threatLevel"":""dangerous"",""abilities"":""Cloaking field, venomous claws"",""weakness"":""Sensitive to bright light"",""HP"":150,""ATK"":75,""DEF"":40,""SPD"":90}}",
         "mission" => @"{""name"":""Operation Blackout"",""description"":""Corporate forces have seized the research facility..."",""stats"":{""objective"":""Infiltrate the facility and retrieve the data core"",""rewards"":""5000 credits + reputation boost"",""difficulty"":""HARD"",""estimatedDuration"":""3-4 hours""}}",
         "encounter" => @"{""name"":""Cargo Bay Showdown"",""description"":""The party enters the cargo bay to find hostile forces..."",""stats"":{""environment"":""Large open space with shipping containers providing cover"",""participants"":[""Security Droid x2"",""Corporate Enforcer""],""difficulty"":""MEDIUM"",""loot"":""Prototype weapon, 1200 credits""}}",
         _ => @"{""name"":""<Name>"",""description"":""<Description>"",""stats"":{}}"
@@ -108,10 +108,10 @@ public class TemplateResolutionService : ITemplateResolutionService
         "vehicle" => @"- name: A unique vehicle designation/name fitting the setting
 - description: A 2-3 sentence description of capabilities
 - stats: An object with SPEED (1-100), ARMOR (1-100), CARGO (1-100)",
-        "npc" => @"- name: A unique sci-fi name fitting their species and the setting's naming conventions
+        "actor" or "npc" => @"- name: A unique sci-fi name fitting their species and the setting's naming conventions
 - description: A 2-3 sentence backstory explaining who they are and their motivations
 - stats: An object with occupation, personality, and attributes (CHA, INT, WIS from 1-100)",
-        "enemy" => @"- name: A threatening designation or creature name fitting the setting
+        "monster" or "enemy" => @"- name: A threatening designation or creature name fitting the setting
 - description: A 2-3 sentence description of the creature and its abilities
 - stats: An object with species, threatLevel, abilities, weakness, HP (50-500), ATK (1-100), DEF (1-100), SPD (1-100)",
         "mission" => @"- name: A code name or operation title (e.g., ""Operation Silent Dawn"") fitting the setting
