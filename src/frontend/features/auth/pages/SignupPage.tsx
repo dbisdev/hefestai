@@ -98,7 +98,7 @@ export const SignupPage: React.FC = () => {
           {/* Back to Home Button */}
           <button 
             onClick={handleBack}
-            className="flex items-center gap-1 text-primary/50 hover:text-primary text-[10px] uppercase transition-colors self-start"
+            className="flex items-center gap-1 text-primary/50 hover:text-primary text-xs uppercase transition-colors self-start"
           >
             <span className="material-icons text-sm">arrow_back</span>
             VOLVER_AL_INICIO
@@ -110,10 +110,10 @@ export const SignupPage: React.FC = () => {
               <span className="material-icons text-3xl text-primary leading-none">person_add</span>
             </div>
             <div>
-              <h1 className="text-2xl font-display font-bold uppercase tracking-widest text-glow text-primary">
+              <h1 className="text-3xl font-display font-bold uppercase tracking-widest text-glow text-primary">
                 HefestAI
               </h1>
-              <p className="text-primary/50 text-[10px] tracking-widest uppercase">
+              <p className="text-primary/50 text-xs tracking-widest uppercase">
                 Kernel v3.0 // Onboarding
               </p>
             </div>
@@ -124,14 +124,14 @@ export const SignupPage: React.FC = () => {
 
             {/* Role Selection */}
             <div>
-              <label className="block text-primary/70 text-[10px] uppercase mb-2 tracking-wider">
+              <label className="block text-primary/70 text-sm uppercase mb-2 tracking-wider">
                 Clasificación de Perfil
               </label>
               <div className="grid grid-cols-2 gap-2">
                 <button 
                   type="button"
                   onClick={() => setRole('PLAYER')}
-                  className={`py-3 text-[10px] border uppercase font-bold transition-all ${
+                  className={`py-3 text-md border uppercase font-bold transition-all ${
                     role === 'PLAYER' 
                       ? 'bg-primary text-black border-primary' 
                       : 'text-primary/60 border-primary/20 hover:border-primary hover:bg-primary/5'
@@ -142,7 +142,7 @@ export const SignupPage: React.FC = () => {
                 <button 
                   type="button"
                   onClick={() => setRole('MASTER')}
-                  className={`py-3 text-[10px] border uppercase font-bold transition-all ${
+                  className={`py-3 text-md border uppercase font-bold transition-all ${
                     role === 'MASTER' 
                       ? 'bg-primary text-black border-primary' 
                       : 'text-primary/60 border-primary/20 hover:border-primary hover:bg-primary/5'
@@ -236,7 +236,7 @@ export const SignupPage: React.FC = () => {
                   error={validationErrors.inviteCode}
                   className="uppercase font-bold"
                 />
-                <p className="text-primary/40 text-[8px] uppercase leading-relaxed">
+                <p className="text-primary/40 text-xs uppercase leading-relaxed">
                   Ingresa el código de campaña para unirte directamente, o déjalo vacío para unirte más tarde
                 </p>
               </div>
@@ -260,7 +260,7 @@ export const SignupPage: React.FC = () => {
           <div className="pt-4 border-t border-primary/10 text-center">
             <button 
               onClick={handleGoLogin}
-              className="text-primary/50 text-[10px] uppercase hover:text-primary transition-colors font-bold flex items-center gap-1 justify-center w-full"
+              className="text-primary/50 text-xs uppercase hover:text-primary transition-colors font-bold flex items-center gap-1 justify-center w-full"
             >
               <span className="material-icons text-sm">arrow_back</span>
               VOLVER_AL_ACCESO

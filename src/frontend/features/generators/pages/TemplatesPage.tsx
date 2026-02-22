@@ -663,7 +663,7 @@ export const TemplatesPage: React.FC = () => {
             <span className="material-icons text-sm">terminal</span>
             System Log
           </div>
-          <div className="flex-1 p-4 font-mono text-xs text-primary/70 space-y-1 overflow-y-auto">
+          <div className="h-24 md:h-32 flex-1 p-4 font-mono text-xs text-primary/70 space-y-1 overflow-y-auto">
             {logs.map((log, i) => (
               <p 
                 key={i} 

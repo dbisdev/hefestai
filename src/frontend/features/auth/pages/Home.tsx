@@ -36,13 +36,13 @@ const Home: React.FC = () => {
       <header className="fixed top-0 left-0 right-0 z-50 bg-background-dark/80 backdrop-blur-md border-b border-primary/20 p-4 md:px-8 flex justify-between items-center">
         <div className="flex items-center gap-2">
           <span className="material-icons text-primary animate-pulse">terminal</span>
-          <span className="text-lg font-display font-bold tracking-[0.3em] text-glow">HEFESTAI</span>
+          <span className="text-xl md:text-2xl font-display font-bold tracking-[0.3em] text-glow">HEFESTAI</span>
         </div>
         <button 
           onClick={handleLogin}
           className="group flex items-center gap-3 border border-primary/40 md:px-4 px-2 py-1.5 hover:bg-primary hover:text-black transition-all clip-tech-br"
         >
-          <span className="text-[10px] font-bold uppercase tracking-widest">Acceso al Sistema</span>
+          <span className="text-xs md:text-sm font-bold uppercase tracking-widest">Acceso al Sistema</span>
           <span className="material-icons text-sm group-hover:scale-125 transition-transform">login</span>
         </button>
       </header>
@@ -86,7 +86,7 @@ const Home: React.FC = () => {
               </div>
               <h3 className="text-xl font-display font-bold uppercase tracking-widest text-glow transition-colors duration-500">Nodo Génesis</h3>
             </div>
-            <p className="text-sm text-primary/50 leading-relaxed font-mono">
+            <p className="text-md md:text-sm text-primary lg:text-primary/50 leading-relaxed font-mono">
               Crea y organiza personajes, escenarios y otras entidades de manera automática. Nuestro sistema te ayuda a generar contenido único en segundos, listo para usar o editar a tu gusto.
             </p>
             <div className="mt-auto pt-6 flex gap-1">
@@ -102,7 +102,7 @@ const Home: React.FC = () => {
               </div>
               <h3 className="text-xl font-display font-bold uppercase tracking-widest text-glow transition-colors duration-500">Núcleo de Archivo</h3>
             </div>
-            <p className="text-sm text-primary/50 leading-relaxed font-mono">
+            <p className="text-md md:text-sm text-primary lg:text-primary/50 leading-relaxed font-mono">
               Tu espacio central para guardar y consultar todos los activos de tus partidas. Navega, busca y comparte todo de forma sencilla desde la interfaz retro.
             </p>
             <div className="mt-auto pt-6 flex gap-1">
@@ -118,7 +118,7 @@ const Home: React.FC = () => {
               </div>
               <h3 className="text-xl font-display font-bold uppercase tracking-widest text-glow transition-colors duration-500">Capa Táctica</h3>
             </div>
-            <p className="text-sm text-primary/50 leading-relaxed font-mono">
+            <p className="text-md md:text-sm text-primary lg:text-primary/50 leading-relaxed font-mono">
               Interactúa con nuestro lanzador de dados integrado basado en física. Simulado en un entorno de vacío 3D para asegurar cero interferencia gravitacional en los resultados de probabilidad.
             </p>
             <div className="mt-auto pt-6 flex gap-1">

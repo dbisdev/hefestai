@@ -183,9 +183,9 @@ export const InvitationsPage: React.FC = () => {
             <div className="flex items-center justify-between">
               <div>
                 <h1 className="text-xl font-display text-primary uppercase tracking-widest">
-                  Centro de Invitaciones
+                  Invitaciones
                 </h1>
-                <p className="text-primary/40 text-xs mt-1 hidden md:block">
+                <p className="text-primary/50 text-xs mt-1 hidden md:block">
                   Gestiona codigos de acceso a campañas
                 </p>
               </div>
@@ -200,21 +200,21 @@ export const InvitationsPage: React.FC = () => {
           </div>
 
           {/* Two Column Layout for Invitations */}
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 flex-1 min-h-0">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6 flex-1 min-h-0">
             {/* LEFT COLUMN - Join Campaign */}
-            <div className="border border-cyan-500/30 bg-black/60 p-6 flex flex-col">
-              <h2 className="text-sm text-cyan-500/60 uppercase tracking-widest mb-2 flex items-center gap-2">
+            <div className="border border-cyan-500/40 bg-black/60 p-6 flex flex-col">
+              <h2 className="text-md text-cyan-500/80 uppercase tracking-widest mb-2 flex items-center gap-2">
                 <span className="material-icons text-sm">login</span>
                 Unirse a una Campaña
               </h2>
               
-              <p className="text-primary/60 text-xs mb-6">
+              <p className="text-primary/80 text-sm mb-6">
                 Ingresa el codigo de 8 caracteres que te proporcionó el Master de la campaña.
               </p>
 
             {/* Code Input */}
             <div className="mb-4">
-              <label className="block text-xs text-primary/40 uppercase mb-2">
+              <label className="block text-md text-primary/80 uppercase mb-2">
                 Codigo de Campaña
               </label>
               <input
@@ -224,7 +224,7 @@ export const InvitationsPage: React.FC = () => {
                 onKeyPress={handleKeyPress}
                 placeholder="________"
                 maxLength={8}
-                className="w-full bg-black/40 border border-cyan-500/40 text-cyan-400 p-4 focus:border-cyan-500 focus:outline-none placeholder:text-primary/20 font-mono uppercase tracking-[0.4em] text-center text-2xl h-16"
+                className="w-full bg-black/40 border border-cyan-500/50 text-cyan-400 p-4 focus:border-cyan-500 focus:outline-none placeholder:text-primary/20 font-mono uppercase tracking-[0.4em] text-center text-2xl h-16"
                 disabled={isJoining || isContextLoading}
               />
             </div>
@@ -260,7 +260,7 @@ export const InvitationsPage: React.FC = () => {
             {/* Info Note */}
             <div className="mt-auto pt-6">
               <div className="p-3 border border-primary/20 bg-black/40">
-                <p className="text-primary/50 text-xs flex items-start gap-2">
+                <p className="text-primary/80 text-xs flex items-start gap-2">
                   <span className="material-icons text-sm mt-0.5">info</span>
                   <span>
                     El codigo de campaña lo proporciona el Master. Se encuentra en la 
@@ -272,15 +272,15 @@ export const InvitationsPage: React.FC = () => {
           </div>
 
           {/* RIGHT COLUMN - Campaign Codes List or Stats */}
-            <div className="border border-yellow-500/30 bg-black/60 p-6 flex flex-col">
+            <div className="border border-yellow-500/40 bg-black/60 p-6 flex flex-col">
               {isMaster ? (
                 <>
-                  <h2 className="text-sm text-yellow-500/60 uppercase tracking-widest mb-2 flex items-center gap-2">
+                  <h2 className="text-md text-yellow-500/80 uppercase tracking-widest mb-2 flex items-center gap-2">
                     <span className="material-icons text-sm">key</span>
                     Codigos de Mis Campañas
                   </h2>
                   
-                  <p className="text-primary/60 text-xs mb-4">
+                  <p className="text-primary/80 text-sm mb-4">
                     Comparte estos codigos con jugadores para que se unan a tus campañas.
                   </p>
 
@@ -349,7 +349,7 @@ export const InvitationsPage: React.FC = () => {
                   {masterCampaignDetails.length > 0 && (
                     <div className="mt-4 pt-4">
                       <div className="p-3 border border-primary/20 bg-black/40">
-                        <p className="text-primary/50 text-xs flex items-start gap-2">
+                        <p className="text-primary/80 text-xs flex items-start gap-2">
                           <span className="material-icons text-sm mt-0.5">info</span>
                           <span>
                             Los jugadores usan estos codigos para unirse a tus campañas.

@@ -172,18 +172,20 @@ export const TerminalLayout: React.FC<TerminalLayoutProps> = ({
         </div>
 
         {/* Right Section: Actions */}
-        <div className="grid grid-cols-3 md:flex md:flex-nowrap items-center gap-2 md:gap-4">
+        <div className="grid grid-cols-3 lg:flex lg:flex-nowrap items-center gap-2 lg:gap-4">
 
-          <div className="hidden md:flex flex-col text-right text-xs text-primary/60">
+          <div className="order-1 hidden md:flex flex-col text-right text-xs text-primary/60">
             <span>MEM: 64TB [OK]</span>
             <span>NET: ENCRYPTED</span>
+          </div>
+          <div className="order-1 flex md:hidden flex-col text-right text-xs text-primary/60">            
           </div>
 
           {/* Dice Roller Button */}
           <button 
             type="button"
             onClick={() => setShowDice(true)}
-            className="col-span-1 md:col-auto flex items-center gap-2 border border-primary/40 px-2 md:px-3 py-1 text-xs uppercase hover:bg-primary/20 transition-all text-primary font-bold cursor-pointer"
+            className="order-5 col-span-1 md:col-auto flex items-center gap-2 border border-primary/40 px-2 md:px-3 py-1 text-xs md:text-sm uppercase hover:bg-primary/20 transition-all text-primary font-bold cursor-pointer"
             aria-label="Lanzar dados"
           >
             <span className="material-icons text-sm">casino</span>
@@ -194,7 +196,7 @@ export const TerminalLayout: React.FC<TerminalLayoutProps> = ({
           <button 
             type="button"
             onClick={() => setShowRuleQuery(true)}
-            className="col-span-1 md:col-auto flex items-center gap-2 border border-primary/40 px-2 md:px-3 py-1 text-xs uppercase hover:bg-primary/20 transition-all text-primary font-bold cursor-pointer"
+            className="order-6 col-span-1 md:col-auto flex items-center gap-2 border border-primary/40 px-2 md:px-3 py-1 text-xs md:text-sm uppercase hover:bg-primary/20 transition-all text-primary font-bold cursor-pointer"
             aria-label="Consultar reglas"
           >
             <span className="material-icons text-sm">auto_stories</span>
@@ -209,7 +211,7 @@ export const TerminalLayout: React.FC<TerminalLayoutProps> = ({
             <button 
               type="button"
               onClick={handleBack}
-              className="col-span-1 md:col-auto flex items-center gap-2 border border-primary/40 px-2 md:px-3 py-1 text-xs uppercase hover:bg-primary/20 transition-all text-primary font-bold cursor-pointer"
+              className="order-4 col-span-1 md:col-auto flex items-center gap-2 border border-primary/40 px-2 md:px-3 py-1 text-xs md:text-sm uppercase hover:bg-primary/20 transition-all text-primary font-bold cursor-pointer"
               aria-label="Volver atrás"
             >
               <span className="material-icons text-sm">arrow_back</span>
@@ -222,7 +224,7 @@ export const TerminalLayout: React.FC<TerminalLayoutProps> = ({
             <button 
               type="button"
               onClick={handleBackToHub}
-              className="col-span-1 md:col-auto flex items-center gap-2 border  px-2 md:px-3 py-1 text-xs uppercase border-cyan-500/30 hover:border-cyan-500 hover:bg-cyan-500/40 transition-all font-bold text-cyan-500 group-hover:text-cyan-400 cursor-pointer"
+              className="order-2 lg:order-5 col-span-1 md:col-auto flex items-center gap-2 border  px-2 md:px-3 py-1 text-xs md:text-sm uppercase border-cyan-500/30 hover:border-cyan-500 hover:bg-cyan-500/40 transition-all font-bold text-cyan-500 group-hover:text-cyan-400 cursor-pointer"
               aria-label="Volver al hub"
             >
               <span className="material-icons text-sm">home</span>
@@ -237,7 +239,7 @@ export const TerminalLayout: React.FC<TerminalLayoutProps> = ({
               await logout();
               window.location.replace('/');
             }}
-            className="col-span-1 md:col-auto flex items-center gap-2 border border-red-500/60 px-2 md:px-3 py-1 text-xs uppercase hover:bg-red-500 hover:text-black transition-colors text-red-500 font-bold cursor-pointer"
+            className="order-3 lg:order-6 col-span-1 md:col-auto flex items-center gap-2 border border-red-500/60 px-2 md:px-3 py-1 text-xs md:text-sm uppercase hover:bg-red-500 hover:text-black transition-colors text-red-500 font-bold cursor-pointer"
             aria-label="Cerrar sesión"
           >
             <span className="material-icons text-sm">logout</span>

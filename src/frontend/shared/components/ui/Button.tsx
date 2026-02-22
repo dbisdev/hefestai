@@ -24,9 +24,9 @@ const variantClasses: Record<ButtonVariant, string> = {
 };
 
 const sizeClasses: Record<ButtonSize, string> = {
-  sm: 'h-8 px-3 text-[10px]',
-  md: 'h-10 px-4 text-xs',
-  lg: 'h-12 px-6 text-sm',
+  sm: 'h-8 px-3 text-xs sm:text-sm',
+  md: 'h-10 px-4 text-sm md:text-md',
+  lg: 'h-12 px-6 text-md lg:text-lg',
 };
 
 export const Button: React.FC<ButtonProps> = ({

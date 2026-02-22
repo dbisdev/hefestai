@@ -49,7 +49,7 @@ export const LoginPage: React.FC = () => {
           {/* Back to Home Button */}
           <button 
             onClick={handleBack}
-            className="flex items-center gap-1 text-primary/50 hover:text-primary text-[10px] uppercase transition-colors self-start"
+            className="flex items-center gap-1 text-primary/50 hover:text-primary text-xs uppercase transition-colors self-start"
           >
             <span className="material-icons text-sm">arrow_back</span>
             VOLVER_AL_INICIO
@@ -61,10 +61,10 @@ export const LoginPage: React.FC = () => {
               <span className="material-icons text-3xl text-primary leading-none">login</span>
             </div>
             <div>
-              <h1 className="text-2xl font-display font-bold uppercase tracking-widest text-glow text-primary">
+              <h1 className="text-3xl font-display font-bold uppercase tracking-widest text-glow text-primary">
                 HefestAI
               </h1>
-              <p className="text-primary/50 text-[10px] tracking-widest uppercase">
+              <p className="text-primary/50 text-xs tracking-widest uppercase">
                 Kernel v3.0 // Authentication
               </p>
             </div>
@@ -98,7 +98,7 @@ export const LoginPage: React.FC = () => {
               type="submit"
               variant="primary"
               fullWidth
-              size="lg"
+              size="md"
               isLoading={authLoading}
               icon="terminal"
             >
@@ -108,12 +108,12 @@ export const LoginPage: React.FC = () => {
 
           {/* Signup Link */}
           <div className="pt-4 border-t border-primary/10 text-center">
-            <p className="text-primary/40 text-[10px] uppercase mb-3">
+            <p className="text-primary/50 text-xs uppercase mb-3">
               ¿No tienes credenciales?
             </p>
             <button 
               onClick={handleGoSignup}
-              className="text-primary text-xs uppercase hover:text-white transition-colors underline underline-offset-4 font-bold"
+              className="text-primary text-sm uppercase hover:text-white transition-colors underline underline-offset-4 font-bold"
             >
               CREAR_NUEVO_REGISTRO
             </button>

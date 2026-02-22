@@ -47,7 +47,7 @@ export const GameSystemList: React.FC<GameSystemListProps> = ({
 
   return (
     <div
-      className="grid gap-3"
+      className="grid gap-3 lg:grid-cols-2"
       role="listbox"
       aria-label="Lista de sistemas de juego"
     >

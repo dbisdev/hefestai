@@ -8,7 +8,7 @@ import React, { useEffect, useCallback, useState, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { TerminalLayout, AdminLayout } from '@shared/components/layout';
 import { Button, TerminalLog, EmptyState, Input } from '@shared/components/ui';
-import { ManualUploadModal } from '@shared/components/modals';
+import { ManualUploadModal, GameSystemDetailModal } from '@shared/components/modals';
 import { useAuth } from '@core/context';
 import { useTerminalLog, useList, useConfirmDialog } from '@core/hooks';
 import { gameSystemService, entityTemplateService, campaignService } from '@core/services/api';
@@ -45,6 +45,7 @@ export const GameSystemsPage: React.FC = () => {
   const [campaignsUsingSystem, setCampaignsUsingSystem] = useState<Campaign[]>([]);
   const [isLoadingSystemData, setIsLoadingSystemData] = useState(false);
   const [searchTerm, setSearchTerm] = useState('');
+  const [showMobileModal, setShowMobileModal] = useState(false);
 
   const {
     selectedSystem,
@@ -100,6 +101,13 @@ export const GameSystemsPage: React.FC = () => {
     },
     [user]
   );
+
+  const handleSelectSystem = useCallback((system: GameSystem) => {
+    selectSystem(system);
+    if (window.innerWidth < 768) {
+      setShowMobileModal(true);
+    }
+  }, [selectSystem]);
 
   useEffect(() => {
     if (!selectedSystem) {
@@ -208,7 +216,7 @@ export const GameSystemsPage: React.FC = () => {
   }
 
   const mainContent = (
-    <div className="flex flex-col lg:flex-row h-full gap-6">
+    <div className="flex flex-col md:flex-row h-full gap-6">
       <div className="flex-1 flex flex-col gap-6 overflow-hidden">
         <div className="border border-primary/30 bg-black/60 p-4">
           <div className="flex items-center justify-between">
@@ -250,7 +258,7 @@ export const GameSystemsPage: React.FC = () => {
               selectedId={selectedSystem?.id ?? null}
               currentUserId={user?.id}
               userRole={user?.role}
-              onSelect={selectSystem}
+              onSelect={handleSelectSystem}
               onEdit={openEditForm}
               isLoading={isLoading}
             />
@@ -258,9 +266,10 @@ export const GameSystemsPage: React.FC = () => {
         </div>
       </div>
 
-      <div className="w-full lg:w-80 flex flex-col border border-primary/30 bg-black/80">
+      <div className="w-full md:w-80 flex flex-col border border-primary/30 bg-black/80">
+        {/* Selected System Details - Hidden on mobile */}
         {selectedSystem && (
-          <>
+          <div className="hidden md:block flex-1">
             <div className="bg-primary/20 p-2 text-xs text-primary uppercase tracking-widest flex items-center gap-2">
               <span className="material-icons text-sm">terminal</span>
               Sistema Seleccionado
@@ -275,7 +284,7 @@ export const GameSystemsPage: React.FC = () => {
               onUploadManual={() => setShowManualUpload(true)}
               onExtractEntities={() => navigate(`/templates?gameSystemId=${selectedSystem.id}`)}
             />
-          </>
+          </div>
         )}
 
         <div className="bg-primary/20 p-2 text-xs text-primary uppercase tracking-widest flex items-center gap-2">
@@ -316,6 +325,21 @@ export const GameSystemsPage: React.FC = () => {
             addLog(`[SUCCESS] Manual cargado para ${selectedSystem.code.toUpperCase()}`);
             setShowManualUpload(false);
           }}
+        />
+      )}
+
+      {/* Mobile Modal for Game System Details */}
+      {showMobileModal && selectedSystem && (
+        <GameSystemDetailModal
+          system={selectedSystem}
+          isOwned={isSystemOwned(selectedSystem)}
+          isLoadingData={isLoadingSystemData}
+          confirmedTemplates={confirmedTemplates}
+          campaignsUsingSystem={campaignsUsingSystem}
+          onClose={() => setShowMobileModal(false)}
+          onEdit={() => openEditForm(selectedSystem)}
+          onUploadManual={() => setShowManualUpload(true)}
+          onExtractEntities={() => navigate(`/templates?gameSystemId=${selectedSystem.id}`)}
         />
       )}
     </>

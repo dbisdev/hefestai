@@ -14,6 +14,7 @@ import React, { useState, useEffect, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { TerminalLayout } from '@shared/components/layout';
 import { Button, TerminalLog } from '@shared/components/ui';
+import { CampaignDetailModal } from '@shared/components/modals';
 import { useAuth, useCampaign } from '@core/context';
 import { gameSystemService, campaignService } from '@core/services/api';
 import { useTerminalLog } from '@core/hooks/useTerminalLog';
@@ -41,6 +42,7 @@ export const CampaignListPage: React.FC = () => {
   const [selectedCampaign, setSelectedCampaign] = useState<Campaign | null>(null);
   const [filter, setFilter] = useState<'all' | 'master' | 'player'>('all');
   const [operationInProgress, setOperationInProgress] = useState<string | null>(null);
+  const [showMobileModal, setShowMobileModal] = useState(false);
   
   // Campaign members state - maps campaignId to members array
   const [campaignMembers, setCampaignMembers] = useState<Record<string, CampaignMember[]>>({});
@@ -340,7 +342,7 @@ export const CampaignListPage: React.FC = () => {
       icon="auto_stories"
       hideCampaignSelector={true}
     >
-      <div className="flex flex-col lg:flex-row h-full gap-6">
+      <div className="flex flex-col md:flex-row h-full gap-6">
         {/* Main Content Section */}
         <div className="flex-1 flex flex-col gap-6 overflow-hidden">
           {/* Header */}
@@ -518,12 +520,12 @@ export const CampaignListPage: React.FC = () => {
                   <p className="text-sm uppercase">
                     {filter === 'all' ? 'No hay campañas' : `No hay campañas como ${filter === 'master' ? 'Master' : 'Jugador'}`}
                   </p>
-                  <p className="text-xs mt-1">
+                  <p className="text-sm mt-1">
                     {isMaster ? 'Crea una nueva campaña o únete a una existente' : 'Únete a una campaña usando un código de invitación'}
                   </p>
                 </div>
               ) : (
-                <div className="grid gap-3">
+                <div className="grid gap-3 lg:grid-cols-2">
                   {filteredCampaigns.map((campaign) => {
                     const roleInfo = getRoleInfo(campaign.userRole);
                     const isActive = activeCampaign?.id === campaign.id;
@@ -538,7 +540,12 @@ export const CampaignListPage: React.FC = () => {
                             ? 'border-cyan-500 bg-cyan-500/10' 
                             : 'border-primary/20 bg-black/40 hover:border-primary/40'
                         } ${isOperating ? 'opacity-50' : ''}`}
-                        onClick={() => setSelectedCampaign(campaign)}
+                        onClick={() => {
+                          setSelectedCampaign(campaign);
+                          if (window.innerWidth < 768) {
+                            setShowMobileModal(true);
+                          }
+                        }}
                       >
                         <div className="flex items-start justify-between">
                           <div className="flex-1">
@@ -612,16 +619,16 @@ export const CampaignListPage: React.FC = () => {
         </div>
 
         {/* Terminal Log & Details Section */}
-        <div className="w-full lg:w-80 flex flex-col border border-primary/30 bg-black/80">
+        <div className="w-full md:w-80 flex flex-col border border-primary/30 bg-black/80">
 
           
-          {/* Selected Campaign Details */}
+          {/* Selected Campaign Details - Hidden on mobile */}
           {selectedCampaign && (
-            <>
-            <div className="bg-primary/20 p-2 text-xs text-primary uppercase tracking-widest flex items-center gap-2">
-              <span className="material-icons text-sm">terminal</span>
-              Campaña Seleccionada
-            </div>
+            <div className="hidden md:block flex-1">
+              <div className="bg-primary/20 p-2 text-xs text-primary uppercase tracking-widest flex items-center gap-2">
+                <span className="material-icons text-sm">terminal</span>
+                Campaña Seleccionada
+              </div>
 
             <div className="flex-1 border-t border-primary/30 p-4">
               {/* <h3 className="text-xs text-primary/60 uppercase tracking-widest mb-2">
@@ -741,7 +748,7 @@ export const CampaignListPage: React.FC = () => {
                 </Button>
               </div>
             </div>
-            </>
+            </div>
           )}
           
           
@@ -759,6 +766,27 @@ export const CampaignListPage: React.FC = () => {
 
 
         </div>
+
+        {/* Mobile Modal for Campaign Details */}
+        {showMobileModal && selectedCampaign && (
+          <CampaignDetailModal
+            campaign={selectedCampaign}
+            gameSystems={gameSystems}
+            campaignMembers={campaignMembers}
+            activeCampaign={activeCampaign}
+            operationInProgress={operationInProgress}
+            showEditForm={showEditForm}
+            isLoadingGameSystems={isLoadingGameSystems}
+            onClose={() => setShowMobileModal(false)}
+            onActivate={handleActivateCampaign}
+            onEdit={handleStartEdit}
+            onLeave={handleLeaveCampaign}
+            onSettings={async (campaign) => {
+              await selectCampaign(campaign.id);
+              navigate(`/campaigns/${campaign.id}`);
+            }}
+          />
+        )}
       </div>
     </TerminalLayout>
   );

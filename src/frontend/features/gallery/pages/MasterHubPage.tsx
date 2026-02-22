@@ -119,13 +119,13 @@ export const MasterHubPage: React.FC = () => {
                       {panel.title}
                     </h3>
                   </div>
-                  <p className="text-[10px] text-primary/30 font-mono uppercase tracking-wider italic group-hover:text-primary/50 transition-colors">
+                  <p className="text-xs text-primary/30 font-mono uppercase tracking-wider italic group-hover:text-primary/50 transition-colors">
                     {panel.subtitle}
                   </p>
                 </div>
 
                 {/* Panel Description */}
-                <p className="text-xs text-primary/40 leading-relaxed font-mono mt-2 mb-6 flex-1 group-hover:text-primary/70 transition-colors">
+                <p className="text-sm text-primary lg:text-primary/40 leading-relaxed font-mono mt-2 mb-6 flex-1 group-hover:text-primary/70 transition-colors">
                   {panel.description}
                 </p>
 
@@ -139,7 +139,7 @@ export const MasterHubPage: React.FC = () => {
 
                 {/* Panel Footer */}
                 <div className="mt-auto pt-4 border-t border-primary/10 flex items-center justify-between group-hover:border-primary/30 transition-colors">
-                  <span className="text-[10px] text-primary/30 font-bold uppercase tracking-widest group-hover:text-primary/60 transition-colors">
+                  <span className="text-xs text-primary/30 font-bold uppercase tracking-widest group-hover:text-primary/60 transition-colors">
                     Entrada Disponible
                   </span>
                   <span className="material-icons text-primary/40 group-hover:text-primary group-hover:translate-x-1 transition-all">
