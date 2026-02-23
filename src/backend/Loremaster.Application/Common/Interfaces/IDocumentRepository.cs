@@ -102,12 +102,14 @@ public interface IDocumentRepository
     /// <param name="gameSystemId">The game system ID.</param>
     /// <param name="ownerId">Optional owner ID to include their documents.</param>
     /// <param name="includeAdminDocs">When true, includes documents owned by Admin users.</param>
+    /// <param name="includeAllDocs">When true, includes all documents regardless of owner (for Admins).</param>
     /// <param name="cancellationToken">Cancellation token.</param>
     /// <returns>True if documents are available, false otherwise.</returns>
     Task<bool> HasDocumentsForGameSystemAsync(
         Guid gameSystemId,
         Guid? ownerId,
         bool includeAdminDocs = true,
+        bool includeAllDocs = false,
         CancellationToken cancellationToken = default);
 }
 

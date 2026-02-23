@@ -32,7 +32,7 @@ export const ComparisonPanel: React.FC<ComparisonPanelProps> = ({
   ).length;
 
   return (
-    <div className="border border-purple-500/50 bg-black/60 flex flex-col max-h-[40vh]">
+    <div className="border border-purple-500/50 bg-black/60 flex flex-col flex-1 overflow-hidden">
       <div className="bg-purple-500/20 p-3 text-xs text-purple-400 uppercase tracking-widest flex items-center justify-between">
         <span className="flex items-center gap-2">
           <span className="material-icons text-sm">compare_arrows</span>
@@ -121,7 +121,7 @@ export const ComparisonPanel: React.FC<ComparisonPanelProps> = ({
                       </div>
                       <p className="text-xs text-primary/80 mt-0.5">{field.displayName}</p>
                       {field.description && (
-                        <p className="text-[10px] text-primary/40 mt-0.5 truncate" title={field.description}>
+                        <p className="text-[10px] text-primary/50 mt-0.5">
                           {field.description}
                         </p>
                       )}

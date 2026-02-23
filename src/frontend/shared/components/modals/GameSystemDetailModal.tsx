@@ -15,6 +15,7 @@ interface GameSystemDetailModalProps {
   isLoadingData: boolean;
   confirmedTemplates: EntityTemplateSummary[];
   campaignsUsingSystem: Campaign[];
+  hasDocuments: boolean;
   onClose: () => void;
   onEdit: () => void;
   onUploadManual: () => void;
@@ -27,6 +28,7 @@ export const GameSystemDetailModal: React.FC<GameSystemDetailModalProps> = ({
   isLoadingData,
   confirmedTemplates,
   campaignsUsingSystem,
+  hasDocuments,
   onClose,
   onEdit,
   onUploadManual,
@@ -188,6 +190,7 @@ export const GameSystemDetailModal: React.FC<GameSystemDetailModalProps> = ({
               size="sm"
               fullWidth
               icon="auto_awesome"
+              className={!hasDocuments ? 'opacity-50' : ''}
             >
               Extraer Entidades
             </Button>

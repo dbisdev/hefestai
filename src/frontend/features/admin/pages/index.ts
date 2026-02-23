@@ -6,3 +6,4 @@
 export { AdminUsersPage } from './AdminUsersPage';
 export { AdminCampaignsPage } from './AdminCampaignsPage';
 export { AdminSystemPage } from './AdminSystemPage';
+export { AdminHubPage } from './AdminHubPage';

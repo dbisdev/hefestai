@@ -9,10 +9,12 @@ namespace Loremaster.Application.Features.Documents.Queries.CheckDocumentAvailab
 /// <param name="GameSystemId">The game system ID to check for documents.</param>
 /// <param name="OwnerId">Optional owner ID to include their documents (for Masters).</param>
 /// <param name="IncludeAdminDocs">When true, includes documents owned by Admin users (shared docs).</param>
+/// <param name="IncludeAllDocs">When true, includes all documents regardless of owner (for Admins).</param>
 public record CheckDocumentAvailabilityQuery(
     Guid GameSystemId,
     Guid? OwnerId,
-    bool IncludeAdminDocs = true) : IRequest<DocumentAvailabilityResult>;
+    bool IncludeAdminDocs = true,
+    bool IncludeAllDocs = false) : IRequest<DocumentAvailabilityResult>;
 
 /// <summary>
 /// Result of document availability check.

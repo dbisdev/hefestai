@@ -40,8 +40,8 @@ export const GameSystemSelector: React.FC<GameSystemSelectorProps> = ({
     <select
       value={selectedId || ''}
       onChange={(e) => onSelect(e.target.value)}
-      className="bg-black/40 border border-primary/30 rounded px-3 py-2 text-sm text-primary
-        focus:outline-none focus:border-primary transition-colors min-w-[200px]"
+      className="bg-black/40 border border-primary/30 px-3 py-2 text-sm text-primary w-full
+        focus:outline-none focus:border-primary transition-colors"
       aria-label="Seleccionar sistema de juego"
     >
       {systems.map((system) => (

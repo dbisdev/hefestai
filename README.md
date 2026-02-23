@@ -2,6 +2,12 @@
 
 Plataforma de construcción de mundos y gestión de lore impulsada por IA para masters y jugadores de juegos de rol de mesa.
 
+Actualmente, el proyecto está orientado principalmente al sistema de juego Alien de Free League. Si bien se ha comprobado su funcionamiento con otros sistemas —como Vaesen, también de Free League—, no se garantiza la coherencia ni la adecuación total de los resultados generados en dichos contextos.
+
+Esto se debe a que determinados módulos, como el generador de Sistemas Solares, han sido diseñados específicamente conforme a las mecánicas y estructura de dicho sistema.
+
+Dado que algunos componentes pueden requerir desarrollo específico para cada reglamento, la evolución hacia un modelo completamente multisistema constituye una línea futura de trabajo que excede el alcance establecido para este Trabajo Fin de Máster.
+
 ## Resumen de Arquitectura
 
 ```
@@ -36,7 +42,7 @@ Plataforma de construcción de mundos y gestión de lore impulsada por IA para m
 ### Características Principales
 
 - **Generación de Contenido con IA**: Personajes, PNJs, enemigos, localizaciones, objetos, misiones, encuentros usando Google Gemini 2.0 Flash
-- **Generación de Imágenes**: Imágenes generadas por IA con Gemini 2.5 Flash con opciones de estilo (realista, artístico, anime, fantasía, boceto)
+- **Generación de Imágenes**: Imágenes generadas por IA con Gemini 2.5 Flash, el estilo que se usa de prompt se extrae del sistema de juego y de la descripción generada
 - **RAG (Generación Aumentada por Recuperación)**: Búsqueda semántica con embeddings pgvector para generación consciente del contexto
 - **Gestión de Campañas**: Crea y gestiona campañas con códigos de unión para jugadores
 - **Soporte Multi-rol**: Roles Jugador, Master, Admin con control de acceso basado en roles

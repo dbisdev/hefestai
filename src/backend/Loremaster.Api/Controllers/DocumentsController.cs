@@ -236,14 +236,17 @@ public class DocumentsController : ControllerBase
         var userRole = GetCurrentUserRole();
         
         // Determine the owner ID to use for filtering:
+        // - Admins: see all documents (IncludeAllDocs = true)
         // - Masters: use their own ID (see Admin + own docs)
         // - Players: use masterId if provided (see Admin + campaign Master's docs), otherwise null (Admin only)
         Guid? ownerId = userRole == UserRole.Player ? masterId : userId;
+        bool includeAllDocs = userRole == UserRole.Admin;
 
         var query = new CheckDocumentAvailabilityQuery(
             gameSystemId,
             ownerId,
-            IncludeAdminDocs: true);
+            IncludeAdminDocs: true,
+            IncludeAllDocs: includeAllDocs);
 
         var result = await _mediator.Send(query, cancellationToken);
 

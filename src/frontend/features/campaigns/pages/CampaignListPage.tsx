@@ -13,7 +13,7 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { TerminalLayout } from '@shared/components/layout';
-import { Button, TerminalLog, ConfirmDialog } from '@shared/components/ui';
+import { Button, TerminalLog, ConfirmDialog, Input } from '@shared/components/ui';
 import { CampaignCreateModal, CampaignDetailModal, CampaignEditModal } from '@shared/components/modals';
 import { useAuth, useCampaign } from '@core/context';
 import { gameSystemService, campaignService } from '@core/services/api';
@@ -45,6 +45,7 @@ export const CampaignListPage: React.FC = () => {
   const [isLoadingGameSystems, setIsLoadingGameSystems] = useState(true);
   const [selectedCampaign, setSelectedCampaign] = useState<Campaign | null>(null);
   const [filter, setFilter] = useState<'all' | 'master' | 'player'>('all');
+  const [searchTerm, setSearchTerm] = useState('');
   const [operationInProgress, setOperationInProgress] = useState<string | null>(null);
   const [showMobileModal, setShowMobileModal] = useState(false);
   const [showCreateModal, setShowCreateModal] = useState(false);
@@ -136,12 +137,22 @@ export const CampaignListPage: React.FC = () => {
   }, [gameSystems]);
 
   /**
-   * Filter campaigns based on user role
+   * Filter campaigns based on user role and search term
    */
   const filteredCampaigns = campaigns.filter(campaign => {
-    if (filter === 'all') return true;
-    if (filter === 'master') return campaign.userRole === CampaignRole.Master;
-    if (filter === 'player') return campaign.userRole === CampaignRole.Player;
+    // Filter by role
+    if (filter === 'master' && campaign.userRole !== CampaignRole.Master) return false;
+    if (filter === 'player' && campaign.userRole !== CampaignRole.Player) return false;
+    
+    // Filter by search term
+    if (searchTerm.trim()) {
+      const normalizedSearch = searchTerm.toLowerCase().trim();
+      const matchesName = campaign.name.toLowerCase().includes(normalizedSearch);
+      const gameSystemName = getGameSystemName(campaign.gameSystemId).toLowerCase();
+      const matchesSystem = gameSystemName.includes(normalizedSearch);
+      if (!matchesName && !matchesSystem) return false;
+    }
+    
     return true;
   });
 
@@ -484,16 +495,23 @@ export const CampaignListPage: React.FC = () => {
         <div className="flex-1 flex flex-col gap-6 overflow-hidden">
           {/* Header */}
           <div className="border border-primary/30 bg-black/60 p-4">
-            <div className="flex items-center justify-between">
+            <div className="flex flex-wrap items-center justify-between gap-3">
               <div>
                 <h1 className="text-xl font-display text-primary uppercase tracking-widest">
                   Mis Campañas
                 </h1>
-                <p className="text-primary/40 text-xs mt-1 hidden md:block">
+                <p className="text-primary/40 text-xs mt-1 hidden sm:block">
                   Gestiona tus campañas de rol
                 </p>
               </div>
-              <div className="flex items-center gap-2">
+              <div className="flex items-center gap-2 w-full sm:w-auto">
+                <Input
+                  icon="search"
+                  placeholder="Buscar..."
+                  value={searchTerm}
+                  onChange={(e) => setSearchTerm(e.target.value)}
+                  className="flex-1 sm:w-40"
+                />
                 {/* Only Masters can create new campaigns */}
                 {isMaster && (
                   <Button 
@@ -501,7 +519,7 @@ export const CampaignListPage: React.FC = () => {
                     variant="primary"
                     size="sm"
                   >
-                    + NUEVA CAMPAÑA
+                    NUEVA CAMPAÑA
                   </Button>
                 )}
                 {/* Players see a "Join Campaign" button instead */}

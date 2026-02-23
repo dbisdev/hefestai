@@ -11,7 +11,7 @@ import { Button, TerminalLog, EmptyState, Input } from '@shared/components/ui';
 import { ManualUploadModal, GameSystemDetailModal } from '@shared/components/modals';
 import { useAuth } from '@core/context';
 import { useTerminalLog, useList, useConfirmDialog } from '@core/hooks';
-import { gameSystemService, entityTemplateService, campaignService } from '@core/services/api';
+import { gameSystemService, entityTemplateService, campaignService, documentService } from '@core/services/api';
 import { 
   useGameSystems 
 } from '@features/generators/hooks';
@@ -46,6 +46,7 @@ export const GameSystemsPage: React.FC = () => {
   const [isLoadingSystemData, setIsLoadingSystemData] = useState(false);
   const [searchTerm, setSearchTerm] = useState('');
   const [showMobileModal, setShowMobileModal] = useState(false);
+  const [hasDocuments, setHasDocuments] = useState(false);
 
   const {
     selectedSystem,
@@ -113,6 +114,7 @@ export const GameSystemsPage: React.FC = () => {
     if (!selectedSystem) {
       setConfirmedTemplates([]);
       setCampaignsUsingSystem([]);
+      setHasDocuments(false);
       return;
     }
 
@@ -130,6 +132,9 @@ export const GameSystemsPage: React.FC = () => {
         const allCampaigns = await campaignService.getAll();
         const filtered = allCampaigns.filter((c) => c.gameSystemId === selectedSystem.id);
         setCampaignsUsingSystem(filtered);
+
+        const docAvailability = await documentService.checkDocumentAvailability(selectedSystem.id);
+        setHasDocuments(docAvailability.hasDocuments);
       } catch (error) {
         if (error instanceof Error) {
           console.warn('[GameSystems] Could not load system data:', error.message);
@@ -137,6 +142,7 @@ export const GameSystemsPage: React.FC = () => {
         }
         setConfirmedTemplates([]);
         setCampaignsUsingSystem([]);
+        setHasDocuments(false);
       } finally {
         setIsLoadingSystemData(false);
       }
@@ -193,6 +199,16 @@ export const GameSystemsPage: React.FC = () => {
     return null;
   };
 
+  const handleExtractEntities = () => {
+    if (!selectedSystem) return;
+    if (!hasDocuments) {
+      addLog('[ERROR] No hay manuales RAG disponibles para este sistema.');
+      addLog('Sube manuales primero usando "Cargar Manual RAG".');
+      return;
+    }
+    navigate(`/templates?gameSystemId=${selectedSystem.id}`);
+  };
+
   const isMasterOrAdmin = user?.role === 'MASTER' || user?.role === 'ADMIN';
   const isAdmin = user?.role === 'ADMIN';
   const useAdminLayoutFlag = isAdmin;
@@ -207,7 +223,7 @@ export const GameSystemsPage: React.FC = () => {
 
   if (!isMasterOrAdmin) {
     return useAdminLayoutFlag ? (
-      <AdminLayout activePath="/game-systems">{accessDeniedContent}</AdminLayout>
+      <AdminLayout>{accessDeniedContent}</AdminLayout>
     ) : (
       <TerminalLayout title="SISTEMAS" subtitle="Gestión de sistemas de juego" icon="sports_esports" hideCampaignSelector>
         {accessDeniedContent}
@@ -219,25 +235,25 @@ export const GameSystemsPage: React.FC = () => {
     <div className="flex flex-col md:flex-row h-full gap-6">
       <div className="flex-1 flex flex-col gap-6 overflow-hidden">
         <div className="border border-primary/30 bg-black/60 p-4">
-          <div className="flex items-center justify-between">
+          <div className="flex flex-wrap items-center justify-between gap-3">
             <div>
               <h1 className="text-xl font-display text-primary uppercase tracking-widest">
                 Sistemas de Juego
               </h1>
-              <p className="text-primary/40 text-xs mt-1 hidden md:block">
+              <p className="text-primary/40 text-xs mt-1 hidden sm:block">
                 Gestiona los sistemas de reglas disponibles
               </p>
             </div>
-            <div className="flex items-center gap-2">
+            <div className="flex items-center gap-2 w-full sm:w-auto">
               <Input
                 icon="search"
                 placeholder="Buscar..."
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
-                className="w-40"
+                className="flex-1 sm:w-40"
               />
-              <Button onClick={openCreateForm} variant="primary" size="sm" icon="add">
-                Nuevo
+              <Button onClick={openCreateForm} variant="primary" size="sm">
+                Nuevo Sistema
               </Button>
             </div>
           </div>
@@ -280,9 +296,10 @@ export const GameSystemsPage: React.FC = () => {
               isLoadingData={isLoadingSystemData}
               confirmedTemplates={confirmedTemplates}
               campaignsUsingSystem={campaignsUsingSystem}
+              hasDocuments={hasDocuments}
               onEdit={() => openEditForm(selectedSystem)}
               onUploadManual={() => setShowManualUpload(true)}
-              onExtractEntities={() => navigate(`/templates?gameSystemId=${selectedSystem.id}`)}
+              onExtractEntities={handleExtractEntities}
             />
           </div>
         )}
@@ -299,7 +316,7 @@ export const GameSystemsPage: React.FC = () => {
   return (
     <>
       {useAdminLayoutFlag ? (
-        <AdminLayout activePath="/game-systems">{mainContent}</AdminLayout>
+        <AdminLayout>{mainContent}</AdminLayout>
       ) : (
         <TerminalLayout title="SISTEMAS" subtitle="Gestión de sistemas de juego" icon="sports_esports" hideCampaignSelector>
           {mainContent}
@@ -336,10 +353,11 @@ export const GameSystemsPage: React.FC = () => {
           isLoadingData={isLoadingSystemData}
           confirmedTemplates={confirmedTemplates}
           campaignsUsingSystem={campaignsUsingSystem}
+          hasDocuments={hasDocuments}
           onClose={() => setShowMobileModal(false)}
           onEdit={() => openEditForm(selectedSystem)}
           onUploadManual={() => setShowManualUpload(true)}
-          onExtractEntities={() => navigate(`/templates?gameSystemId=${selectedSystem.id}`)}
+          onExtractEntities={handleExtractEntities}
         />
       )}
     </>

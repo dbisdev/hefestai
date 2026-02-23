@@ -5,9 +5,10 @@
  * Cyberpunk terminal aesthetics with clean, minimal animations.
  */
 
-import React, { useCallback } from 'react';
+import React, { useCallback, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { TerminalLayout } from '@shared/components/layout';
+import { useAuth } from '@core/context';
 
 /**
  * Hub panel configuration for navigation cards
@@ -72,10 +73,19 @@ const HUB_PANELS: HubPanel[] = [
  */
 export const MasterHubPage: React.FC = () => {
   const navigate = useNavigate();
+  const { user } = useAuth();
+  const isPlayer = user?.role === 'PLAYER';
 
   const handleNavigate = useCallback((path: string) => {
     navigate(path);
   }, [navigate]);
+
+  const visiblePanels = useMemo(() => 
+    isPlayer 
+      ? HUB_PANELS.filter(panel => panel.path !== '/game-systems')
+      : HUB_PANELS,
+    [isPlayer]
+  );
 
   return (
     <TerminalLayout 
@@ -91,7 +101,7 @@ export const MasterHubPage: React.FC = () => {
             {/* Decorative line - static, no pulse animation */}
             <div className="absolute -top-6 left-1/2 -translate-x-1/2 w-32 h-0.5 bg-primary/5" />
             <h2 className="text-4xl md:text-5xl font-display font-black text-primary/90 text-glow uppercase tracking-[0.2em] mb-4">
-              Bienvenido, Maestro
+              Bienvenido, {isPlayer ? 'Jugador' : 'Maestro'}
             </h2>
             <p className="text-primary/40 font-mono text-sm max-w-2xl mx-auto uppercase tracking-widest">
               Selecciona un sector para inicializar los protocolos operativos. Todos los sistemas están nominales.
@@ -99,8 +109,8 @@ export const MasterHubPage: React.FC = () => {
           </div>
 
           {/* Navigation Panels Grid */}
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6 w-full max-w-7xl mb-12">
-            {HUB_PANELS.map((panel, index) => (
+          <div className={`grid grid-cols-1 sm:grid-cols-2 ${isPlayer ? 'lg:grid-cols-3' : 'lg:grid-cols-4'} gap-6 w-full max-w-7xl mb-12`}>
+            {visiblePanels.map((panel, index) => (
               <button
                 key={panel.path}
                 onClick={() => handleNavigate(panel.path)}

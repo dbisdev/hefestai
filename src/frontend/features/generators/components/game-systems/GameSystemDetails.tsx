@@ -13,6 +13,7 @@ interface GameSystemDetailsProps {
   isLoadingData: boolean;
   confirmedTemplates: EntityTemplateSummary[];
   campaignsUsingSystem: Campaign[];
+  hasDocuments: boolean;
   onEdit: () => void;
   onUploadManual: () => void;
   onExtractEntities: () => void;
@@ -24,6 +25,7 @@ export const GameSystemDetails: React.FC<GameSystemDetailsProps> = ({
   isLoadingData,
   confirmedTemplates,
   campaignsUsingSystem,
+  hasDocuments,
   onEdit,
   onUploadManual,
   onExtractEntities,
@@ -106,7 +108,7 @@ export const GameSystemDetails: React.FC<GameSystemDetailsProps> = ({
             <Button onClick={onUploadManual} variant="primary" size="sm" fullWidth icon="upload_file">
               Cargar Manual RAG
             </Button>
-            <Button onClick={onExtractEntities} variant="secondary" size="sm" fullWidth icon="auto_awesome">
+            <Button onClick={onExtractEntities} variant="secondary" size="sm" fullWidth icon="auto_awesome" className={!hasDocuments ? 'opacity-50' : ''}>
               Extraer Entidades
             </Button>
           </div>

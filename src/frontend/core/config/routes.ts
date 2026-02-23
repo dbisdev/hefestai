@@ -12,6 +12,7 @@ import LoginPage from '@features/auth/pages/LoginPage';
 import SignupPage from '@features/auth/pages/SignupPage';
 import { AccessDenied, ErrorScreen } from '@shared/components/feedback';
 import GalleryPage from '@features/gallery/pages/GalleryPage';
+import { HubPage } from '@features/gallery/pages/HubPage';
 import { MasterHubPage } from '@features/gallery/pages/MasterHubPage';
 import { CampaignListPage } from '@features/campaigns/pages/CampaignListPage';
 import { CampaignGeneratorPage } from '@features/generators/pages/CampaignGeneratorPage';
@@ -62,8 +63,10 @@ export const routeConfig: RouteConfig[] = [
   { path: '/invitations', component: InvitationsPage, requiresAuth: true },
   { path: '/campaigns/:campaignId/invitations', component: InvitationsPage, requiresAuth: true },
   
+  // Hub route - accessible by all authenticated users
+  { path: '/hub', component: HubPage, requiresAuth: true },
+  
   // Master routes (MASTER or ADMIN)
-  { path: '/hub', component: MasterHubPage, requiresAuth: true, requiredRoles: ['MASTER', 'ADMIN'] },
   { path: '/game-systems', component: GameSystemsPage, requiresAuth: true, requiredRoles: ['MASTER', 'ADMIN'] },
   { path: '/templates', component: TemplatesPage, requiresAuth: true, requiredRoles: ['MASTER', 'ADMIN'] },
   
@@ -87,7 +90,5 @@ export const routeConfig: RouteConfig[] = [
  */
 export const getDefaultRoute = (isAuthenticated: boolean, userRole?: UserRole): string => {
   if (!isAuthenticated) return '/';
-  if (userRole === 'ADMIN') return '/admin/users';
-  if (userRole === 'MASTER') return '/hub';
-  return '/gallery';
+  return '/hub';
 };

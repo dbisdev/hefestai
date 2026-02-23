@@ -364,7 +364,11 @@ return (
             )}
 
 {/* Action Buttons */}
-            <div className="flex gap-3 pt-4 border-t border-primary/20 flex-shrink-0">
+            <p className="flex text-sm text-red-500/80 animate-pulse w-full border border-red-500/20 p-3 text-center bg-red-500/10">
+            Al subir cualquier contenido aceptas que posees una copia digital 
+            y los derechos necesarios para hacerlo.</p>
+
+            <div className="flex gap-3 pt-4 border-t border-primary/20 flex-shrink-0">            
               <button
                 type="button"
                 onClick={onClose}

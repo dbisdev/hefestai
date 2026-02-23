@@ -80,7 +80,7 @@ export const AdminSystemPage: React.FC = () => {
   
   if (!isAdmin) {
     return (
-      <AdminLayout activePath="/admin/system">
+      <AdminLayout>
         <div className="flex flex-col items-center justify-center h-full text-danger/60">
           <span className="material-icons text-6xl mb-4">lock</span>
           <p className="text-sm uppercase tracking-widest">Acceso restringido a Administradores</p>
@@ -91,7 +91,7 @@ export const AdminSystemPage: React.FC = () => {
   }
 
   return (
-    <AdminLayout activePath="/admin/system">
+    <AdminLayout>
       <div className="flex flex-col lg:flex-row h-full gap-6">
         {/* Left Column - Operations */}
         <div className="w-full lg:w-1/2 flex flex-col gap-4 overflow-hidden">

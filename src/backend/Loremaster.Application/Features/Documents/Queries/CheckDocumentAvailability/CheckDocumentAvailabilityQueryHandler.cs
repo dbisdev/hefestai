@@ -31,13 +31,14 @@ public class CheckDocumentAvailabilityQueryHandler
         CancellationToken cancellationToken)
     {
         _logger.LogInformation(
-            "Checking document availability for game system {GameSystemId}, ownerId: {OwnerId}, includeAdminDocs: {IncludeAdminDocs}",
-            request.GameSystemId, request.OwnerId, request.IncludeAdminDocs);
+            "Checking document availability for game system {GameSystemId}, ownerId: {OwnerId}, includeAdminDocs: {IncludeAdminDocs}, includeAllDocs: {IncludeAllDocs}",
+            request.GameSystemId, request.OwnerId, request.IncludeAdminDocs, request.IncludeAllDocs);
 
         var hasDocuments = await _documentRepository.HasDocumentsForGameSystemAsync(
             request.GameSystemId,
             request.OwnerId,
             request.IncludeAdminDocs,
+            request.IncludeAllDocs,
             cancellationToken);
 
         _logger.LogInformation(

@@ -11,7 +11,7 @@ import { AdminLayout, TerminalLayout } from '@shared/components/layout';
 import { Button, TerminalLog, EmptyState, ConfirmDialog, Select } from '@shared/components/ui';
 import { useAuth } from '@core/context';
 import { useTerminalLog, useConfirmDialog } from '@core/hooks';
-import { gameSystemService } from '@core/services/api';
+import { gameSystemService, documentService } from '@core/services/api';
 import { 
   useTemplates,
   useTemplateFields,
@@ -48,6 +48,7 @@ export const TemplatesPage: React.FC = () => {
   const [selectedGameSystem, setSelectedGameSystem] = useState<GameSystem | null>(null);
   const [isLoadingGameSystems, setIsLoadingGameSystems] = useState(true);
   const [confirmingId, setConfirmingId] = useState<string | null>(null);
+  const [hasDocuments, setHasDocuments] = useState(false);
 
   const { 
     isOpen: isConfirmOpen, 
@@ -136,6 +137,22 @@ export const TemplatesPage: React.FC = () => {
     fetchGameSystems();
   }, [addLog, urlGameSystemId]);
 
+  useEffect(() => {
+    const checkDocuments = async () => {
+      if (!selectedGameSystem) {
+        setHasDocuments(false);
+        return;
+      }
+      try {
+        const result = await documentService.checkDocumentAvailability(selectedGameSystem.id);
+        setHasDocuments(result.hasDocuments);
+      } catch {
+        setHasDocuments(false);
+      }
+    };
+    checkDocuments();
+  }, [selectedGameSystem?.id]);
+
   const handleSelectGameSystem = (systemId: string) => {
     const system = gameSystems.find(s => s.id === systemId);
     if (system) {
@@ -178,6 +195,11 @@ export const TemplatesPage: React.FC = () => {
   };
 
   const handleExtract = async () => {
+    if (!hasDocuments) {
+      addLog('[ERROR] No hay manuales RAG disponibles para este sistema.');
+      addLog('Sube manuales primero desde Sistemas de Juego.');
+      return;
+    }
     addLog('EXTRAYENDO PLANTILLAS DE MANUALES...');
     addLog('Analizando documentos con IA...');
     await extractTemplates();
@@ -251,7 +273,7 @@ export const TemplatesPage: React.FC = () => {
 
   if (isLoadingGameSystems) {
     return isAdmin ? (
-      <AdminLayout activePath="/templates">{loadingContent}</AdminLayout>
+      <AdminLayout>{loadingContent}</AdminLayout>
     ) : (
       <TerminalLayout title="PLANTILLAS">{loadingContent}</TerminalLayout>
     );
@@ -259,7 +281,7 @@ export const TemplatesPage: React.FC = () => {
 
   if (!isAdmin && !isMaster) {
     return isAdmin ? (
-      <AdminLayout activePath="/templates">{accessDeniedContent}</AdminLayout>
+      <AdminLayout>{accessDeniedContent}</AdminLayout>
     ) : (
       <TerminalLayout title="PLANTILLAS">{accessDeniedContent}</TerminalLayout>
     );
@@ -267,7 +289,7 @@ export const TemplatesPage: React.FC = () => {
 
   if (isMaster && !isAdmin && selectedGameSystem && !isOwner) {
     return isAdmin ? (
-      <AdminLayout activePath="/templates">{systemAccessDeniedContent}</AdminLayout>
+      <AdminLayout>{systemAccessDeniedContent}</AdminLayout>
     ) : (
       <TerminalLayout title="PLANTILLAS">{systemAccessDeniedContent}</TerminalLayout>
     );
@@ -275,9 +297,9 @@ export const TemplatesPage: React.FC = () => {
 
   const mainContent = (
     <div className="flex flex-col md:flex-row md:h-full gap-6">
-      {/* Left Column - Game Systems & Templates */}
-      <div className="w-full lg:w-1/3 flex flex-col gap-4 overflow-hidden">
-        {/* Game System Selector */}
+      {/* Left Column - Game Systems, Templates, Stats & Log */}
+      <div className="w-full md:w-1/2 lg:w-[30%] flex flex-col gap-4 overflow-hidden">
+        {/* Game System & Actions - Combined Panel */}
         <div className="border border-primary/30 bg-black/60 p-4">
           <h2 className="text-xs text-primary/60 uppercase tracking-widest mb-3 flex items-center gap-2">
             <span className="material-icons text-sm">sports_esports</span>
@@ -305,41 +327,37 @@ export const TemplatesPage: React.FC = () => {
               onSelect={handleSelectGameSystem}
             />
           )}
-        </div>
-
-        {/* Actions Panel */}
-        {selectedGameSystem && (
-          <div className="border border-cyan-500/30 bg-black/60 p-4">
-            <h2 className="text-xs text-cyan-500/60 uppercase tracking-widest mb-3 flex items-center gap-2">
-              <span className="material-icons text-sm">build</span>
-              Acciones
-            </h2>
-            
-            <div className="space-y-2">
-              <Button
-                onClick={handleExtract}
-                disabled={isExtracting}
-                fullWidth
-                variant="secondary"
-                icon="auto_awesome"
-              >
-                {isExtracting ? 'EXTRAYENDO...' : 'EXTRAER DE MANUALES'}
-              </Button>
-              
-              {counts.pending > 0 && (
+          
+          {/* Actions - inside same panel */}
+          {selectedGameSystem && (
+            <div className="mt-4">
+              <div className="space-y-2">
                 <Button
-                  onClick={handleConfirmAll}
-                  disabled={isConfirming}
+                  onClick={handleExtract}
+                  disabled={isExtracting}
                   fullWidth
-                  variant="primary"
-                  icon="check_circle"
+                  variant="secondary"
+                  icon="auto_awesome"
+                  className={!hasDocuments ? 'opacity-50' : ''}
                 >
-                  {isConfirming ? 'CONFIRMANDO...' : `CONFIRMAR TODAS (${counts.pending})`}
+                  {isExtracting ? 'EXTRAYENDO...' : 'EXTRAER DE MANUALES'}
                 </Button>
-              )}
+                
+                {counts.pending > 0 && (
+                  <Button
+                    onClick={handleConfirmAll}
+                    disabled={isConfirming}
+                    fullWidth
+                    variant="primary"
+                    icon="check_circle"
+                  >
+                    {isConfirming ? 'CONFIRMANDO...' : `CONFIRMAR TODAS (${counts.pending})`}
+                  </Button>
+                )}
+              </div>
             </div>
-          </div>
-        )}
+          )}
+        </div>
 
         {/* Templates Panel - Two Columns */}
         <div className="border border-primary/30 bg-black/60 flex-1 flex flex-col overflow-hidden">
@@ -422,6 +440,55 @@ export const TemplatesPage: React.FC = () => {
             </div>
           </div>
         </div>
+
+        {/* Stats Panel */}
+        {selectedGameSystem && (
+          <div className="flex flex-col lg:flex-row lg:h-24 gap-4">
+            {/* Stats Panel */}
+            <div className="lg:w-1/2 border border-primary/30 bg-black/60 p-2">
+              <h3 className="text-xs text-primary/60 uppercase tracking-widest mb-2 flex items-center gap-2">
+                <span className="material-icons text-sm">analytics</span>
+                Estadísticas
+              </h3>
+              <div className="grid grid-cols-3 gap-1 text-center">
+                <div className="bg-black/40 border border-primary/20 p-1">
+                  <p className="text-sm font-bold text-primary">{counts.total}</p>
+                  <p className="text-[8px] text-primary/40 uppercase">Total</p>
+                </div>
+                <div className="bg-black/40 border border-green-500/20 p-1">
+                  <p className="text-sm font-bold text-green-400">{counts.confirmed}</p>
+                  <p className="text-[8px] text-green-400/60 uppercase">Activas</p>
+                </div>
+                <div className="bg-black/40 border border-yellow-500/20 p-1">
+                  <p className="text-sm font-bold text-yellow-400">{counts.pending}</p>
+                  <p className="text-[8px] text-yellow-400/60 uppercase">Pendientes</p>
+                </div>
+              </div>
+            </div>
+
+            {/* System Log */}
+            <div className="lg:w-1/2 flex flex-col border border-primary/30 bg-black/80">
+              <div className="bg-primary/20 p-2 text-xs text-primary uppercase tracking-widest flex items-center gap-2">
+                <span className="material-icons text-sm">terminal</span>
+                System Log
+              </div>
+              <div className="h-24 lg:h-full p-4 font-mono text-xs text-primary/70 space-y-1 overflow-y-auto">
+                {logs.map((log, i) => (
+                  <p 
+                    key={i} 
+                    className={`${
+                      log.includes('ERROR') ? 'text-danger' : 
+                      log.includes('SUCCESS') ? 'text-green-400' : ''
+                    }`}
+                  >
+                    {log}
+                  </p>
+                ))}
+                <p className="animate-pulse">_</p>
+              </div>
+            </div>
+          </div>
+        )}
       </div>
 
       {/* Middle Column - Template Details */}
@@ -429,9 +496,9 @@ export const TemplatesPage: React.FC = () => {
         {selectedTemplate ? (
           <>
             {/* Template Header */}
-            <div className="border border-primary/30 bg-black/60 p-4">
-              <div className="flex items-start justify-between">
-                <div className="flex-1">
+            <div className="border border-primary/30 bg-black/60 p-4 w-full">
+              <div className="w-full">
+                <div className="w-full">
                   <div className="flex items-center gap-3 flex-wrap">
                     <h2 className="text-lg text-primary font-bold">{selectedTemplate.displayName}</h2>
                     <span className={`text-xs px-2 py-0.5 border ${getStatusColor(selectedTemplate.status)}`}>
@@ -443,7 +510,7 @@ export const TemplatesPage: React.FC = () => {
                       </span>
                     )}
                   </div>
-                  <div className="mt-2 max-w-xs">
+                  <div className="mt-2 w-full">
                     <Select
                       label="Tipo de Entidad"
                       options={CANONICAL_ENTITY_TYPE_OPTIONS}
@@ -458,169 +525,191 @@ export const TemplatesPage: React.FC = () => {
                   )}
                 </div>
                 
-                {(selectedTemplate.status === TemplateStatus.Draft || selectedTemplate.status === TemplateStatus.PendingReview) && (
-                  <Button
-                    onClick={() => handleConfirmTemplate(selectedTemplate.id)}
-                    disabled={isConfirming}
-                    size="sm"
-                    icon="check_circle"
-                  >
-                    {isConfirming ? 'CONFIRMANDO...' : 'CONFIRMAR'}
-                  </Button>
-                )}
-                
-                {selectedTemplate.status === TemplateStatus.Confirmed && (
-                  <Button
-                    onClick={async () => {
-                      const confirmed = await confirm({
-                        title: 'Revertir a Borrador',
-                        message: '¿Estás seguro de que quieres revertir esta plantilla a borrador? Esto permitirá modificar sus campos.',
-                        confirmLabel: 'REVERTIR',
-                        variant: 'warning',
-                      });
-                      if (confirmed) {
-                        await revertToDraft();
-                      }
-                    }}
-                    disabled={isReverting}
-                    size="sm"
-                    icon="undo"
-                    variant="secondary"
-                  >
-                    {isReverting ? 'REVIRTIENDO...' : 'REVERTIR A BORRADOR'}
-                  </Button>
-                )}
-              </div>
-              
-              {/* Template Metadata */}
-              <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mt-4 text-xs">
-                <div>
-                  <span className="text-primary/40">Sistema:</span>
-                  <p className="text-primary">{selectedTemplate.gameSystemName}</p>
-                </div>
-                {selectedTemplate.version && (
+                {/* Template Metadata */}
+                <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mt-4 text-xs w-full">
                   <div>
-                    <span className="text-primary/40">Versión:</span>
-                    <p className="text-primary">{selectedTemplate.version}</p>
+                    <span className="text-primary/40">Sistema:</span>
+                    <p className="text-primary">{selectedTemplate.gameSystemName}</p>
                   </div>
-                )}
-                <div>
-                  <span className="text-primary/40">Campos:</span>
-                  <p className="text-primary">{selectedTemplate.fields.length}</p>
-                </div>
-                {selectedTemplate.confirmedAt && (
+                  {selectedTemplate.version && (
+                    <div>
+                      <span className="text-primary/40">Versión:</span>
+                      <p className="text-primary">{selectedTemplate.version}</p>
+                    </div>
+                  )}
                   <div>
-                    <span className="text-primary/40">Confirmado:</span>
-                    <p className="text-green-400">
-                      {new Date(selectedTemplate.confirmedAt).toLocaleDateString()}
-                    </p>
+                    <span className="text-primary/40">Campos:</span>
+                    <p className="text-primary">{selectedTemplate.fields.length}</p>
                   </div>
-                )}
+                  {selectedTemplate.confirmedAt && (
+                    <div>
+                      <span className="text-primary/40">Confirmado:</span>
+                      <p className="text-green-400">
+                        {new Date(selectedTemplate.confirmedAt).toLocaleDateString()}
+                      </p>
+                    </div>
+                  )}
+                </div>
+
+                {/* Action Buttons */}
+                <div className="mt-4 flex justify-end gap-2">
+                  {(selectedTemplate.status === TemplateStatus.Draft || selectedTemplate.status === TemplateStatus.PendingReview) && (
+                    <Button
+                      onClick={() => handleConfirmTemplate(selectedTemplate.id)}
+                      disabled={isConfirming}
+                      size="sm"
+                      icon="check_circle"
+                    >
+                      {isConfirming ? 'CONFIRMANDO...' : 'CONFIRMAR'}
+                    </Button>
+                  )}
+                  
+                  {selectedTemplate.status === TemplateStatus.Confirmed && (
+                    <Button
+                      onClick={async () => {
+                        const confirmed = await confirm({
+                          title: 'Revertir a Borrador',
+                          message: '¿Estás seguro de que quieres revertir esta plantilla a borrador? Esto permitirá modificar sus campos.',
+                          confirmLabel: 'REVERTIR',
+                          variant: 'warning',
+                        });
+                        if (confirmed) {
+                          await revertToDraft();
+                        }
+                      }}
+                      disabled={isReverting}
+                      size="sm"
+                      icon="undo"
+                      variant="secondary"
+                    >
+                      {isReverting ? 'REVIRTIENDO...' : 'REVERTIR A BORRADOR'}
+                    </Button>
+                  )}
+                </div>
               </div>
             </div>
 
-            {/* Fields List */}
-            <div className="border border-primary/30 bg-black/60 flex-1 flex flex-col overflow-hidden">
-              <div className="bg-primary/10 p-3 text-xs text-primary uppercase tracking-widest flex items-center justify-between">
-                <span className="flex items-center gap-2">
-                  <span className="material-icons text-sm">list</span>
-                  Definición de Campos ({selectedTemplate.fields.length})
-                </span>
-                
-                {!isEditing && (
-                  <button
-                    onClick={() => startEditing([])}
-                    className="text-[10px] px-2 py-1 border border-cyan-500/40 text-cyan-400 hover:bg-cyan-500/20 transition-colors"
-                  >
-                    EDITAR CAMPOS
-                  </button>
+            {/* Two Column Layout - New Fields (Left) & Existing Fields (Right) */}
+            <div className="flex-1 flex gap-4 overflow-hidden min-h-0">
+              {/* Left Column - New Extracted Fields */}
+              <div className="w-1/2 flex flex-col overflow-hidden">
+                {comparisonExtractedFields && comparisonExtractedFields.length > 0 && selectedTemplate ? (
+                  <ComparisonPanel
+                    comparisonExtractedFields={comparisonExtractedFields}
+                    comparisonTemplateName={comparisonTemplateName}
+                    selectedTemplate={selectedTemplate}
+                    isSavingFields={isSavingFields}
+                    onAddField={addFieldFromComparison}
+                    onAddAllNewFields={addAllNewFieldsFromComparison}
+                    onClose={closeComparison}
+                  />
+                ) : (
+                  <div className="border border-purple-500/30 bg-black/40 flex-1 flex flex-col overflow-hidden">
+                    <div className="bg-purple-500/10 p-2 text-[10px] text-purple-400 uppercase tracking-widest flex items-center justify-between border-b border-purple-500/20">
+                      <span className="flex items-center gap-1">
+                        <span className="material-icons text-xs">auto_awesome</span>
+                        Campos Nuevos Extraídos
+                      </span>
+                    </div>
+                    <div className="flex-1 flex flex-col items-center justify-center text-primary/40 p-4">
+                      <span className="material-icons text-4xl mb-2">search</span>
+                      <p className="text-xs uppercase">Sin campos nuevos</p>
+                      <p className="text-[10px] mt-1 text-center">Los campos extraídos aparecerán aquí</p>
+                    </div>
+                  </div>
                 )}
               </div>
-              
-              <div className="flex-1 overflow-y-auto p-4">
-                {isEditing ? (
-                  <TemplateFieldEditor
-                    fields={selectedTemplate.fields}
-                    onSave={handleSaveFields}
-                    onCancel={cancelEditing}
-                    isLoading={isSaving}
-                  />
-                ) : selectedTemplate.fields.length === 0 ? (
-                  <div className="text-center text-primary/40 py-8">
-                    <span className="material-icons text-4xl mb-2">warning</span>
-                    <p className="text-xs uppercase">Sin campos definidos</p>
-                    <p className="text-[10px] mt-1">La plantilla necesita campos para funcionar</p>
-                  </div>
-                ) : (
-                  <div className="space-y-3">
-                    {selectedTemplate.fields
-                      .sort((a, b) => a.order - b.order)
-                      .map((field, index) => (
-                        <div 
-                          key={field.name}
-                          className="border border-primary/20 bg-black/40 p-3"
-                        >
-                          <div className="flex items-start justify-between">
-                            <div className="flex-1">
-                              <div className="flex items-center gap-2">
-                                <span className="text-xs text-primary/40">#{index + 1}</span>
-                                <span className="font-mono text-cyan-400 text-sm">{field.name}</span>
-                                {field.isRequired && (
-                                  <span className="text-danger text-xs">*</span>
+
+              {/* Right Column - Existing Fields */}
+              <div className="w-1/2 flex flex-col border border-primary/30 bg-black/40 overflow-hidden">
+                <div className="bg-primary/10 p-2 text-[10px] text-primary uppercase tracking-widest flex items-center justify-between border-b border-primary/20">
+                  <span className="flex items-center gap-1">
+                    <span className="material-icons text-xs">list</span>
+                    Campos Existentes ({selectedTemplate.fields.length})
+                  </span>
+                  
+                  {!isEditing && (
+                    <button
+                      onClick={() => startEditing([])}
+                      className="text-[10px] px-2 py-0.5 border border-cyan-500/40 text-cyan-400 hover:bg-cyan-500/20 transition-colors"
+                    >
+                      EDITAR
+                    </button>
+                  )}
+                </div>
+                
+                <div className="flex-1 overflow-y-auto p-3">
+                  {isEditing ? (
+                    <TemplateFieldEditor
+                      fields={selectedTemplate.fields}
+                      onSave={handleSaveFields}
+                      onCancel={cancelEditing}
+                      isLoading={isSaving}
+                    />
+                  ) : selectedTemplate.fields.length === 0 ? (
+                    <div className="text-center text-primary/40 py-8">
+                      <span className="material-icons text-4xl mb-2">warning</span>
+                      <p className="text-xs uppercase">Sin campos definidos</p>
+                      <p className="text-[10px] mt-1">La plantilla necesita campos para funcionar</p>
+                    </div>
+                  ) : (
+                    <div className="space-y-2">
+                      {selectedTemplate.fields
+                        .sort((a, b) => a.order - b.order)
+                        .map((field, index) => (
+                          <div 
+                            key={field.name}
+                            className="border border-primary/20 bg-black/40 p-2"
+                          >
+                            <div className="flex items-start justify-between">
+                              <div className="flex-1">
+                                <div className="flex items-center gap-2">
+                                  <span className="text-xs text-primary/40">#{index + 1}</span>
+                                  <span className="font-mono text-cyan-400 text-xs">{field.name}</span>
+                                  {field.isRequired && (
+                                    <span className="text-danger text-xs">*</span>
+                                  )}
+                                </div>
+                                <p className="text-xs text-primary mt-0.5">{field.displayName}</p>
+                                {field.description && (
+                                  <p className="text-[10px] text-primary/50 mt-0.5">{field.description}</p>
                                 )}
                               </div>
-                              <p className="text-sm text-primary mt-1">{field.displayName}</p>
-                              {field.description && (
-                                <p className="text-xs text-primary/50 mt-1">{field.description}</p>
-                              )}
+                              
+                              <span className="text-[9px] px-1.5 py-0.5 bg-primary/10 border border-primary/20 text-primary/60">
+                                {FieldTypeLabels[field.fieldType]}
+                              </span>
                             </div>
                             
-                            <span className="text-[10px] px-2 py-1 bg-primary/10 border border-primary/20 text-primary/60">
-                              {FieldTypeLabels[field.fieldType]}
-                            </span>
+                            <div className="mt-1.5 flex flex-wrap gap-2 text-[9px]">
+                              {field.defaultValue && (
+                                <span className="text-primary/40">
+                                  Default: <span className="text-primary/60">{field.defaultValue}</span>
+                                </span>
+                              )}
+                              {field.minValue !== undefined && field.minValue !== null && (
+                                <span className="text-primary/40">
+                                  Min: <span className="text-primary/60">{field.minValue}</span>
+                                </span>
+                              )}
+                              {field.maxValue !== undefined && field.maxValue !== null && (
+                                <span className="text-primary/40">
+                                  Max: <span className="text-primary/60">{field.maxValue}</span>
+                                </span>
+                              )}
+                              {field.options && field.options.length > 0 && (
+                                <span className="text-primary/40">
+                                  Opciones: <span className="text-primary/60">{field.options.join(', ')}</span>
+                                </span>
+                              )}
+                            </div>
                           </div>
-                          
-                          <div className="mt-2 flex flex-wrap gap-2 text-[10px]">
-                            {field.defaultValue && (
-                              <span className="text-primary/40">
-                                Default: <span className="text-primary/60">{field.defaultValue}</span>
-                              </span>
-                            )}
-                            {field.minValue !== undefined && field.minValue !== null && (
-                              <span className="text-primary/40">
-                                Min: <span className="text-primary/60">{field.minValue}</span>
-                              </span>
-                            )}
-                            {field.maxValue !== undefined && field.maxValue !== null && (
-                              <span className="text-primary/40">
-                                Max: <span className="text-primary/60">{field.maxValue}</span>
-                              </span>
-                            )}
-                            {field.options && field.options.length > 0 && (
-                              <span className="text-primary/40">
-                                Opciones: <span className="text-primary/60">{field.options.join(', ')}</span>
-                              </span>
-                            )}
-                          </div>
-                        </div>
-                      ))}
-                  </div>
-                )}
+                        ))}
+                    </div>
+                  )}
+                </div>
               </div>
             </div>
-
-            {/* Comparison Panel for Extracted Fields */}
-            {comparisonExtractedFields && comparisonExtractedFields.length > 0 && selectedTemplate && (
-              <ComparisonPanel
-                comparisonExtractedFields={comparisonExtractedFields}
-                comparisonTemplateName={comparisonTemplateName}
-                selectedTemplate={selectedTemplate}
-                isSavingFields={isSavingFields}
-                onAddField={addFieldFromComparison}
-                onAddAllNewFields={addAllNewFieldsFromComparison}
-                onClose={closeComparison}
-              />
-            )}
           </>
         ) : (
           <div className="border border-primary/30 bg-black/60 flex-1 flex flex-col items-center justify-center text-primary/40">
@@ -630,62 +719,13 @@ export const TemplatesPage: React.FC = () => {
           </div>
         )}
       </div>
-
-      {/* Right Column - Stats & Terminal Log */}
-      <div className="w-full lg:w-64 flex flex-col gap-4">
-        {/* Stats Panel */}
-        {selectedGameSystem && (
-          <div className="border border-primary/30 bg-black/60 p-3">
-            <h3 className="text-xs text-primary/60 uppercase tracking-widest mb-3 flex items-center gap-2">
-              <span className="material-icons text-sm">analytics</span>
-              Estadísticas
-            </h3>
-            <div className="grid grid-cols-3 gap-2 text-center">
-              <div className="bg-black/40 border border-primary/20 p-2">
-                <p className="text-lg font-bold text-primary">{counts.total}</p>
-                <p className="text-[10px] text-primary/40 uppercase">Total</p>
-              </div>
-              <div className="bg-black/40 border border-green-500/20 p-2">
-                <p className="text-lg font-bold text-green-400">{counts.confirmed}</p>
-                <p className="text-[10px] text-green-400/60 uppercase">Activas</p>
-              </div>
-              <div className="bg-black/40 border border-yellow-500/20 p-2">
-                <p className="text-lg font-bold text-yellow-400">{counts.pending}</p>
-                <p className="text-[10px] text-yellow-400/60 uppercase">Pendientes</p>
-              </div>
-            </div>
-          </div>
-        )}
-
-        {/* System Log */}
-        <div className="flex-1 flex flex-col border border-primary/30 bg-black/80">
-          <div className="bg-primary/20 p-2 text-xs text-primary uppercase tracking-widest flex items-center gap-2">
-            <span className="material-icons text-sm">terminal</span>
-            System Log
-          </div>
-          <div className="h-24 md:h-32 flex-1 p-4 font-mono text-xs text-primary/70 space-y-1 overflow-y-auto">
-            {logs.map((log, i) => (
-              <p 
-                key={i} 
-                className={`${
-                  log.includes('ERROR') ? 'text-danger' : 
-                  log.includes('SUCCESS') ? 'text-green-400' : ''
-                }`}
-              >
-                {log}
-              </p>
-            ))}
-            <p className="animate-pulse">_</p>
-          </div>
-        </div>
-      </div>
     </div>
   );
 
   return (
     <>
       {isAdmin ? (
-        <AdminLayout activePath="/templates">{mainContent}</AdminLayout>
+        <AdminLayout>{mainContent}</AdminLayout>
       ) : (
         <TerminalLayout title="PLANTILLAS">{mainContent}</TerminalLayout>
       )}

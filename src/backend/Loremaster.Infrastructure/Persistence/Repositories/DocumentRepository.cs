@@ -380,6 +380,7 @@ public class DocumentRepository : IDocumentRepository
         Guid gameSystemId,
         Guid? ownerId,
         bool includeAdminDocs = true,
+        bool includeAllDocs = false,
         CancellationToken cancellationToken = default)
     {
         // Build query for documents with embeddings for the game system
@@ -389,8 +390,13 @@ public class DocumentRepository : IDocumentRepository
                 d.GameSystemId == gameSystemId && 
                 d.Embedding != null); // Only documents with embeddings (ready for search)
 
-        // Apply same ownership filter as GetAccessibleManualsByGameSystemIdAsync
-        if (includeAdminDocs && ownerId.HasValue)
+        // Apply ownership filter based on parameters
+        if (includeAllDocs)
+        {
+            // Admin: see all documents regardless of owner
+            // No ownership filter needed
+        }
+        else if (includeAdminDocs && ownerId.HasValue)
         {
             // Masters: Admin docs + their own docs
             query = query.Where(d => d.Owner.Role == UserRole.Admin || d.OwnerId == ownerId.Value);
@@ -410,8 +416,8 @@ public class DocumentRepository : IDocumentRepository
 
         _logger.LogInformation(
             "HasDocumentsForGameSystemAsync: GameSystem {GameSystemId} has documents: {HasDocuments}, " +
-            "ownerId: {OwnerId}, includeAdminDocs: {IncludeAdminDocs}",
-            gameSystemId, hasDocuments, ownerId, includeAdminDocs);
+            "ownerId: {OwnerId}, includeAdminDocs: {IncludeAdminDocs}, includeAllDocs: {IncludeAllDocs}",
+            gameSystemId, hasDocuments, ownerId, includeAdminDocs, includeAllDocs);
 
         return hasDocuments;
     }

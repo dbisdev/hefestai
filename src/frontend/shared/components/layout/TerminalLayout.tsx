@@ -68,6 +68,7 @@ export const TerminalLayout: React.FC<TerminalLayoutProps> = ({
   
   const navigate = useNavigate();
   const location = useLocation();
+  const isHubPage = location.pathname === '/hub';
   //console.log('Current location:', location.pathname);
   const { user, logout } = useAuth();
   const { campaigns, activeCampaign, selectCampaign, isLoading: campaignsLoading } = useCampaign();
@@ -88,17 +89,11 @@ export const TerminalLayout: React.FC<TerminalLayoutProps> = ({
   }, []);
 
   /**
-   * Navigate back to hub based on user role
+   * Navigate back to hub
    */
   const handleBackToHub = useCallback(() => {
-    if (user?.role === 'ADMIN') {
-      navigate('/admin/users');
-    } else if (user?.role === 'MASTER') {
-      navigate('/hub');
-    } else {
-      navigate('/gallery');
-    }
-  }, [navigate, user?.role]);
+    navigate('/hub');
+  }, [navigate]);
 
   /**
    * Handle browser back navigation
@@ -172,7 +167,7 @@ export const TerminalLayout: React.FC<TerminalLayoutProps> = ({
         </div>
 
         {/* Right Section: Actions */}
-        <div className="grid grid-cols-3 lg:flex lg:flex-nowrap items-center gap-2 lg:gap-4">
+        <div className={`grid ${isHubPage ? 'grid-cols-2' : 'grid-cols-3'} lg:flex lg:flex-nowrap items-center gap-2 lg:gap-4`}>
 
           <div className="order-1 hidden md:flex flex-col text-right text-xs text-primary/60">
             <span>MEM: 64TB [OK]</span>
