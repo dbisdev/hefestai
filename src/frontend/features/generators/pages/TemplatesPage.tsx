@@ -49,8 +49,15 @@ export const TemplatesPage: React.FC = () => {
   const [isLoadingGameSystems, setIsLoadingGameSystems] = useState(true);
   const [confirmingId, setConfirmingId] = useState<string | null>(null);
   const [hasDocuments, setHasDocuments] = useState(false);
+  const [showDeviceWarning, setShowDeviceWarning] = useState(false);
 
-  const { 
+  useEffect(() => {
+    if (window.innerWidth < 1024) {
+      setShowDeviceWarning(true);
+    }
+  }, []);
+
+  const {
     isOpen: isConfirmOpen, 
     config: confirmConfig, 
     confirm, 
@@ -296,11 +303,11 @@ export const TemplatesPage: React.FC = () => {
   }
 
   const mainContent = (
-    <div className="flex flex-col md:flex-row md:h-full gap-6">
+    <div className="flex flex-col md:grid md:grid-cols-2 md:grid-rows-[250px_110px_1fr] md:h-screen md:overflow-hidden lg:flex lg:flex-row lg:h-full lg:gap-6">
       {/* Left Column - Game Systems, Templates, Stats & Log */}
-      <div className="w-full md:w-1/2 lg:w-[30%] flex flex-col gap-4 overflow-hidden">
+      <div className="w-full md:contents lg:w-[30%] lg:flex lg:flex-col lg:gap-4 lg:overflow-hidden">
         {/* Game System & Actions - Combined Panel */}
-        <div className="border border-primary/30 bg-black/60 p-4">
+        <div className="border border-primary/30 bg-black/60 p-4 md:col-start-1 md:row-start-1">
           <h2 className="text-xs text-primary/60 uppercase tracking-widest mb-3 flex items-center gap-2">
             <span className="material-icons text-sm">sports_esports</span>
             Sistema de Juego
@@ -359,8 +366,32 @@ export const TemplatesPage: React.FC = () => {
           )}
         </div>
 
+        {/* System Log */}
+        {selectedGameSystem && (
+          <div className="flex flex-col border border-primary/30 bg-black/80 md:col-start-1 md:row-start-2">
+              <div className="bg-primary/20 p-2 text-xs text-primary uppercase tracking-widest flex items-center gap-2">
+                <span className="material-icons text-sm">terminal</span>
+                System Log
+              </div>
+              <div className="h-24 p-4 font-mono text-xs text-primary/70 space-y-1 overflow-y-auto">
+                {logs.map((log, i) => (
+                  <p 
+                    key={i} 
+                    className={`${
+                      log.includes('ERROR') ? 'text-danger' : 
+                      log.includes('SUCCESS') ? 'text-green-400' : ''
+                    }`}
+                  >
+                    {log}
+                  </p>
+                ))}
+                <p className="animate-pulse">_</p>
+              </div>
+            </div>
+        )}
+
         {/* Templates Panel - Two Columns */}
-        <div className="border border-primary/30 bg-black/60 flex-1 flex flex-col overflow-hidden">
+        <div className="border border-primary/30 bg-black/60 flex-1 flex flex-col overflow-hidden md:col-start-2 md:row-span-2 lg:h-auto lg:flex-1">
           <div className="bg-primary/10 p-3 text-xs text-primary uppercase tracking-widest flex items-center justify-between">
             <span className="flex items-center gap-2">
               <span className="material-icons text-sm">description</span>
@@ -440,34 +471,10 @@ export const TemplatesPage: React.FC = () => {
             </div>
           </div>
         </div>
-
-        {/* System Log */}
-        {selectedGameSystem && (
-          <div className="flex flex-col border border-primary/30 bg-black/80">
-              <div className="bg-primary/20 p-2 text-xs text-primary uppercase tracking-widest flex items-center gap-2">
-                <span className="material-icons text-sm">terminal</span>
-                System Log
-              </div>
-              <div className="h-24 p-4 font-mono text-xs text-primary/70 space-y-1 overflow-y-auto">
-                {logs.map((log, i) => (
-                  <p 
-                    key={i} 
-                    className={`${
-                      log.includes('ERROR') ? 'text-danger' : 
-                      log.includes('SUCCESS') ? 'text-green-400' : ''
-                    }`}
-                  >
-                    {log}
-                  </p>
-                ))}
-                <p className="animate-pulse">_</p>
-              </div>
-            </div>
-        )}
       </div>
 
       {/* Middle Column - Template Details */}
-      <div className="flex-1 flex flex-col gap-4 overflow-hidden">
+      <div className="flex-1 flex flex-col gap-4 overflow-hidden md:col-start-1 md:row-start-3 md:col-span-2 md:overflow-hidden lg:flex-1">
         {selectedTemplate ? (
           <>
             {/* Template Header */}
@@ -565,17 +572,39 @@ export const TemplatesPage: React.FC = () => {
             </div>
 
             {/* Two Column Layout - New Fields (Left) & Existing Fields (Right) */}
-            <div className="flex-1 flex gap-4 overflow-hidden min-h-0">
+            <div className="flex-1 flex gap-4 overflow-hidden min-h-0 md:h-full md:min-h-0">
               {/* Left Column - New Extracted Fields */}
-              <div className="w-1/2 flex flex-col overflow-hidden">
+              <div className="w-1/2 flex flex-col overflow-hidden md:h-full">
                 {comparisonExtractedFields && comparisonExtractedFields.length > 0 && selectedTemplate ? (
                   <ComparisonPanel
                     comparisonExtractedFields={comparisonExtractedFields}
                     comparisonTemplateName={comparisonTemplateName}
                     selectedTemplate={selectedTemplate}
                     isSavingFields={isSavingFields}
-                    onAddField={addFieldFromComparison}
-                    onAddAllNewFields={addAllNewFieldsFromComparison}
+                    onAddField={(field) => {
+                      if (selectedTemplate.status === TemplateStatus.Confirmed) {
+                        confirm({
+                          title: 'Plantilla Confirmada',
+                          message: 'No se puede modificar una plantilla CONFIRMADA, conviertela en BORRADOR antes',
+                          confirmLabel: 'Entendido',
+                          variant: 'warning',
+                        });
+                      } else {
+                        addFieldFromComparison(field);
+                      }
+                    }}
+                    onAddAllNewFields={() => {
+                      if (selectedTemplate.status === TemplateStatus.Confirmed) {
+                        confirm({
+                          title: 'Plantilla Confirmada',
+                          message: 'No se puede modificar una plantilla CONFIRMADA, conviertela en BORRADOR antes',
+                          confirmLabel: 'Entendido',
+                          variant: 'warning',
+                        });
+                      } else {
+                        addAllNewFieldsFromComparison();
+                      }
+                    }}
                     onClose={closeComparison}
                   />
                 ) : (
@@ -596,7 +625,7 @@ export const TemplatesPage: React.FC = () => {
               </div>
 
               {/* Right Column - Existing Fields */}
-              <div className="w-1/2 flex flex-col border border-primary/30 bg-black/40 overflow-hidden">
+              <div className="w-1/2 flex flex-col border border-primary/30 bg-black/40 overflow-hidden md:h-full">
                 <div className="bg-primary/10 p-2 text-[10px] text-primary uppercase tracking-widest flex items-center justify-between border-b border-primary/20">
                   <span className="flex items-center gap-1">
                     <span className="material-icons text-xs">list</span>
@@ -605,7 +634,18 @@ export const TemplatesPage: React.FC = () => {
                   
                   {!isEditing && (
                     <button
-                      onClick={() => startEditing([])}
+                      onClick={() => {
+                        if (selectedTemplate.status === TemplateStatus.Confirmed) {
+                          confirm({
+                            title: 'Plantilla Confirmada',
+                            message: 'No se puede modificar una plantilla CONFIRMADA, conviertela en BORRADOR antes',
+                            confirmLabel: 'Entendido',
+                            variant: 'warning',
+                          });
+                        } else {
+                          startEditing([]);
+                        }
+                      }}
                       className="text-[10px] px-2 py-0.5 border border-cyan-500/40 text-cyan-400 hover:bg-cyan-500/20 transition-colors"
                     >
                       EDITAR
@@ -714,6 +754,15 @@ export const TemplatesPage: React.FC = () => {
         onConfirm={handleConfirm}
         onCancel={handleCancel}
         isLoading={isConfirming}
+      />
+      <ConfirmDialog
+        isOpen={showDeviceWarning}
+        title="Aviso"
+        message="Este panel de control está optimizado para escritorio por la gran cantidad de datos que contiene, en tablet o móvil podría haber errores de visualización."
+        confirmLabel="Entendido"
+        variant="warning"
+        onConfirm={() => setShowDeviceWarning(false)}
+        onCancel={() => setShowDeviceWarning(false)}
       />
     </>
   );

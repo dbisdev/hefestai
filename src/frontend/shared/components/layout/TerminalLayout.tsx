@@ -349,7 +349,7 @@ export const TerminalLayout: React.FC<TerminalLayoutProps> = ({
       )}
 
       {/* Main Content */}
-      <div className="flex-1 overflow-y-auto md:overflow-hidden">
+      <div className="flex-1 overflow-y-auto lg:overflow-hidden">
         {children}
       </div>
 
