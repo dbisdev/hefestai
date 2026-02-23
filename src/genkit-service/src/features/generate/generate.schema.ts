@@ -5,6 +5,7 @@ export const TextGenerationRequestSchema = z.object({
   systemPrompt: z.string().max(2000).optional(),
   temperature: z.number().min(0).max(2).optional().default(0.7),
   maxTokens: z.number().min(1).max(8192).optional().default(2048),
+  responseFormat: z.enum(['text', 'json']).optional().default('text'),
 });
 
 export const TextGenerationResponseSchema = z.object({

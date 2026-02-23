@@ -114,6 +114,7 @@ export const EncounterGeneratorPage: React.FC<EncounterGeneratorPageProps> = ({ 
     isGenerating,
     isSaving,
     editableData,
+    image,
     logs,
     addLog,
     imageMode,
@@ -309,10 +310,33 @@ export const EncounterGeneratorPage: React.FC<EncounterGeneratorPageProps> = ({ 
 
         <div className="flex-1 flex flex-col gap-4">
           <div className="flex-1 overflow-y-auto flex flex-col gap-4">
+            <div className="relative w-full h-48 lg:h-64 border border-primary/30 bg-black p-1 clip-tech-br group">
+              <div className="relative w-full h-full bg-black overflow-hidden flex items-center justify-center">
+                <img
+                  className={`w-full h-full object-cover transition-all duration-1000 ${isGenerating ? 'opacity-10 scale-110 blur-sm' : 'opacity-80 scale-100'}`}
+                  src={image}
+                  alt="Encounter Preview"
+                />
+                {isGenerating && (
+                  <div className="absolute inset-0 flex flex-col items-center justify-center bg-black/40 z-20">
+                    <div className="w-1/2 h-1 bg-primary/20 relative overflow-hidden mb-2">
+                      <div className="absolute inset-0 bg-primary animate-[scan_2s_linear_infinite]"></div>
+                    </div>
+                    <span className="text-primary text-[10px] animate-pulse">SIMULANDO_ENCUENTRO...</span>
+                  </div>
+                )}
+              </div>
+              {!editableData && !isGenerating && (
+                <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
+                  <span className="text-primary/20 text-[10px] tracking-[0.5em] uppercase font-bold">Sin Imagen</span>
+                </div>
+              )}
+            </div>
+
             <div className={`border border-primary/30 bg-black p-4 transition-all ${editableData ? 'border-primary' : ''}`}>
               <div className="flex items-center justify-between mb-3">
                 <div className="flex items-center gap-2">
-                  <span className="material-icons text-primary text-xl">swords</span>
+                  <span className="material-icons text-primary text-xl">pest_control</span>
                   <span className="text-[10px] text-primary/60 uppercase tracking-widest">Simulacion Tactica</span>
                 </div>
                 {editableData && (

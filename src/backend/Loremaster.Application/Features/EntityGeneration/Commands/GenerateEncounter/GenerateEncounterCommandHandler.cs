@@ -65,7 +65,9 @@ public class GenerateEncounterCommandHandler : IRequestHandler<GenerateEncounter
                         request.GameSystemId,
                         request.UserId,
                         "encounter",
-                        $"Intense sci-fi {request.EncounterType} encounter in a {request.Environment} environment. {request.EnemyCount} enemies, tactical combat scene, dramatic lighting, action-packed atmosphere, concept art style, 8k resolution."),
+                        $"Intense {request.EncounterType} encounter in a {request.Environment} environment. {request.EnemyCount} enemies, tactical combat scene, dramatic lighting, action-packed atmosphere, concept art style, 8k resolution, NEVER include text.",
+                        null,
+                        $"Encounter type: {request.EncounterType}, Environment: {request.Environment}, Enemies: {request.EnemyCount}"),
                     cancellationToken);
                 imageBase64 = imageResult.ImageBase64;
                 imageUrl = imageResult.ImageUrl;

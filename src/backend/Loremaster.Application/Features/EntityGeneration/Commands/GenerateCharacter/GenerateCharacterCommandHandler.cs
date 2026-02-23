@@ -67,8 +67,9 @@ public class GenerateCharacterCommandHandler : IRequestHandler<GenerateCharacter
                         request.GameSystemId,
                         request.UserId,
                         "character",
-                        $"High-quality portrait of a {request.Species} {request.Role}, {request.Morphology}. Cinematic lighting, detailed face, 8k resolution, professional concept art, black background.",
-                        description),
+                        $"High-quality portrait of a {request.Species} {request.Role}, {request.Morphology}. Cinematic lighting, detailed face, 8k resolution, professional concept art, black background, NEVER include text.",
+                        description,
+                        $"Species: {request.Species}, Role: {request.Role}, Morphology: {request.Morphology}"),
                     cancellationToken);
                 imageBase64 = imageResult.ImageBase64;
                 imageUrl = imageResult.ImageUrl;

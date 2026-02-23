@@ -178,6 +178,7 @@ export const CampaignCreateModal: React.FC<CampaignCreateModalProps> = ({
           >
             Cancelar
           </button>
+          
           <button
             type="button"
             onClick={handleSubmit}

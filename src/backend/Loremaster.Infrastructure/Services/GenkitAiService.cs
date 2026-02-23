@@ -72,7 +72,7 @@ public class GenkitAiService : IAiService
             SystemPrompt = systemPrompt ?? "You are a helpful assistant. Always respond with valid minified JSON only, no additional text or markdown.",
             Temperature = temperature,
             MaxTokens = maxTokens,
-            ResponseFormat = "json"
+            ResponseFormat = "json"  // Explicitly request JSON format for validation
         };
 
         var response = await SendRequestAsync<GenerateJsonRequest, GenerateResponse>(

@@ -65,7 +65,9 @@ public class GenerateMissionCommandHandler : IRequestHandler<GenerateMissionComm
                         request.GameSystemId,
                         request.UserId,
                         "mission",
-                        $"Cinematic scene depicting a {request.MissionType} mission in a {request.Environment}. Dramatic atmosphere, {request.Difficulty} difficulty feel, tactical environment, concept art style, moody lighting, 8k resolution."),
+                        $"Cinematic scene depicting a {request.MissionType} mission in a {request.Environment}. Dramatic atmosphere, {request.Difficulty} difficulty feel, tactical environment, concept art style, moody lighting, 8k resolution, NEVER include text.",
+                        null,
+                        $"Mission type: {request.MissionType}, Environment: {request.Environment}, Difficulty: {request.Difficulty}"),
                     cancellationToken);
                 imageBase64 = imageResult.ImageBase64;
                 imageUrl = imageResult.ImageUrl;

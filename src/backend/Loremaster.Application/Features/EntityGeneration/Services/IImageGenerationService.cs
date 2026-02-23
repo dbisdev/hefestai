@@ -13,6 +13,7 @@ public record ImageGenerationContext(
     string EntityType,
     string BasePrompt,
     string? EntityDescription = null,
+    string? StyleSearchContext = null,
     IEnumerable<string>? StyleContextChunks = null);
 
 public record ImageGenerationResult(

@@ -10,6 +10,7 @@ import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { entityService, campaignService } from '@core/services/api';
 import { useCampaign } from '@core/context';
 import { buildLabelMapFromFields, getDisplayLabel, categorizeAttributes, isNestedObject } from '@core/utils';
+import { ImageSourceSelector, type ImageSourceMode } from '@shared/components/ui';
 import type { LoreEntity, DynamicStats, FieldDefinition, CampaignMember } from '@core/types';
 import { VisibilityLevel, CampaignRole } from '@core/types';
 
@@ -64,6 +65,10 @@ export const EntityEditModal: React.FC<EntityEditModalProps> = ({
     visibility: entity.visibility,
     imageUrl: entity.imageUrl || '',
   });
+  
+  // Image upload state
+  const [imageMode, setImageMode] = useState<ImageSourceMode>('none');
+  const [uploadedImageData, setUploadedImageData] = useState<string | null>(null);
   
   // State for editable attributes (deep copy to avoid mutating original)
   const [attributes, setAttributes] = useState<DynamicStats>(
@@ -203,11 +208,15 @@ export const EntityEditModal: React.FC<EntityEditModalProps> = ({
       }
 
       // Update the entity details
+      const finalImageUrl = imageMode === 'upload' && uploadedImageData
+        ? `data:image/webp;base64,${uploadedImageData}`
+        : formData.imageUrl.trim() || undefined;
+
       updatedEntity = await entityService.update(activeCampaignId, entity.id, {
         name: formData.name.trim(),
         description: formData.description.trim() || undefined,
         visibility: formData.visibility,
-        imageUrl: formData.imageUrl.trim() || undefined,
+        imageUrl: finalImageUrl,
         attributes: Object.keys(attributes).length > 0 ? attributes : undefined,
         metadata: entity.metadata,
       });
@@ -273,6 +282,35 @@ export const EntityEditModal: React.FC<EntityEditModalProps> = ({
             </div>
           )}
 
+          {/* Image Section */}
+          <div className="space-y-4">
+            <p className="text-[9px] text-primary/40 uppercase tracking-[0.2em] font-bold border-b border-primary/20 pb-1">
+              // IMAGEN
+            </p>
+            
+            {/* Current Image Preview */}
+            <div className="relative w-full aspect-square border border-primary/30 p-1 bg-black shadow-[0_0_15px_rgba(37,244,106,0.1)]">
+              <img 
+                src={entity.imageUrl || 'https://images.unsplash.com/photo-1683322001857-f4d932a40672?q=80&w=400&auto=format&fit=crop'} 
+                alt={`Imagen de ${entity.name}`} 
+                className="w-full h-full object-cover" 
+              />
+              <div className="absolute top-2 left-2 px-1 bg-primary/80 text-black text-[8px] font-bold">CURRENT_IMAGE</div>
+              <div className="absolute bottom-2 right-2 flex gap-1">
+                {[...Array(3)].map((_, i) => <div key={i} className="w-1.5 h-1.5 bg-primary/40 animate-pulse" style={{ animationDelay: `${i*0.1}s` }} />)}
+              </div>
+            </div>
+
+            {/* Image Source Selector */}
+            <ImageSourceSelector
+              mode={imageMode}
+              onModeChange={setImageMode}
+              onImageUpload={setUploadedImageData}
+              uploadedImage={uploadedImageData}
+              disabled={isSaving}
+            />
+          </div>
+
           {/* Basic Info Section */}
           <div className="space-y-4">
             <p className="text-[9px] text-primary/40 uppercase tracking-[0.2em] font-bold border-b border-primary/20 pb-1">
@@ -315,25 +353,6 @@ export const EntityEditModal: React.FC<EntityEditModalProps> = ({
                 rows={3}
                 disabled={isSaving}
                 className="w-full bg-black/40 border border-primary/30 text-primary p-3 text-sm focus:border-primary focus:outline-none placeholder:text-primary/20 resize-none disabled:opacity-50"
-              />
-            </div>
-
-            {/* Image URL Field */}
-            <div>
-              <label 
-                htmlFor="entity-image"
-                className="block text-xs text-primary/60 uppercase mb-1"
-              >
-                URL de Imagen
-              </label>
-              <input
-                id="entity-image"
-                type="url"
-                value={formData.imageUrl}
-                onChange={(e) => handleChange('imageUrl', e.target.value)}
-                placeholder="https://..."
-                disabled={isSaving}
-                className="w-full bg-black/40 border border-primary/30 text-primary p-3 text-sm focus:border-primary focus:outline-none placeholder:text-primary/20 disabled:opacity-50"
               />
             </div>
           </div>

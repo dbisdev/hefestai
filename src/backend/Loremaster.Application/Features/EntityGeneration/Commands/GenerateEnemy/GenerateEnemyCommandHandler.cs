@@ -65,7 +65,9 @@ public class GenerateEnemyCommandHandler : IRequestHandler<GenerateEnemyCommand,
                         request.GameSystemId,
                         request.UserId,
                         "enemy",
-                        $"Terrifying creature concept art, {request.Species}, {request.Behavior} posture, menacing, dark atmosphere, highly detailed, horror aesthetic, professional illustration, dramatic lighting, 8k resolution."),
+                        $"Terrifying creature concept art, {request.Species}, {request.Behavior} posture, menacing, dark atmosphere, highly detailed, horror aesthetic, professional illustration, dramatic lighting, 8k resolution, NEVER include text.",
+                        null,
+                        $"Species: {request.Species}, Behavior: {request.Behavior}"),
                     cancellationToken);
                 imageBase64 = imageResult.ImageBase64;
                 imageUrl = imageResult.ImageUrl;

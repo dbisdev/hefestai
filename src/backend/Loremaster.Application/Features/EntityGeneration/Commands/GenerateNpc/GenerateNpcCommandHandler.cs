@@ -42,11 +42,11 @@ public class GenerateNpcCommandHandler : IRequestHandler<GenerateNpcCommand, Npc
         try
         {
             _logger.LogInformation(
-                "Generating NPC: Species={Species}, Occupation={Occupation}, GameSystemId={GameSystemId}",
+                "Generating ACTOR: Species={Species}, Occupation={Occupation}, GameSystemId={GameSystemId}",
                 request.Species, request.Occupation, request.GameSystemId);
 
             var templateResult = await _templateResolution.ResolveTemplateAsync(
-                request.GameSystemId, request.UserId, "npc", "NPC", cancellationToken);
+                request.GameSystemId, request.UserId, "actor", "ACTOR", cancellationToken);
 
             var (exampleJson, fieldDescriptions) = templateResult.HasTemplate
                 ? (templateResult.ExampleJson, templateResult.FieldDescriptions)
@@ -64,14 +64,16 @@ public class GenerateNpcCommandHandler : IRequestHandler<GenerateNpcCommand, Npc
                     new ImageGenerationContext(
                         request.GameSystemId,
                         request.UserId,
-                        "npc",
-                        $"High-quality portrait of a {request.Species} {request.Occupation}, {request.Personality} expression. Cinematic lighting, detailed face, professional concept art, neutral background, 8k resolution."),
+                        "actor",
+                        $"High-quality portrait of a {request.Species} {request.Occupation}, {request.Personality} expression. Cinematic lighting, detailed face, professional concept art, black background, 8k resolution, NEVER include text.",
+                        null,
+                        $"Species: {request.Species}, Occupation: {request.Occupation}, Personality: {request.Personality}"),
                     cancellationToken);
                 imageBase64 = imageResult.ImageBase64;
                 imageUrl = imageResult.ImageUrl;
             }
 
-            var generationRequest = _tracking.CreateRequest(request.UserId, "npc", fullPrompt);
+            var generationRequest = _tracking.CreateRequest(request.UserId, "actor", fullPrompt);
             generationRequest.Complete();
             var generationResult = _tracking.CreateResult(
                 generationRequest.Id, npcJson, ragContext.Any(), ragContext.Count, imageBase64 != null || imageUrl != null);
@@ -102,7 +104,7 @@ public class GenerateNpcCommandHandler : IRequestHandler<GenerateNpcCommand, Npc
     {
         if (!request.GameSystemId.HasValue) return Array.Empty<RagContextChunk>();
         return await _ragContextProvider.GetContextForEntityGenerationAsync(
-            request.GameSystemId.Value, request.UserId, "npc",
+            request.GameSystemId.Value, request.UserId, "actor",
             $"Species: {request.Species}, Occupation: {request.Occupation}, Personality: {request.Personality}, Setting: {request.Setting}",
             7, ct);
     }

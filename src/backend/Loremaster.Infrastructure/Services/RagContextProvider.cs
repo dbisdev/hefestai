@@ -96,16 +96,17 @@ public class RagContextProvider : IRagContextProvider
         Guid gameSystemId,
         Guid ownerId,
         string entityTypeName,
+        string? additionalContext = null,
         CancellationToken cancellationToken = default)
     {
         _logger.LogDebug(
-            "Getting style context for image generation. GameSystem: {GameSystemId}, EntityType: {EntityType}",
-            gameSystemId, entityTypeName);
+            "Getting style context for image generation. GameSystem: {GameSystemId}, EntityType: {EntityType}, AdditionalContext: {AdditionalContext}",
+            gameSystemId, entityTypeName, additionalContext ?? "(none)");
 
         try
         {
             // Build a query focused on visual/style descriptions
-            var styleQuery = BuildStyleQuery(entityTypeName);
+            var styleQuery = BuildStyleQuery(entityTypeName, additionalContext);
 
             // Get embedding for the style query
             var queryEmbedding = await _embeddingService.GetEmbeddingAsync(styleQuery, cancellationToken);
@@ -114,7 +115,7 @@ public class RagContextProvider : IRagContextProvider
             var searchResults = await _documentRepository.SemanticSearchAsync(
                 queryEmbedding,
                 ownerId,
-                limit: 3, // Fewer chunks needed for style context
+                limit: 5, // Fewer chunks needed for style context
                 threshold: 0.5f, // Lower threshold for broader style matches
                 gameSystemId: gameSystemId,
                 cancellationToken: cancellationToken);
@@ -175,9 +176,17 @@ public class RagContextProvider : IRagContextProvider
     /// Builds a search query for visual style context.
     /// </summary>
     /// <param name="entityTypeName">The entity type being visualized.</param>
+    /// <param name="additionalContext">Optional additional context to refine the search.</param>
     /// <returns>Style-focused search query.</returns>
-    private static string BuildStyleQuery(string entityTypeName)
+    private static string BuildStyleQuery(string entityTypeName, string? additionalContext)
     {
-        return $"{entityTypeName} appearance visual description art style artwork illustration artist graphic designer ambience history culture";
+        var query = $"{entityTypeName} appearance visual description art style artwork illustration lead artist graphic design";
+        
+        if (!string.IsNullOrWhiteSpace(additionalContext))
+        {
+            query += $" {additionalContext}";
+        }
+        
+        return query;
     }
 }

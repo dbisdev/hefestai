@@ -24,7 +24,12 @@ router.post(
         },
         'Processing image generation request'
       );
-
+      console.log('Received image generation request:', {
+        serviceId: req.service?.id,
+        promptLength: validatedInput.prompt.length,
+        style: validatedInput.style,
+        aspectRatio: validatedInput.aspectRatio,
+      });
       const result = await imageGenerateFlow(validatedInput);
 
       if (result.success) {

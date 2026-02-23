@@ -53,6 +53,7 @@ const RuleQuery: React.FC<RuleQueryProps> = ({ onClose, gameSystemId: propGameSy
   const [results, setResults] = useState<SemanticSearchResult | null>(null);
   const [generateAnswer, setGenerateAnswer] = useState(true);
   const [showSettings, setShowSettings] = useState(false);
+  const [showSources, setShowSources] = useState(false);
   const [threshold, setThreshold] = useState(0.6);
   const [resultLimit, setResultLimit] = useState(6);
   
@@ -441,24 +442,35 @@ const RuleQuery: React.FC<RuleQueryProps> = ({ onClose, gameSystemId: propGameSy
 
               {/* Source Documents */}
               <div>
-                <h3 className="text-primary/60 text-xs uppercase tracking-wider mb-3 flex items-center gap-2">
+                <button
+                  type="button"
+                  onClick={() => setShowSources(!showSources)}
+                  className="w-full text-left text-primary/60 text-xs uppercase tracking-wider mb-3 flex items-center gap-2 hover:text-primary/80 transition-colors"
+                  aria-expanded={showSources}
+                  aria-controls="sources-content"
+                >
+                  <span className="material-icons text-sm">
+                    {showSources ? 'expand_less' : 'expand_more'}
+                  </span>
                   <span className="material-icons text-sm">source</span>
                   Fuentes Relevantes ({results.documents.length})
-                </h3>
+                </button>
                 
-                {results.documents.length === 0 ? (
-                  <div className="text-center py-8">
-                    <span className="material-icons text-4xl text-primary/30 mb-2">search_off</span>
-                    <p className="text-primary/50 text-sm">
-                      No se encontraron resultados. Intenta reformular tu consulta.
-                    </p>
-                  </div>
-                ) : (
-                  <div className="space-y-3">
-                    {results.documents.map((result, index) => (
-                      <DocumentResultCard key={result.document.id || index} result={result} />
-                    ))}
-                  </div>
+                {showSources && (
+                  results.documents.length === 0 ? (
+                    <div className="text-center py-8">
+                      <span className="material-icons text-4xl text-primary/30 mb-2">search_off</span>
+                      <p className="text-primary/50 text-sm">
+                        No se encontraron resultados. Intenta reformular tu consulta.
+                      </p>
+                    </div>
+                  ) : (
+                    <div className="space-y-3">
+                      {results.documents.map((result, index) => (
+                        <DocumentResultCard key={result.document.id || index} result={result} />
+                      ))}
+                    </div>
+                  )
                 )}
               </div>
             </div>
@@ -475,7 +487,7 @@ const RuleQuery: React.FC<RuleQueryProps> = ({ onClose, gameSystemId: propGameSy
                 Escribe una pregunta sobre las reglas del juego y buscaré en los manuales
                 cargados para encontrar la información relevante.
               </p>
-              <div className="mt-6 grid grid-cols-1 sm:grid-cols-2 gap-2 text-xs">
+              <div className="mt-6 grid grid-cols-1 sm:grid-cols-2 gap-2 text-sm">
                 <ExampleQuery 
                   query="¿Cómo funciona el combate?" 
                   onClick={() => setQuery('¿Cómo funciona el combate?')} 

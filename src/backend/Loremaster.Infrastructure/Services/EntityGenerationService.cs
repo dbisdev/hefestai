@@ -472,10 +472,12 @@ public class EntityGenerationService : IEntityGenerationService
         }
 
         // Try to get style context from RAG
+        var styleSearchContext = BuildStyleSearchContext(entity, template, visualAttributes);
         var styleChunks = await _ragContextProvider.GetStyleContextAsync(
             gameSystemId,
             entity.OwnerId,
             template.EntityTypeName,
+            styleSearchContext,
             cancellationToken);
 
         if (styleChunks.Any())
@@ -512,6 +514,29 @@ public class EntityGenerationService : IEntityGenerationService
         }
 
         return fullPrompt;
+    }
+
+    /// <summary>
+    /// Builds a context string for style search based on entity attributes.
+    /// </summary>
+    private static string? BuildStyleSearchContext(LoreEntity entity, EntityTemplate template, List<string> visualAttributes)
+    {
+        var contextParts = new List<string>();
+        
+        if (!string.IsNullOrWhiteSpace(entity.Description))
+        {
+            var truncatedDesc = entity.Description.Length > 100 
+                ? entity.Description[..100] 
+                : entity.Description;
+            contextParts.Add(truncatedDesc);
+        }
+        
+        if (visualAttributes.Any())
+        {
+            contextParts.AddRange(visualAttributes.Take(3));
+        }
+        
+        return contextParts.Any() ? string.Join(", ", contextParts) : null;
     }
 
     /// <summary>

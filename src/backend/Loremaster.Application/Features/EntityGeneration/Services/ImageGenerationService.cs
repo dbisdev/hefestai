@@ -63,14 +63,15 @@ public class ImageGenerationService : IImageGenerationService
                 context.GameSystemId.Value,
                 context.UserId,
                 context.EntityType,
+                context.StyleSearchContext,
                 cancellationToken);
 
             if (!styleContext.Any())
                 return string.Empty;
 
             var contextText = string.Join(" ",
-                styleContext.Take(2).Select(c =>
-                    c.Content?.Substring(0, Math.Min(200, c.Content.Length)) ?? string.Empty));
+                styleContext.Take(5).Select(c =>
+                    c.Content?.Substring(0, Math.Min(400, c.Content.Length)) ?? string.Empty));
 
             return $" Art style based on: {contextText}";
         }

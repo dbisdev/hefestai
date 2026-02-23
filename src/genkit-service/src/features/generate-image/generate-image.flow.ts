@@ -11,7 +11,7 @@ export const imageGenerateFlow = ai.defineFlow(
   async (input: ImageGenerateRequest): Promise<ImageGenerateResponse> => {
     const enhancedPrompt = buildEnhancedPrompt(input);
     const fullPrompt = `Generate an image: ${enhancedPrompt}`;
-
+    console.log('Full prompt for image generation:', fullPrompt);
     try {
       const response = await ai.generate({
         model: geminiImageModel,

@@ -229,11 +229,18 @@ export const GameSystemForm: React.FC<GameSystemFormProps> = ({
           </div>
         </form>
 
-        <div className="p-4 border-t border-primary/20 flex justify-end gap-3 flex-shrink-0">
-          <Button variant="ghost" size="sm" type="button" onClick={onCancel} disabled={isLoading}>
+        <div className="p-4 border-t border-primary/20 flex justify-end gap-3 flex-shrink-0">         
+
+          <button
+            type="button"
+            onClick={onCancel}
+            disabled={isLoading}
+            className="cursor-pointer px-4 py-2 border border-primary/40 text-primary/80 text-sm uppercase tracking-widest hover:bg-primary/10 transition-colors disabled:opacity-50"
+          >
             Cancelar
-          </Button>
-          <Button variant="primary" size="sm" onClick={handleSubmit} isLoading={isLoading}>
+          </button>
+
+          <Button variant="primary" size="md" onClick={handleSubmit} isLoading={isLoading}>
             {mode === 'create' ? 'Crear' : 'Guardar'}
           </Button>
         </div>

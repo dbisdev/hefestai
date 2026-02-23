@@ -140,7 +140,7 @@ export const EditableField: React.FC<EditableFieldProps> = ({
       onClick={disabled ? undefined : handleStartEdit}
       className={`
         ${colors.bg} border ${colors.border} p-2 
-        ${disabled ? 'cursor-default' : 'cursor-pointer hover:border-opacity-100'} 
+        ${disabled ? 'cursor-default' : 'cursor-text hover:border-opacity-100'} 
         transition-all group
         ${disabled ? 'opacity-50' : ''}
         ${className}

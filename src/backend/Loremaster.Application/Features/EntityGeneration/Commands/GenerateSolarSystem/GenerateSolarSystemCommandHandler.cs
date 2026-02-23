@@ -68,7 +68,8 @@ public class GenerateSolarSystemCommandHandler : IRequestHandler<GenerateSolarSy
                         request.UserId,
                         "solar-system",
                         $"Breathtaking wide-angle cinematic view of a {request.SpectralClass}-type star solar system. Visible planets orbiting, vibrant cosmic nebulas in background, high detail, photorealistic space photography, sci-fi concept art, deep blacks, vivid colors.",
-                        description),
+                        description,
+                        $"Spectral class: {request.SpectralClass}"),
                     cancellationToken);
                 imageBase64 = imageResult.ImageBase64;
                 imageUrl = imageResult.ImageUrl;

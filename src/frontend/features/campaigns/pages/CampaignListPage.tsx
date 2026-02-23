@@ -43,7 +43,7 @@ export const CampaignListPage: React.FC = () => {
   // Local state
   const [gameSystems, setGameSystems] = useState<GameSystem[]>([]);
   const [isLoadingGameSystems, setIsLoadingGameSystems] = useState(true);
-  const [selectedCampaign, setSelectedCampaign] = useState<CampaignDetail | null>(null);
+  const [selectedCampaign, setSelectedCampaign] = useState<Campaign | null>(null);
   const [filter, setFilter] = useState<'all' | 'master' | 'player'>('all');
   const [operationInProgress, setOperationInProgress] = useState<string | null>(null);
   const [showMobileModal, setShowMobileModal] = useState(false);
@@ -350,10 +350,22 @@ export const CampaignListPage: React.FC = () => {
       ? `¿Eliminar la campaña "${campaign.name}"? Esta acción no se puede deshacer.`
       : `¿Abandonar la campaña "${campaign.name}"?`;
     
-    if (!confirm(confirmMessage)) return;
+    const confirmed = await confirm({
+      title: isMaster ? 'Eliminar campaña' : 'Abandonar campaña',
+      message: confirmMessage,
+      variant: 'danger',
+      confirmLabel: isMaster ? 'Eliminar' : 'Abandonar'
+    });
+    if (!confirmed) return;
     
-    if (isMaster && !confirm('¿Estás ABSOLUTAMENTE seguro? Todos los datos se perderán.')) {
-      return;
+    if (isMaster) {
+      const doubleConfirmed = await confirm({
+        title: 'Confirmación final',
+        message: '¿Estás ABSOLUTAMENTE seguro? Todos los datos se perderán permanentemente.',
+        variant: 'danger',
+        confirmLabel: 'Sí, eliminar todo'
+      });
+      if (!doubleConfirmed) return;
     }
 
     setOperationInProgress(campaign.id);

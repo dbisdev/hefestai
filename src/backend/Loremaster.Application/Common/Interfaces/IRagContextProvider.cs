@@ -32,12 +32,14 @@ public interface IRagContextProvider
     /// <param name="gameSystemId">The game system to scope the search.</param>
     /// <param name="ownerId">The owner ID for authorization.</param>
     /// <param name="entityTypeName">The entity type being visualized.</param>
+    /// <param name="additionalContext">Optional additional context (e.g., species, role, morphology) to refine style search.</param>
     /// <param name="cancellationToken">Cancellation token.</param>
     /// <returns>List of style and visual context chunks.</returns>
     Task<IReadOnlyList<RagContextChunk>> GetStyleContextAsync(
         Guid gameSystemId,
         Guid ownerId,
         string entityTypeName,
+        string? additionalContext = null,
         CancellationToken cancellationToken = default);
 }
 

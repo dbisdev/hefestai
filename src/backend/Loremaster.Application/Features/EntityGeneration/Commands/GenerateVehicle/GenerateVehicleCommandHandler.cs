@@ -65,7 +65,9 @@ public class GenerateVehicleCommandHandler : IRequestHandler<GenerateVehicleComm
                         request.GameSystemId,
                         request.UserId,
                         "vehicle",
-                        $"Stunning {request.Type} design, {request.Class} class, powered by {request.Engine} engine. Sleek vehicle, detailed mechanical components, cinematic lighting, concept art style, black space background, 8k resolution."),
+                        $"Stunning {request.Type} design, {request.Class} class. Sleek vehicle, detailed mechanical components, cinematic lighting, concept art style, black background, 8k resolution, NEVER include text.",
+                        null,
+                        $"Type: {request.Type}, Class: {request.Class}, Engine: {request.Engine}"),
                     cancellationToken);
                 imageBase64 = imageResult.ImageBase64;
                 imageUrl = imageResult.ImageUrl;
