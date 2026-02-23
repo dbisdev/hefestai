@@ -7,7 +7,8 @@
 
 import React, { useEffect, useRef } from 'react';
 import { buildLabelMapFromFields, getDisplayLabel, categorizeAttributes } from '@core/utils';
-import type { LoreEntity, FieldDefinition } from '@core/types';
+import { SolarSystemVisualization } from '@shared/components/visualization';
+import type { LoreEntity, FieldDefinition, PlanetData } from '@core/types';
 import { VisibilityLevel } from '@core/types';
 
 interface EntityViewModalProps {
@@ -49,6 +50,11 @@ export const EntityViewModal: React.FC<EntityViewModalProps> = ({
   // Categorize attributes by type for proper rendering
   const { numeric: numericAttrs, string: stringAttrs, nested: nestedAttrs } = categorizeAttributes(attributes);
   const hasAttributes = numericAttrs.length > 0 || stringAttrs.length > 0 || nestedAttrs.length > 0;
+
+  // Detect solar system for special visualization
+  const isSolarSystem = entity.entityType === 'solar_system';
+  const planets = (attributes?.planets as PlanetData[] | undefined) ?? [];
+  const spectralClass = attributes?.spectralClass as string | undefined;
 
   // Handle escape key to close modal
   useEffect(() => {
@@ -100,8 +106,16 @@ export const EntityViewModal: React.FC<EntityViewModalProps> = ({
 
         {/* Content - Scrollable */}
         <div className="p-6 space-y-4 font-mono overflow-y-auto flex-1 custom-scrollbar">
-          {/* Entity Image */}
-          {entity.imageUrl && (
+          {/* Entity Visualization or Image */}
+          {isSolarSystem ? (
+            <SolarSystemVisualization
+              spectralClass={spectralClass}
+              planets={planets}
+              size="lg"
+              showPlanetList={true}
+              backgroundImage={entity.imageUrl}
+            />
+          ) : entity.imageUrl ? (
             <div className="relative w-full aspect-square border border-primary/30 p-1 bg-black shadow-[0_0_15px_rgba(37,244,106,0.1)]">
               <img 
                 src={entity.imageUrl} 
@@ -113,7 +127,7 @@ export const EntityViewModal: React.FC<EntityViewModalProps> = ({
                 {[...Array(3)].map((_, i) => <div key={i} className="w-1.5 h-1.5 bg-primary/40 animate-pulse" style={{ animationDelay: `${i*0.1}s` }} />)}
               </div>
             </div>
-          )}
+          ) : null}
 
           {/* Basic Info Section */}
           <div className="space-y-4">

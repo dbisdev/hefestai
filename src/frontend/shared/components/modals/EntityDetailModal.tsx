@@ -6,7 +6,8 @@
  */
 
 import React, { useEffect, useRef } from 'react';
-import type { LoreEntity, FieldDefinition } from '@core/types';
+import { SolarSystemVisualization } from '@shared/components/visualization';
+import type { LoreEntity, FieldDefinition, PlanetData } from '@core/types';
 import { VisibilityLevel } from '@core/types';
 
 interface EntityDetailModalProps {
@@ -48,6 +49,12 @@ export const EntityDetailModal: React.FC<EntityDetailModalProps> = ({
   const visibilityInfo = visibilityLabels[entity.visibility] || { label: 'DESCONOCIDO', color: 'text-primary/40' };
   const isOwner = currentUserId === entity.ownerId;
   const canEdit = isMaster || isOwner;
+
+  // Detect solar system for special visualization
+  const isSolarSystem = entity.entityType === 'solar_system';
+  const attributes = (entity.attributes || {}) as Record<string, unknown>;
+  const planets = (attributes?.planets as PlanetData[] | undefined) ?? [];
+  const spectralClass = attributes?.spectralClass as string | undefined;
 
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
@@ -93,17 +100,28 @@ export const EntityDetailModal: React.FC<EntityDetailModalProps> = ({
         </div>
 
         <div className="p-4 space-y-4 font-mono overflow-y-auto flex-1 custom-scrollbar">
-          <div className="relative w-full aspect-square border border-primary/30 p-1 bg-black shadow-[0_0_15px_rgba(37,244,106,0.1)]">
-            <img 
-              src={imageUrl} 
-              alt={`Imagen de ${entity.name}`} 
-              className="w-full h-full object-cover" 
+          {/* Entity Visualization or Image */}
+          {isSolarSystem ? (
+            <SolarSystemVisualization
+              spectralClass={spectralClass}
+              planets={planets}
+              size="sm"
+              showPlanetList={false}
+              backgroundImage={entity.imageUrl}
             />
-            <div className="absolute top-2 left-2 px-1 bg-primary/80 text-black text-[8px] font-bold">ANALYSIS_LIVE</div>
+          ) : (
+            <div className="relative w-full aspect-square border border-primary/30 p-1 bg-black shadow-[0_0_15px_rgba(37,244,106,0.1)]">
+              <img 
+                src={imageUrl} 
+                alt={`Imagen de ${entity.name}`} 
+                className="w-full h-full object-cover" 
+              />
+              <div className="absolute top-2 left-2 px-1 bg-primary/80 text-black text-[8px] font-bold">ANALYSIS_LIVE</div>
               <div className="absolute bottom-2 right-2 flex gap-1">
                 {[...Array(3)].map((_, i) => <div key={i} className="w-1.5 h-1.5 bg-primary/40 animate-pulse" style={{ animationDelay: `${i*0.1}s` }} />)}
               </div>
-          </div>
+            </div>
+          )}
 
           <div className="space-y-3">
             <div>
@@ -149,7 +167,7 @@ export const EntityDetailModal: React.FC<EntityDetailModalProps> = ({
             MÁS_DATOS
           </button>
 
-          {canEdit && (
+          {canEdit && !isSolarSystem && (
             <button
               onClick={() => { onEdit(); onClose(); }}
               className="cursor-pointer w-full py-2.5 border border-primary/60 text-primary text-xs hover:bg-primary/20 transition-all font-bold uppercase tracking-wider flex items-center justify-center gap-2"

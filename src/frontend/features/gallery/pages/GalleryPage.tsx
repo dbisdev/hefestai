@@ -1434,7 +1434,7 @@ const EntityDetailPanel = forwardRef<HTMLElement, EntityDetailPanelProps>(
                 <span className="material-icons text-sm">visibility</span> MÁS_DATOS
               </button>
               
-              {(isMaster || currentUserId === entity.ownerId) && (
+              {(isMaster || currentUserId === entity.ownerId) && entity.entityType !== 'solar_system' && (
                 <button 
                   onClick={onEdit}
                   aria-label={`Editar ${entity.name}`}
