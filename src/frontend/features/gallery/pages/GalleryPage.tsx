@@ -21,6 +21,7 @@ import { useNavigate } from 'react-router-dom';
 import { TerminalLayout } from '@shared/components/layout';
 import { EntityEditModal, EntityViewModal, EntityDetailModal } from '@shared/components/modals';
 import { EmptyState, ConfirmDialog, TerminalLog } from '@shared/components/ui';
+import { SolarSystemVisualization } from '@shared/components/visualization';
 import { useCampaign, useAuth } from '@core/context';
 import { entityService, entityTemplateService } from '@core/services/api';
 import { useCharacterSheetPdf, useConfirmDialog, useTerminalLog } from '@core/hooks';
@@ -39,7 +40,7 @@ import {
   getIconForEntityType,
   type CategoryInfo 
 } from '@features/gallery/constants/categories';
-import type { LoreEntity, EntityCategory, CreateLoreEntityInput, EntityTemplateSummary, FieldDefinition } from '@core/types';
+import type { LoreEntity, EntityCategory, CreateLoreEntityInput, EntityTemplateSummary, FieldDefinition, PlanetData } from '@core/types';
 import { CampaignRole, VisibilityLevel } from '@core/types';
 
 const SOLAR_SYSTEM_GAME_SYSTEM_ID = '376520e8-ff30-44d0-b048-ba07b2fdd12b';
@@ -1332,6 +1333,12 @@ const EntityDetailPanel = forwardRef<HTMLElement, EntityDetailPanelProps>(
     const imageUrl = entity?.imageUrl || 'https://images.unsplash.com/photo-1683322001857-f4d932a40672?q=80&w=400&auto=format&fit=crop';
     const scrollContainerRef = useRef<HTMLDivElement>(null);
     
+    // Detect solar system for special visualization
+    const isSolarSystem = entity?.entityType === 'solar_system';
+    const attributes = (entity?.attributes || {}) as Record<string, unknown>;
+    const planets = (attributes?.planets as PlanetData[] | undefined) ?? [];
+    const spectralClass = attributes?.spectralClass as string | undefined;
+    
     const { state: pdfState, exportToPdf } = useCharacterSheetPdf();
     
     useEffect(() => {
@@ -1382,13 +1389,24 @@ const EntityDetailPanel = forwardRef<HTMLElement, EntityDetailPanelProps>(
         
         {hasEntity ? (
           <div ref={scrollContainerRef} className="p-6 flex flex-col gap-6 flex-1 min-h-0 overflow-y-auto custom-scrollbar font-mono">
-            <div className="relative w-full aspect-square border-2 border-primary/30 p-1 bg-black shadow-[0_0_15px_rgba(37,244,106,0.1)]">
-              <img src={imageUrl} alt={`Imagen de ${entity.name}`} className="w-full h-full object-cover filter transition-all duration-700" />
-              <div className="absolute top-2 left-2 px-1 bg-primary/80 text-black text-[8px] font-bold">ANALYSIS_LIVE</div>
-              <div className="absolute bottom-2 right-2 flex gap-1">
-                {[...Array(3)].map((_, i) => <div key={i} className="w-1.5 h-1.5 bg-primary/40 animate-pulse" style={{ animationDelay: `${i*0.1}s` }} />)}
+            {/* Entity Visualization or Image */}
+            {isSolarSystem ? (
+              <SolarSystemVisualization
+                spectralClass={spectralClass}
+                planets={planets}
+                size="md"
+                showPlanetList={false}
+                backgroundImage={entity?.imageUrl}
+              />
+            ) : (
+              <div className="relative w-full aspect-square border-2 border-primary/30 p-1 bg-black shadow-[0_0_15px_rgba(37,244,106,0.1)]">
+                <img src={imageUrl} alt={`Imagen de ${entity.name}`} className="w-full h-full object-cover filter transition-all duration-700" />
+                <div className="absolute top-2 left-2 px-1 bg-primary/80 text-black text-[8px] font-bold">ANALYSIS_LIVE</div>
+                <div className="absolute bottom-2 right-2 flex gap-1">
+                  {[...Array(3)].map((_, i) => <div key={i} className="w-1.5 h-1.5 bg-primary/40 animate-pulse" style={{ animationDelay: `${i*0.1}s` }} />)}
+                </div>
               </div>
-            </div>
+            )}
 
             <div className="space-y-4">
               <div>

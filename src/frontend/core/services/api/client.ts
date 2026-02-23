@@ -65,6 +65,22 @@ async function tryRefreshToken(): Promise<boolean> {
 }
 
 /**
+ * Check if token should be proactively refreshed
+ * Returns true if token expires within the threshold
+ */
+function shouldRefreshToken(): boolean {
+  const token = tokenService.getAccessToken();
+  if (!token) return false;
+  
+  const expiration = tokenService.getTokenExpiration(token);
+  if (!expiration) return false;
+  
+  // Refresh if token expires within 5 minutes
+  const threshold = 5 * 60 * 1000;
+  return expiration.getTime() - Date.now() < threshold;
+}
+
+/**
  * Main API request function with automatic token refresh
  */
 export async function apiRequest<T>(
@@ -88,6 +104,24 @@ export async function apiRequest<T>(
       if (token) {
         (headers as Record<string, string>)['Authorization'] = `Bearer ${token}`;
       }
+      
+      // Proactive refresh: refresh token before it expires
+      if (shouldRefreshToken() && !isRefreshing) {
+        isRefreshing = true;
+        try {
+          await tryRefreshToken();
+        } catch {
+          // Silently fail - the request will proceed with current token
+          // If it's truly expired, the 401 handler will catch it
+        } finally {
+          isRefreshing = false;
+        }
+        // Update header with potentially new token
+        const newToken = tokenService.getAccessToken();
+        if (newToken) {
+          (headers as Record<string, string>)['Authorization'] = `Bearer ${newToken}`;
+        }
+      }
     }
 
     const response = await fetch(`${API_BASE}${endpoint}`, {
@@ -102,30 +136,36 @@ export async function apiRequest<T>(
     if (response.status === 401 && !skipAuth && tokenService.getRefreshToken()) {
       if (!isRefreshing) {
         isRefreshing = true;
-        const refreshed = await tryRefreshToken();
-        isRefreshing = false;
+        let refreshed = false;
+        try {
+          refreshed = await tryRefreshToken();
 
-        if (refreshed) {
-          // Retry the request with new token
-          const newToken = tokenService.getAccessToken();
-          (headers as Record<string, string>)['Authorization'] = `Bearer ${newToken}`;
-          
-          const retryResponse = await fetch(`${API_BASE}${endpoint}`, {
-            ...fetchOptions,
-            headers,
-          });
+          if (refreshed) {
+            // Retry the request with new token
+            const newToken = tokenService.getAccessToken();
+            (headers as Record<string, string>)['Authorization'] = `Bearer ${newToken}`;
+            
+            const retryResponse = await fetch(`${API_BASE}${endpoint}`, {
+              ...fetchOptions,
+              headers,
+            });
 
-          if (!retryResponse.ok) {
-            const error = await parseErrorResponse(retryResponse);
-            throw new ApiRequestError(error.message, retryResponse.status, error.code, error.errors);
+            if (!retryResponse.ok) {
+              const error = await parseErrorResponse(retryResponse);
+              throw new ApiRequestError(error.message, retryResponse.status, error.code, error.errors);
+            }
+
+            if (retryResponse.status === 204) {
+              return {} as T;
+            }
+
+            return retryResponse.json();
           }
-
-          if (retryResponse.status === 204) {
-            return {} as T;
-          }
-
-          return retryResponse.json();
-        } else {
+        } finally {
+          isRefreshing = false;
+        }
+        
+        if (!refreshed) {
           tokenService.clearTokens();
           throw new ApiRequestError('Session expired', 401, 'SESSION_EXPIRED');
         }

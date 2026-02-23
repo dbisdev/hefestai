@@ -274,7 +274,7 @@ export const TemplatesPage: React.FC = () => {
   }
 
   const mainContent = (
-    <div className="flex flex-col lg:flex-row h-full gap-6">
+    <div className="flex flex-col md:flex-row md:h-full gap-6">
       {/* Left Column - Game Systems & Templates */}
       <div className="w-full lg:w-1/3 flex flex-col gap-4 overflow-hidden">
         {/* Game System Selector */}

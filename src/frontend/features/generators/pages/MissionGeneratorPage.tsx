@@ -190,7 +190,7 @@ export const MissionGeneratorPage: React.FC<MissionGeneratorPageProps> = ({ onBa
       gameSystemId={activeCampaign?.gameSystemId}
       hideCampaignSelector={false}
     >
-      <div className="flex flex-col lg:flex-row gap-8 h-full font-mono">
+      <div className="flex flex-col md:flex-row gap-8 md:h-full font-mono">
         <div className="flex-1 flex flex-col gap-6 overflow-y-auto pr-2">
           {!activeCampaignId && (
             <div className="border border-yellow-500/50 bg-yellow-500/10 p-3 text-xs text-yellow-500 uppercase">

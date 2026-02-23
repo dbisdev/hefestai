@@ -155,7 +155,7 @@ public static class DependencyInjection
                 ValidAudience = configuration["Jwt:Audience"],
                 IssuerSigningKey = new SymmetricSecurityKey(
                     Encoding.UTF8.GetBytes(configuration["Jwt:Secret"]!)),
-                ClockSkew = TimeSpan.Zero,
+                ClockSkew = TimeSpan.FromSeconds(30),
                 // Use simple "role" claim type to match JwtTokenGenerator
                 RoleClaimType = JwtTokenGenerator.RoleClaimType
             };

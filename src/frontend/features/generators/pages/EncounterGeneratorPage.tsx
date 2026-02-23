@@ -197,7 +197,7 @@ export const EncounterGeneratorPage: React.FC<EncounterGeneratorPageProps> = ({ 
       gameSystemId={activeCampaign?.gameSystemId}
       hideCampaignSelector={false}
     >
-      <div className="flex flex-col lg:flex-row gap-8 h-full font-mono">
+      <div className="flex flex-col md:flex-row gap-8 md:h-full font-mono">
         <div className="flex-1 flex flex-col gap-6 overflow-y-auto pr-2">
           <div className="space-y-6">
             <div>

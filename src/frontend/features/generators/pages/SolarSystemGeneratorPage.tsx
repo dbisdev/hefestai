@@ -139,7 +139,7 @@ export const SolarSystemGeneratorPage: React.FC<SolarSystemGeneratorPageProps> =
       gameSystemId={activeCampaign?.gameSystemId}
       hideCampaignSelector={false}
     >
-      <div className="flex flex-col lg:flex-row gap-6 h-full overflow-hidden font-mono">
+      <div className="flex flex-col md:flex-row gap-6 md:h-full overflow-hidden font-mono">
         <aside className="lg:w-80 xl:w-96 flex flex-col gap-4 relative z-10 overflow-y-auto pr-2">
           <div className="bg-surface-dark/50 border border-primary/30 p-4 h-full flex flex-col gap-6 backdrop-blur-sm">
             <h2 className="text-xl uppercase border-b border-primary/30 pb-1 mb-2 flex justify-between font-display text-primary">

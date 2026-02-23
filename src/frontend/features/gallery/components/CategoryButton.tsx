@@ -93,7 +93,7 @@ export const CategoryButton: React.FC<CategoryButtonProps> = ({
       onClick={onClick}
       onKeyDown={onKeyDown}
       disabled={isDisabled}
-      className={`group flex items-center gap-3 p-3 border transition-all clip-tech-tl relative overflow-hidden ${getButtonClass()} ${isDisabled ? 'opacity-50' : ''}`}
+      className={`cursor-pointer group flex items-center gap-3 p-3 border transition-all clip-tech-tl relative overflow-hidden ${getButtonClass()} ${isDisabled ? 'opacity-50' : ''}`}
     >
       {isActive && (
         <div className={`absolute inset-0 ${styles.pulseBg} animate-pulse pointer-events-none`}></div>
