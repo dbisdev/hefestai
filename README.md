@@ -1,15 +1,15 @@
 # HefestAI
 
-AI-powered worldbuilding and lore management platform for tabletop RPG game masters and creative writers.
+Plataforma de construcción de mundos y gestión de lore impulsada por IA para masters y jugadores de juegos de rol de mesa.
 
-## Architecture Overview
+## Resumen de Arquitectura
 
 ```
 ┌─────────────────┐     ┌──────────────────┐     ┌─────────────────┐
-│    Frontend     │────▶│   .NET Backend   │────▶│  Genkit Service │
+│    Frontend     │────▶│   Backend .NET   │────▶│  Servicio Genkit│
 │   (React/Vite)  │     │   (ASP.NET Core) │     │   (Node/Express)│
 │                 │     │                  │     │                 │
-│   Vercel        │     │    Railway       │     │    Railway      │
+│    Vercel       │     │    Railway       │     │    Railway      │
 └─────────────────┘     └──────────────────┘     └─────────────────┘
                                │
                                ▼
@@ -22,357 +22,369 @@ AI-powered worldbuilding and lore management platform for tabletop RPG game mast
                         └──────────────────┘
 ```
 
-### Components
+### Componentes
 
-| Component | Technology | Port (Dev) | Deployment |
-|-----------|------------|------------|------------|
+| Componente | Tecnología | Puerto (Dev) | Despliegue |
+|------------|------------|--------------|------------|
 | Frontend | React 19 + Vite 6 + TypeScript | 5173 | Vercel |
-| Backend API | .NET 8 + EF Core 8 | 5000 | Railway |
-| AI Service | Node.js 20 + Genkit 1.0 + Gemini | 3000 | Railway |
-| Database | PostgreSQL 16 + pgvector | 5432 | Supabase |
+| API Backend | .NET 8 + EF Core 8 | 5000 | Railway |
+| Servicio IA | Node.js 20 + Genkit 1.0 + Gemini | 3000 | Railway |
+| Base de datos | PostgreSQL 16 + pgvector | 5432 | Supabase |
 
-## Features
+## Características
 
-### Core Features
-- **AI-Powered Content Generation**: Characters, NPCs, enemies, locations, items, missions, encounters using Google Gemini 2.0 Flash
-- **Image Generation**: AI-generated images using Gemini 2.5 Flash with style options (realistic, artistic, anime, fantasy, sketch)
-- **RAG (Retrieval-Augmented Generation)**: Semantic search with pgvector embeddings for context-aware generation
-- **Campaign Management**: Create and manage campaigns with join codes for players
-- **Multi-Role Support**: Player, Master, Admin roles with role-based access control
+### Características Principales
 
-### Generators (9 Types)
-| Generator | Description | Role Required |
+- **Generación de Contenido con IA**: Personajes, PNJs, enemigos, localizaciones, objetos, misiones, encuentros usando Google Gemini 2.0 Flash
+- **Generación de Imágenes**: Imágenes generadas por IA con Gemini 2.5 Flash con opciones de estilo (realista, artístico, anime, fantasía, boceto)
+- **RAG (Generación Aumentada por Recuperación)**: Búsqueda semántica con embeddings pgvector para generación consciente del contexto
+- **Gestión de Campañas**: Crea y gestiona campañas con códigos de unión para jugadores
+- **Soporte Multi-rol**: Roles Jugador, Master, Admin con control de acceso basado en roles
+- **Sesión Persistente**: Refresh token proactivo para evitar pérdidas de sesión
+
+### Generadores (7 Tipos dependientes de plantillas)
+
+| Generador | Descripción | Rol Requerido |
 |-----------|-------------|---------------|
-| Character | Player character creation with 3D visualization | Player+ |
-| NPC | Non-player character generation | Master+ |
-| Enemy | Antagonist and monster generation | Master+ |
-| Vehicle | Starships, ground vehicles, etc. | Master+ |
-| Solar System | Planetary systems with 3D visualization | Master+ |
-| Mission | Quest and mission generation | Master+ |
-| Encounter | Combat and social encounter design | Master+ |
-| Campaign | Full campaign outline generation | Master+ |
-| Campaign Settings | Campaign configuration and management | Master+ |
+| Personaje | Generación de personajes jugador | Player+ |
+| PNJ | Generación de personajes no jugadores | Master+ |
+| Enemigo | Generación de antagonistas y monstruos | Master+ |
+| Vehículo | Naves, vehículos terrestres, monturas | Master+ |
+| Misión | Generación de misiones y encargos | Master+ |
+| Encuentro | Diseño de encuentros de combate y sociales | Master+ |
+| Sistema Solar (Labs) | Sistemas planetarios con visualización orbital animada | Master+ |
 
-### Additional Features
-- **3D Visualizations**: Three.js powered character, solar system, and vehicle viewers
-- **PDF Export**: Character sheet generation and export via jsPDF
-- **Entity Gallery**: Browse, edit, and manage all created lore entities
-- **Document Import**: Import PDFs/manuals for RAG context
-- **Dice Roller**: Built-in dice rolling utility
-- **Rule Query**: AI-powered rules lookup
+### Funcionalidades Adicionales
 
-## Quick Start
+- **Visualización Orbital**: Sistemas solares con planetas animados
+- **Exportación PDF**: Generación y exportación de fichas de personaje con jsPDF
+- **Galería de Entidades**: Navega, edita y gestiona todas las entidades de lore creadas
+- **Importación de Documentos**: Importa PDFs/manuales para contexto RAG
+- **Compresión de Imágenes**: Imágenes subidas comprimidas automáticamente a WebP
+- **Consulta de Reglas**: Búsqueda de reglas potenciada por IA
+- **Tirador de Dados**: Utilidad de tirada de dados integrada, visualización 3D con Three.js
+- **Configuración Campaña**: Configuración y gestión de campaña
+- **Sistemas de Juego**: Gestión de sistemas de juego compatibles
 
-### Prerequisites
+## Inicio Rápido
+
+### Requisitos Previos
 
 - Node.js 20+
 - .NET 8 SDK
 - Docker Desktop
-- Google AI API Key ([Get one here](https://aistudio.google.com/apikey))
+- Google AI API Key ([Consíguela aquí](https://aistudio.google.com/apikey))
 
-### 1. Clone and Setup
+### 1. Clonar y Configurar
 
 ```bash
-git clone <repository-url>
+git clone <url-del-repositorio>
 cd hefestai
 
-# Copy environment file
+# Copiar archivo de entorno
 cp .env.example .env
-# Edit .env and add your GOOGLE_GENAI_API_KEY
+# Editar .env y añadir tu GOOGLE_GENAI_API_KEY
 ```
 
-### 2. Start Database (Docker)
+### 2. Iniciar Base de Datos (Docker)
 
 ```bash
 docker-compose -f docker-compose.dev.yml up -d
 ```
 
-### 3. Run Backend
+### 3. Ejecutar Backend
 
 ```bash
 cd src/backend
 
-# Restore packages
+# Restaurar paquetes
 dotnet restore
 
-# Run migrations
+# Ejecutar migraciones
 dotnet ef database update --project Loremaster.Infrastructure --startup-project Loremaster.Api
 
-# Start the API
+# Iniciar la API
 dotnet run --project Loremaster.Api
 ```
 
-### 4. Run Genkit Service
+### 4. Ejecutar Servicio Genkit
 
 ```bash
 cd src/genkit-service
 
-# Install dependencies
+# Instalar dependencias
 npm install
 
-# Start in development mode
+# Iniciar en modo desarrollo
 npm run dev
 ```
 
-### 5. Run Frontend
+### 5. Ejecutar Frontend
 
 ```bash
 cd src/frontend
 
-# Install dependencies
+# Instalar dependencias
 npm install
 
-# Start development server
+# Iniciar servidor de desarrollo
 npm run dev
 ```
 
-Open http://localhost:5173 in your browser.
+Abre http://localhost:5173 en tu navegador.
 
-## Project Structure
+## Estructura del Proyecto
 
 ```
 hefestai/
 ├── src/
 │   ├── frontend/                    # React 19 + Vite + TypeScript
-│   │   ├── core/                    # Core services & hooks
+│   │   ├── core/                    # Servicios principales y hooks
 │   │   │   ├── context/             # AuthContext, CampaignContext
 │   │   │   ├── hooks/               # useApi, useTransition, useCharacterSheetPdf
-│   │   │   ├── services/            # API clients, PDF generation, storage
-│   │   │   ├── types/               # TypeScript type definitions
-│   │   │   └── utils/               # Security, validation utilities
-│   │   ├── features/                # Feature modules
-│   │   │   ├── auth/                # Login, Signup pages
-│   │   │   ├── gallery/             # Entity gallery & management
-│   │   │   └── generators/          # 9 generator pages
-│   │   ├── shared/                  # Shared components
-│   │   │   ├── components/          # UI, layout, feedback, modals
+│   │   │   ├── services/            # Clientes API, generación PDF, almacenamiento
+│   │   │   ├── types/               # Definiciones de tipos TypeScript
+│   │   │   └── utils/               # Utilidades de seguridad, validación
+│   │   ├── features/                # Módulos de funcionalidades
+│   │   │   ├── auth/                # Páginas Login, Signup
+│   │   │   ├── gallery/             # Galería y gestión de entidades
+│   │   │   └── generators/          # 10 páginas de generadores
+│   │   ├── shared/                  # Componentes compartidos
+│   │   │   ├── components/          # UI, layout, feedback, modals, visualization
 │   │   │   └── guards/              # AuthGuard, RoleGuard
 │   │   └── components/              # DiceRoller, RuleQuery
 │   │
 │   ├── backend/                     # .NET 8 Clean Architecture
 │   │   ├── Loremaster.Api/          # ASP.NET Core Web API
-│   │   │   └── Controllers/         # REST endpoints
-│   │   ├── Loremaster.Application/  # CQRS commands/queries (MediatR)
-│   │   │   └── Features/            # Feature-based organization
-│   │   ├── Loremaster.Domain/       # Domain layer
+│   │   │   └── Controllers/         # Endpoints REST
+│   │   ├── Loremaster.Application/  # Comandos/consultas CQRS (MediatR)
+│   │   │   └── Features/            # Organización por funcionalidad
+│   │   ├── Loremaster.Domain/       # Capa de dominio
 │   │   │   ├── Entities/            # Campaign, User, LoreEntity, etc.
 │   │   │   ├── Enums/               # UserRole, CampaignRole, etc.
 │   │   │   └── ValueObjects/        # FieldDefinition, EntityGenerationConfig
-│   │   ├── Loremaster.Infrastructure/  # Data access & external services
-│   │   │   ├── Persistence/         # EF Core, repositories, migrations
-│   │   │   ├── Identity/            # JWT, password hashing
+│   │   ├── Loremaster.Infrastructure/  # Acceso datos y servicios externos
+│   │   │   ├── Persistence/         # EF Core, repositorios, migraciones
+│   │   │   ├── Identity/            # JWT, hash de contraseñas
 │   │   │   └── Services/            # GenkitAiService, TextChunkingService
-│   │   ├── Loremaster.Shared/       # Helpers, extensions
+│   │   ├── Loremaster.Shared/       # Helpers, extensiones
 │   │   ├── Loremaster.Tests.Unit/   # xUnit + FluentAssertions + Moq
-│   │   └── Loremaster.Tests.Integration/  # Testcontainers integration tests
+│   │   └── Loremaster.Tests.Integration/  # Testcontainers tests integración
 │   │
-│   └── genkit-service/              # Node.js AI microservice
+│   └── genkit-service/              # Microservicio IA Node.js
 │       └── src/
-│           ├── index.ts             # Express server
-│           ├── flows.ts             # Genkit AI flows (6 flows)
-│           ├── schemas.ts           # Zod validation
-│           └── middleware/          # JWT auth
+│           ├── index.ts             # Servidor Express
+│           ├── flows.ts             # Flujos AI Genkit (6 flujos)
+│           ├── schemas.ts           # Validación Zod
+│           └── middleware/          # Auth JWT
 │
 ├── docker/
-│   └── init.sql                     # PostgreSQL initialization
-├── docker-compose.yml               # Full stack (production-like)
-├── docker-compose.dev.yml           # Development (DB only)
-└── .env.example                     # Environment template
+│   └── init.sql                     # Inicialización PostgreSQL
+├── docker-compose.yml               # Stack completo (producción)
+├── docker-compose.dev.yml           # Desarrollo (solo BD)
+└── .env.example                     # Plantilla de entorno
 ```
 
-## Domain Model
+## Modelo de Dominio
 
-### Core Entities
+### Entidades Principales
 
-| Entity | Description |
-|--------|-------------|
-| **User** | Users with roles (Player, Master, Admin) and JWT auth |
-| **Campaign** | Game campaigns with join codes and game system |
-| **CampaignMember** | User participation with campaign-specific roles |
-| **GameSystem** | Supported RPG systems |
-| **LoreEntity** | Polymorphic entity for all lore content |
-| **EntityTemplate** | Reusable templates with field definitions |
-| **Document** | Ingested documents for RAG |
-| **RagSource** | RAG document sources (rulebooks, supplements) |
-| **GenerationRequest** | AI generation request tracking |
-| **GenerationResult** | AI generation outputs with source tracing |
+| Entidad | Descripción |
+|---------|-------------|
+| **User** | Usuarios con roles (Player, Master, Admin) y auth JWT |
+| **Campaign** | Campañas de juego con códigos de unión y sistema de juego |
+| **CampaignMember** | Participación de usuario con roles específicos de campaña |
+| **GameSystem** | Sistemas RPG soportados |
+| **LoreEntity** | Entidad polimórfica para todo el contenido de lore |
+| **EntityTemplate** | Plantillas reutilizables con definiciones de campos |
+| **Document** | Documentos ingeridos para RAG |
+| **RagSource** | Fuentes de documentos RAG (manuales, suplementos) |
+| **GenerationRequest** | Seguimiento de peticiones de generación IA |
+| **GenerationResult** | Salidas de generación IA con trazabilidad de fuentes |
 
-### Entity Categories
+### Categorías de Entidades
 
-- **Characters** - Player characters, NPCs, enemies
-- **Planets** - Locations, solar systems
-- **Vehicles** - Ships, vehicles, mounts
+- **Personajes** - Personajes jugador, PNJs, enemigos
+- **Planetas** - Localizaciones, sistemas solares
+- **Vehículos** - Naves, vehículos, monturas
+- **Eventos** - Misiones, encuentros
 
-### User Roles
+### Roles de Usuario
 
-| Role | Permissions |
-|------|-------------|
-| **Player** | Create characters, view allowed entities, join campaigns |
-| **Master** | All player permissions + create campaigns, all generators, manage entities |
-| **Admin** | Full system access, user management |
+| Rol | Permisos |
+|-----|----------|
+| **Player** | Crear personajes, ver entidades permitidas, unirse a campañas |
+| **Master** | Todos los permisos de jugador + crear campañas, todos los generadores, gestionar entidades |
+| **Admin** | Acceso completo al sistema, gestión de usuarios |
 
-## API Endpoints
+## Endpoints API
 
-### Backend API (Port 5000)
+### API Backend (Puerto 5000)
 
-| Endpoint | Method | Description | Auth |
+| Endpoint | Método | Descripción | Auth |
 |----------|--------|-------------|------|
-| `/api/auth/register` | POST | Register new user | No |
-| `/api/auth/login` | POST | Login, get tokens | No |
-| `/api/auth/refresh-token` | POST | Refresh access token | No |
-| `/api/auth/me` | GET | Get current user | Yes |
-| `/api/auth/logout` | POST | Logout, revoke refresh token | Yes |
-| `/api/campaigns` | GET/POST | List/create campaigns | Yes |
-| `/api/campaigns/{id}` | GET/PUT/DELETE | Campaign CRUD | Yes |
-| `/api/campaigns/{id}/join` | POST | Join campaign with code | Yes |
-| `/api/entities` | GET/POST | List/create lore entities | Yes |
-| `/api/entities/{id}` | GET/PUT/DELETE | Entity CRUD | Yes |
-| `/api/entity-templates` | GET/POST | List/create templates | Yes |
-| `/api/entity-templates/{id}` | GET/PUT/DELETE | Template CRUD | Yes |
-| `/api/game-systems` | GET/POST | List/create game systems | Yes |
-| `/api/documents/ingest` | POST | Ingest document for RAG | Yes |
-| `/api/documents/search` | POST | Semantic search | Yes |
-| `/api/ai/generate` | POST | Generate text content | Yes |
-| `/api/ai/chat` | POST | Multi-turn chat | Yes |
+| `/api/auth/register` | POST | Registrar nuevo usuario | No |
+| `/api/auth/login` | POST | Login, obtener tokens | No |
+| `/api/auth/refresh-token` | POST | Refrescar access token | No |
+| `/api/auth/me` | GET | Obtener usuario actual | Sí |
+| `/api/auth/logout` | POST | Logout, revocar refresh token | Sí |
+| `/api/campaigns` | GET/POST | Listar/crear campañas | Sí |
+| `/api/campaigns/{id}` | GET/PUT/DELETE | CRUD de campaña | Sí |
+| `/api/campaigns/{id}/join` | POST | Unirse a campaña con código | Sí |
+| `/api/entities` | GET/POST | Listar/crear entidades de lore | Sí |
+| `/api/entities/{id}` | GET/PUT/DELETE | CRUD de entidad | Sí |
+| `/api/entity-templates` | GET/POST | Listar/crear plantillas | Sí |
+| `/api/entity-templates/{id}` | GET/PUT/DELETE | CRUD de plantilla | Sí |
+| `/api/game-systems` | GET/POST | Listar/crear sistemas de juego | Sí |
+| `/api/documents/ingest` | POST | Ingerir documento para RAG | Sí |
+| `/api/documents/search` | POST | Búsqueda semántica | Sí |
+| `/api/ai/generate` | POST | Generar contenido de texto | Sí |
+| `/api/ai/chat` | POST | Chat multi-turno | Sí |
 | `/health` | GET | Health check | No |
 | `/health/ready` | GET | Readiness probe | No |
 | `/health/live` | GET | Liveness probe | No |
 
-### Genkit Service (Port 3000)
+### Servicio Genkit (Puerto 3000)
 
-| Endpoint | Method | Description |
+| Endpoint | Método | Descripción |
 |----------|--------|-------------|
-| `/api/generate` | POST | Text generation (Gemini 2.0 Flash) |
-| `/api/chat` | POST | Multi-turn conversation |
-| `/api/summarize` | POST | Text summarization (concise/detailed/bullet-points) |
-| `/api/embeddings` | POST | Vector embeddings (gemini-embedding-001) |
-| `/api/rag/generate` | POST | RAG-based generation |
-| `/api/generate-image` | POST | Image generation (Gemini 2.5 Flash) |
+| `/api/generate` | POST | Generación de texto (Gemini 2.0 Flash) |
+| `/api/chat` | POST | Conversación multi-turno |
+| `/api/summarize` | POST | Resumen de texto (conciso/detallado/puntos) |
+| `/api/embeddings` | POST | Embeddings vectoriales (gemini-embedding-001) |
+| `/api/rag/generate` | POST | Generación basada en RAG |
+| `/api/generate-image` | POST | Generación de imágenes (Gemini 2.5 Flash) |
 | `/health` | GET | Health check |
 
-## Environment Configuration
+## Configuración de Entorno
 
-### Development (.env)
+### Desarrollo (.env)
 
 ```bash
-# Database (Local Docker)
+# Base de datos (Docker local)
 DATABASE_CONNECTION_STRING=Host=localhost;Port=5432;Database=loremaster;Username=postgres;Password=postgres
 
-# JWT (Development keys - DO NOT use in production)
+# JWT (Claves de desarrollo - NO usar en producción)
 JWT_SECRET=DEVELOPMENT_SECRET_KEY_DO_NOT_USE_IN_PRODUCTION_32CHARS
 SERVICE_JWT_SECRET=DEV_SERVICE_SECRET_KEY_DO_NOT_USE_IN_PRODUCTION_32
 
 # Google AI
-GOOGLE_GENAI_API_KEY=your_api_key_here
+GOOGLE_GENAI_API_KEY=tu_api_key_aqui
 
-# Services
+# Servicios
 GENKIT_SERVICE_URL=http://localhost:3000
 VITE_API_URL=http://localhost:5000/api
 ```
 
-### Production (Fly.io Secrets)
+### Producción (Railway Variables)
 
 ```bash
 # Backend (loremaster-api)
-fly secrets set ConnectionStrings__SupabaseConnection="Host=db.xxx.supabase.co;Port=6543;..."
-fly secrets set Jwt__Secret="your-secure-jwt-secret"
-fly secrets set ServiceJwt__Secret="your-service-secret"
-fly secrets set Cors__Origins__0="https://your-app.vercel.app"
+ConnectionStrings__SupabaseConnection=Host=db.xxx.supabase.co;Port=6543;Database=postgres;Username=postgres.xxx;Password=xxx;SSL Mode=Require;Trust Server Certificate=true;Pooling=true
+Jwt__Secret=tu-secreto-jwt-minimo-32-caracteres
+Jwt__AccessTokenExpirationMinutes=30
+ServiceJwt__Secret=tu-secreto-servicio
+Cors__Origins__0=https://tu-app.vercel.app
+GenkitService__ProductionUrl=https://tu-genkit.railway.app
 
 # Genkit (loremaster-genkit)
-fly secrets set GOOGLE_GENAI_API_KEY="your-api-key"
-fly secrets set SERVICE_JWT_SECRET="your-service-secret"
+GOOGLE_GENAI_API_KEY=tu-api-key
+SERVICE_JWT_SECRET=tu-secreto-servicio
+PORT=3000
 ```
 
-## Deployment
+## Despliegue
 
-### 1. Supabase Database Setup
+### 1. Configuración de Base de Datos Supabase
 
-1. Create project at [supabase.com](https://supabase.com)
-2. Enable pgvector extension:
+1. Crea un proyecto en [supabase.com](https://supabase.com)
+2. Habilita la extensión pgvector:
    ```sql
    CREATE EXTENSION IF NOT EXISTS vector;
    ```
-3. Get pooled connection string (Settings > Database > Connection string > URI, port 6543)
+3. Obtén la cadena de conexión con pooling (Settings > Database > Connection string > URI, puerto 6543)
 
-### 2. Deploy Genkit to Fly.io
+### 2. Desplegar Genkit en Railway
 
 ```bash
 cd src/genkit-service
 
-# Create app
-fly apps create loremaster-genkit
+# Crear nuevo proyecto en Railway (desde dashboard o CLI)
+railway init
 
-# Set secrets
-fly secrets set GOOGLE_GENAI_API_KEY="your-key"
-fly secrets set SERVICE_JWT_SECRET="your-service-secret"
+# Añadir variables de entorno
+railway variables set GOOGLE_GENAI_API_KEY=tu-api-key
+railway variables set SERVICE_JWT_SECRET=tu-secreto-servicio
+railway variables set PORT=3000
 
-# Deploy
-fly deploy
+# Desplegar
+railway up
 ```
 
-### 3. Deploy Backend to Fly.io
+### 3. Desplegar Backend en Railway
 
 ```bash
 cd src/backend
 
-# Create app
-fly apps create loremaster-api
+# Crear nuevo proyecto en Railway
+railway init
 
-# Set secrets
-fly secrets set ConnectionStrings__SupabaseConnection="Host=db.xxx.supabase.co;Port=6543;Database=postgres;Username=postgres.xxx;Password=xxx;SSL Mode=Require;Trust Server Certificate=true;Pooling=true"
-fly secrets set Jwt__Secret="your-jwt-secret-min-32-chars"
-fly secrets set ServiceJwt__Secret="your-service-secret"
-fly secrets set Cors__Origins__0="https://your-app.vercel.app"
+# Añadir variables de entorno
+railway variables set ConnectionStrings__SupabaseConnection="Host=db.xxx.supabase.co;Port=6543;Database=postgres;Username=postgres.xxx;Password=xxx;SSL Mode=Require;Trust Server Certificate=true;Pooling=true"
+railway variables set Jwt__Secret=tu-secreto-jwt-minimo-32-caracteres
+railway variables set Jwt__AccessTokenExpirationMinutes=30
+railway variables set ServiceJwt__Secret=tu-secreto-servicio
+railway variables set Cors__Origins__0=https://tu-app.vercel.app
+railway variables set GenkitService__ProductionUrl=https://tu-genkit.railway.app
 
-# Deploy
-fly deploy
+# Desplegar
+railway up
 ```
 
-### 4. Deploy Frontend to Vercel
+### 4. Desplegar Frontend en Vercel
 
-1. Connect GitHub repository to Vercel
-2. Set environment variable:
-   - `VITE_API_URL` = `https://loremaster-api.fly.dev/api`
-3. Deploy
+1. Conecta el repositorio de GitHub a Vercel
+2. Configura la variable de entorno:
+   - `VITE_API_URL` = `https://tu-backend.railway.app/api`
+3. Despliega
 
 ## Testing
 
-### Backend Tests
+### Tests Backend
 
 ```bash
 cd src/backend
 
-# Unit tests (36+ test files)
+# Tests unitarios (36+ archivos de test)
 dotnet test Loremaster.Tests.Unit
 
-# Integration tests (8+ test files, requires Docker)
+# Tests de integración (8+ archivos de test, requiere Docker)
 dotnet test Loremaster.Tests.Integration
 ```
 
-### Frontend Tests
+### Tests Frontend
 
 ```bash
 cd src/frontend
 
-# Run tests
+# Ejecutar tests
 npm run test
 
-# Run tests once
+# Ejecutar tests una vez
 npm run test:run
 
-# Run with coverage
+# Ejecutar con cobertura
 npm run test:coverage
 ```
 
-### Genkit Build
+### Build Genkit
 
 ```bash
 cd src/genkit-service
 npm run build
 ```
 
-## Authentication Flow
+## Flujo de Autenticación
 
 ```
 ┌─────────┐                    ┌─────────┐                    ┌─────────┐
@@ -394,102 +406,118 @@ npm run build
      │                              │  Service JWT Token           │
      │                              │─────────────────────────────▶│
      │                              │                              │
-     │                              │  AI Response                 │
+     │                              │  Respuesta IA                │
      │                              │◀─────────────────────────────│
      │                              │                              │
-     │  Entities + AI Content       │                              │
+     │  Entidades + Contenido IA    │                              │
      │◀─────────────────────────────│                              │
 ```
 
-## Key Technologies
+### Gestión de Sesión
+
+- **Access Token**: Válido 30 minutos (producción)
+- **Refresh Token**: Válido 7 días (producción)
+- **Refresh Proactivo**: El frontend refresca automáticamente el token antes de que expire
+- **Clock Skew**: Tolerancia de 30 segundos para desfases de reloj
+
+## Tecnologías Principales
 
 ### Frontend
-| Technology | Version | Purpose |
-|------------|---------|---------|
-| React | 19.x | UI framework |
-| Vite | 6.x | Build tool & dev server |
-| TypeScript | 5.8.x | Type safety |
-| Three.js | 0.160.0 | 3D visualizations |
-| cannon-es | 0.20.0 | Physics engine |
-| jsPDF | 4.x | PDF generation |
-| Vitest | 4.x | Testing framework |
-| Testing Library | 16.x | Component testing |
+
+| Tecnología | Versión | Propósito |
+|------------|---------|-----------|
+| React | 19.x | Framework UI |
+| Vite | 6.x | Build tool y servidor dev |
+| TypeScript | 5.8.x | Seguridad de tipos |
+| Three.js | 0.160.0 | Visualizaciones 3D |
+| cannon-es | 0.20.0 | Motor de física |
+| jsPDF | 4.x | Generación PDF |
+| Vitest | 4.x | Framework de testing |
+| Testing Library | 16.x | Testing de componentes |
+| Tailwind CSS | 4.x | Framework CSS |
 
 ### Backend
-| Technology | Version | Purpose |
-|------------|---------|---------|
+
+| Tecnología | Versión | Propósito |
+|------------|---------|-----------|
 | .NET | 8.0 | Runtime |
-| ASP.NET Core | 8.0 | Web API framework |
+| ASP.NET Core | 8.0 | Framework Web API |
 | Entity Framework Core | 8.0.0 | ORM |
-| MediatR | 12.2.0 | CQRS pattern |
-| FluentValidation | 11.9.0 | Request validation |
-| Serilog | 8.0.0 | Structured logging |
-| Polly | - | Resilience policies |
-| BCrypt.Net-Next | 4.0.3 | Password hashing |
-| PdfPig | 0.1.9 | PDF parsing |
-| Npgsql + pgvector | 8.0.0 | PostgreSQL + vectors |
-| xUnit | 2.6.4 | Unit testing |
-| Testcontainers | 3.7.0 | Integration testing |
+| MediatR | 12.2.0 | Patrón CQRS |
+| FluentValidation | 11.9.0 | Validación de peticiones |
+| Serilog | 8.0.0 | Logging estructurado |
+| Polly | - | Políticas de resiliencia |
+| BCrypt.Net-Next | 4.0.3 | Hash de contraseñas |
+| PdfPig | 0.1.9 | Parsing PDF |
+| Npgsql + pgvector | 8.0.0 | PostgreSQL + vectores |
+| xUnit | 2.6.4 | Testing unitario |
+| Testcontainers | 3.7.0 | Tests de integración |
 
-### AI Service
-| Technology | Version | Purpose |
-|------------|---------|---------|
+### Servicio IA
+
+| Tecnología | Versión | Propósito |
+|------------|---------|-----------|
 | Node.js | 20+ | Runtime |
-| Express | 4.21.0 | HTTP server |
-| Genkit | 1.0.0 | AI orchestration |
-| @genkit-ai/google-genai | 1.28.0 | Gemini integration |
-| Zod | 3.23.8 | Schema validation |
+| Express | 4.21.0 | Servidor HTTP |
+| Genkit | 1.0.0 | Orquestación IA |
+| @genkit-ai/google-genai | 1.28.0 | Integración Gemini |
+| Zod | 3.23.8 | Validación de esquemas |
 | Pino | 9.5.0 | Logging |
-| Helmet | 8.0.0 | Security headers |
+| Helmet | 8.0.0 | Cabeceras de seguridad |
 
-### AI Models
-| Model | Purpose |
-|-------|---------|
-| Gemini 2.0 Flash | Text generation, chat, summarization |
-| Gemini 2.5 Flash | Image generation |
-| gemini-embedding-001 | Vector embeddings for RAG (3072 dimensions) |
+### Modelos IA
 
-### Database
-- **PostgreSQL 16** - Relational database
-- **pgvector** - Vector similarity search
-- **Supabase** - Managed PostgreSQL (production)
+| Modelo | Propósito |
+|--------|-----------|
+| Gemini 2.0 Flash | Generación de texto, chat, resumen |
+| Gemini 2.5 Flash | Generación de imágenes |
+| gemini-embedding-001 | Embeddings vectoriales para RAG (3072 dimensiones) |
 
-## Architecture Patterns
+### Base de Datos
+
+- **PostgreSQL 16** - Base de datos relacional
+- **pgvector** - Búsqueda de similitud vectorial
+- **Supabase** - PostgreSQL gestionado (producción)
+
+## Patrones de Arquitectura
 
 ### Clean Architecture (.NET Backend)
+
 ```
-Domain (no dependencies)
+Domain (sin dependencias)
     ↑
-Application (depends on Domain)
+Application (depende de Domain)
     ↑
-Infrastructure (depends on Application)
+Infrastructure (depende de Application)
     ↑
-Api (composes all layers via DI)
+Api (compone todas las capas vía DI)
 ```
 
-### CQRS with MediatR
-- Commands and Queries are separate concerns
-- Each operation has its own handler
-- FluentValidation for request validation
-- Pipeline behaviors for cross-cutting concerns
+### CQRS con MediatR
 
-### Security
-- JWT authentication (user tokens + service-to-service tokens)
-- Refresh token rotation
-- Rate limiting (per-user, per-endpoint)
-- CORS configuration
-- Security headers (X-Content-Type-Options, X-Frame-Options, etc.)
-- Password hashing with BCrypt
-- Input sanitization
+- Comandos y Consultas son responsabilidades separadas
+- Cada operación tiene su propio handler
+- FluentValidation para validación de peticiones
+- Pipeline behaviors para concerns transversales
 
-## License
+### Seguridad
+
+- Autenticación JWT (tokens de usuario + tokens servicio-a-servicio)
+- Rotación de refresh token
+- Rate limiting (por usuario, por endpoint)
+- Configuración CORS
+- Cabeceras de seguridad (X-Content-Type-Options, X-Frame-Options, etc.)
+- Hash de contraseñas con BCrypt
+- Sanitización de entrada
+
+## Licencia
 
 MIT
 
-## Contributing
+## Contribuir
 
-1. Fork the repository
-2. Create a feature branch
-3. Make your changes
-4. Run tests
-5. Submit a pull request
+1. Haz fork del repositorio
+2. Crea una rama de funcionalidad
+3. Realiza tus cambios
+4. Ejecuta los tests
+5. Envía un pull request
