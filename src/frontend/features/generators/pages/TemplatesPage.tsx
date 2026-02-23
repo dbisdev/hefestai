@@ -441,38 +441,14 @@ export const TemplatesPage: React.FC = () => {
           </div>
         </div>
 
-        {/* Stats Panel */}
+        {/* System Log */}
         {selectedGameSystem && (
-          <div className="flex flex-col lg:flex-row lg:h-24 gap-4">
-            {/* Stats Panel */}
-            <div className="lg:w-1/2 border border-primary/30 bg-black/60 p-2">
-              <h3 className="text-xs text-primary/60 uppercase tracking-widest mb-2 flex items-center gap-2">
-                <span className="material-icons text-sm">analytics</span>
-                Estadísticas
-              </h3>
-              <div className="grid grid-cols-3 gap-1 text-center">
-                <div className="bg-black/40 border border-primary/20 p-1">
-                  <p className="text-sm font-bold text-primary">{counts.total}</p>
-                  <p className="text-[8px] text-primary/40 uppercase">Total</p>
-                </div>
-                <div className="bg-black/40 border border-green-500/20 p-1">
-                  <p className="text-sm font-bold text-green-400">{counts.confirmed}</p>
-                  <p className="text-[8px] text-green-400/60 uppercase">Activas</p>
-                </div>
-                <div className="bg-black/40 border border-yellow-500/20 p-1">
-                  <p className="text-sm font-bold text-yellow-400">{counts.pending}</p>
-                  <p className="text-[8px] text-yellow-400/60 uppercase">Pendientes</p>
-                </div>
-              </div>
-            </div>
-
-            {/* System Log */}
-            <div className="lg:w-1/2 flex flex-col border border-primary/30 bg-black/80">
+          <div className="flex flex-col border border-primary/30 bg-black/80">
               <div className="bg-primary/20 p-2 text-xs text-primary uppercase tracking-widest flex items-center gap-2">
                 <span className="material-icons text-sm">terminal</span>
                 System Log
               </div>
-              <div className="h-24 lg:h-full p-4 font-mono text-xs text-primary/70 space-y-1 overflow-y-auto">
+              <div className="h-24 p-4 font-mono text-xs text-primary/70 space-y-1 overflow-y-auto">
                 {logs.map((log, i) => (
                   <p 
                     key={i} 
@@ -487,7 +463,6 @@ export const TemplatesPage: React.FC = () => {
                 <p className="animate-pulse">_</p>
               </div>
             </div>
-          </div>
         )}
       </div>
 

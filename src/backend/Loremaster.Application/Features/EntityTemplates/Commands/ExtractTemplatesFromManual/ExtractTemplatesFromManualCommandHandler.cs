@@ -256,6 +256,16 @@ Include ALL attributes, skills, derived stats, identity fields, gear from the ru
 
         // Parse the RAG response
         var extractedTypes = ParseExtractedTypes(ragResult.Answer);
+
+        // Deduplicate by entityTypeName before processing
+        var originalCount = extractedTypes.Count;
+        extractedTypes = DeduplicateByEntityType(extractedTypes);
+        if (extractedTypes.Count < originalCount)
+        {
+            _logger.LogInformation(
+                "Deduplicated from {OriginalCount} to {DeduplicatedCount} entity types",
+                originalCount, extractedTypes.Count);
+        }
         
         if (!extractedTypes.Any())
         {
@@ -638,6 +648,18 @@ Include ALL attributes, skills, derived stats, identity fields, gear from the ru
         }
         
         return result;
+    }
+
+    /// <summary>
+    /// Deduplicates extracted entity types by entityTypeName.
+    /// Keeps the one with the most fields, or the first if they have the same count.
+    /// </summary>
+    private List<ExtractedEntityType> DeduplicateByEntityType(List<ExtractedEntityType> extractedTypes)
+    {
+        return extractedTypes
+            .GroupBy(et => et.EntityTypeName?.ToLowerInvariant() ?? string.Empty)
+            .Select(g => g.OrderByDescending(et => et.Fields.Count).First())
+            .ToList();
     }
 
     /// <summary>
