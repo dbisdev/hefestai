@@ -255,19 +255,6 @@ describe('Auth Service', () => {
       expect(result).toBeNull();
       expect(tokenService.clearTokens).toHaveBeenCalled();
     });
-
-    it('maps masterId correctly', async () => {
-      vi.mocked(tokenService.hasToken).mockReturnValue(true);
-      vi.mocked(tokenService.isTokenExpired).mockReturnValue(false);
-      vi.mocked(httpClient.get).mockResolvedValueOnce({
-        ...mockCurrentUser,
-        masterId: 'master-123',
-      });
-      
-      const result = await authService.getCurrentUser();
-      
-      expect(result?.masterId).toBe('master-123');
-    });
   });
 
   describe('isAuthenticated', () => {

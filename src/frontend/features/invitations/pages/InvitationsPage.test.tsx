@@ -39,10 +39,16 @@ vi.mock('@core/context', () => ({
   useCampaign: vi.fn(),
 }));
 
+// Store logs in module-level variable so tests can track them
+let mockLogs: string[] = ['> Test log'];
+const mockAddLog = vi.fn((log: string) => {
+  mockLogs.push(`> ${log}`);
+});
+
 vi.mock('@core/hooks/useTerminalLog', () => ({
   useTerminalLog: () => ({
-    logs: ['> Test log'],
-    addLog: vi.fn(),
+    get logs() { return mockLogs; },
+    addLog: mockAddLog,
   }),
 }));
 
@@ -164,6 +170,10 @@ describe('InvitationsPage', () => {
 
   beforeEach(() => {
     vi.clearAllMocks();
+    
+    // Reset the mock logs
+    mockLogs = ['> Test log'];
+    mockAddLog.mockClear();
 
     // Mock campaignService.getById to return detailed campaign data
     mockGetById.mockImplementation((id: string) => {
@@ -225,7 +235,7 @@ describe('InvitationsPage', () => {
       renderComponent();
 
       expect(screen.getByText('INVITACIONES')).toBeInTheDocument();
-      expect(screen.getByText('Centro de Invitaciones')).toBeInTheDocument();
+      expect(screen.getByText('Unirse a campañas y codigos de invitacion')).toBeInTheDocument();
     });
 
     it('renders join campaign section', async () => {
@@ -245,8 +255,9 @@ describe('InvitationsPage', () => {
     it('renders terminal log section', async () => {
       renderComponent();
 
-      expect(screen.getByText('System Log')).toBeInTheDocument();
-      expect(screen.getByText('> Sistema de invitaciones activo...')).toBeInTheDocument();
+      // Terminal log is rendered with mocked logs
+      expect(screen.getByTestId('terminal-log')).toBeInTheDocument();
+      expect(screen.getByText('> Test log')).toBeInTheDocument();
     });
   });
 

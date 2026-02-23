@@ -193,7 +193,7 @@ describe('SignupPage', () => {
       renderComponent();
 
       const labels = screen.getAllByTestId('input-label');
-      expect(labels.some(l => l.textContent === 'Código de Invitación del Maestro')).toBe(true);
+      expect(labels.some(l => l.textContent === 'Código de Campaña (Opcional)')).toBe(true);
     });
 
     it('hides invite code field for MASTER role', async () => {
@@ -204,7 +204,7 @@ describe('SignupPage', () => {
       await user.click(masterButton);
 
       const labels = screen.queryAllByTestId('input-label');
-      expect(labels.some(l => l.textContent === 'Código de Invitación del Maestro')).toBe(false);
+      expect(labels.some(l => l.textContent === 'Código de Campaña (Opcional)')).toBe(false);
     });
   });
 

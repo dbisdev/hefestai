@@ -169,7 +169,8 @@ describe('Entity Template Service', () => {
       
       expect(httpClient.post).toHaveBeenCalledWith(
         '/game-systems/system-1/templates/extract',
-        {}
+        {},
+        { timeout: 120000 }
       );
       expect(result).toEqual(mockResult);
     });
@@ -182,30 +183,15 @@ describe('Entity Template Service', () => {
       
       expect(httpClient.post).toHaveBeenCalledWith(
         '/game-systems/system-1/templates/extract',
-        { sourceDocumentId: 'doc-1' }
+        { sourceDocumentId: 'doc-1' },
+        { timeout: 120000 }
       );
       expect(result).toEqual(mockResult);
     });
   });
 
-  describe('create', () => {
-    it('creates a template', async () => {
-      const mockResult = { id: 'new-template', success: true };
-      vi.mocked(httpClient.post).mockResolvedValueOnce(mockResult);
-      
-      const result = await entityTemplateService.create('system-1', {
-        entityTypeName: 'character',
-        displayName: 'Character',
-        fields: [],
-      });
-      
-      expect(httpClient.post).toHaveBeenCalledWith(
-        '/game-systems/system-1/templates',
-        { entityTypeName: 'character', displayName: 'Character', fields: [] }
-      );
-      expect(result).toEqual(mockResult);
-    });
-  });
+  // Note: create method was removed from the service
+  // Templates are created via extractFromManual flow
 
   describe('update', () => {
     it('updates a template', async () => {

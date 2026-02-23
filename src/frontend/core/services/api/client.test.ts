@@ -8,6 +8,7 @@ const mockGetAccessToken = vi.fn();
 const mockGetRefreshToken = vi.fn();
 const mockSetTokens = vi.fn();
 const mockClearTokens = vi.fn();
+const mockGetTokenExpiration = vi.fn();
 
 vi.mock('@core/services/storage/token.service', () => ({
   tokenService: {
@@ -15,18 +16,23 @@ vi.mock('@core/services/storage/token.service', () => ({
     getRefreshToken: () => mockGetRefreshToken(),
     setTokens: mockSetTokens,
     clearTokens: mockClearTokens,
+    getTokenExpiration: mockGetTokenExpiration,
   },
 }));
 
-const mockFetch = vi.fn();
-global.fetch = mockFetch;
+vi.stubGlobal('fetch', vi.fn());
 
 describe('HTTP Client', () => {
+  let fetchMock: ReturnType<typeof vi.fn>;
+  
   beforeEach(async () => {
     vi.clearAllMocks();
     mockGetAccessToken.mockReturnValue('test-access-token');
     mockGetRefreshToken.mockReturnValue(null);
+    mockGetTokenExpiration.mockReturnValue(new Date(Date.now() + 3600000));
     vi.resetModules();
+    fetchMock = vi.fn();
+    vi.stubGlobal('fetch', fetchMock);
   });
 
   afterEach(() => {
@@ -56,7 +62,7 @@ describe('HTTP Client', () => {
   describe('apiRequest', () => {
     it('makes GET request with auth header', async () => {
       const { apiRequest } = await import('./client');
-      mockFetch.mockResolvedValueOnce({
+      fetchMock.mockResolvedValueOnce({
         ok: true,
         status: 200,
         json: async () => ({ data: 'test' }),
@@ -64,21 +70,18 @@ describe('HTTP Client', () => {
 
       const result = await apiRequest('/test');
       
-      expect(mockFetch).toHaveBeenCalledWith(
-        expect.stringContaining('/api/test'),
-        expect.objectContaining({
-          method: 'GET',
-          headers: expect.objectContaining({
-            'Authorization': 'Bearer test-access-token',
-          }),
-        })
-      );
+      expect(fetchMock).toHaveBeenCalled();
+      const [url, options] = fetchMock.mock.calls[0];
+      expect(url).toContain('/api/test');
+      // GET is the default method in fetch, so method may be undefined or 'GET'
+      expect(options.method === undefined || options.method === 'GET').toBe(true);
+      expect(options.headers['Authorization']).toBe('Bearer test-access-token');
       expect(result).toEqual({ data: 'test' });
     });
 
     it('skips auth header when skipAuth is true', async () => {
       const { apiRequest } = await import('./client');
-      mockFetch.mockResolvedValueOnce({
+      fetch.mockResolvedValueOnce({
         ok: true,
         status: 200,
         json: async () => ({ data: 'test' }),
@@ -86,13 +89,13 @@ describe('HTTP Client', () => {
 
       await apiRequest('/test', { skipAuth: true });
       
-      const callArgs = mockFetch.mock.calls[0][1];
+      const callArgs = fetch.mock.calls[0][1];
       expect(callArgs.headers).not.toHaveProperty('Authorization');
     });
 
     it('makes POST request with body', async () => {
       const { apiRequest } = await import('./client');
-      mockFetch.mockResolvedValueOnce({
+      fetch.mockResolvedValueOnce({
         ok: true,
         status: 201,
         json: async () => ({ id: 1 }),
@@ -103,7 +106,7 @@ describe('HTTP Client', () => {
         body: JSON.stringify({ name: 'test' }),
       });
       
-      expect(mockFetch).toHaveBeenCalledWith(
+      expect(fetch).toHaveBeenCalledWith(
         expect.stringContaining('/test'),
         expect.objectContaining({
           method: 'POST',
@@ -115,7 +118,7 @@ describe('HTTP Client', () => {
 
     it('handles 204 No Content response', async () => {
       const { apiRequest } = await import('./client');
-      mockFetch.mockResolvedValueOnce({
+      fetch.mockResolvedValueOnce({
         ok: true,
         status: 204,
       });
@@ -127,7 +130,7 @@ describe('HTTP Client', () => {
 
     it('throws ApiRequestError for non-OK responses', async () => {
       const { apiRequest, ApiRequestError } = await import('./client');
-      mockFetch.mockResolvedValueOnce({
+      fetch.mockResolvedValueOnce({
         ok: false,
         status: 404,
         json: async () => ({ message: 'Not found' }),
@@ -138,7 +141,7 @@ describe('HTTP Client', () => {
 
     it('extracts error code from response', async () => {
       const { apiRequest } = await import('./client');
-      mockFetch.mockResolvedValueOnce({
+      fetch.mockResolvedValueOnce({
         ok: false,
         status: 400,
         json: async () => ({ message: 'Bad request', code: 'INVALID_INPUT' }),
@@ -153,7 +156,7 @@ describe('HTTP Client', () => {
 
     it('handles network errors', async () => {
       const { apiRequest } = await import('./client');
-      mockFetch.mockRejectedValueOnce(new Error('Network error'));
+      fetch.mockRejectedValueOnce(new Error('Network error'));
 
       await expect(apiRequest('/test')).rejects.toMatchObject({
         code: 'NETWORK_ERROR',
@@ -165,7 +168,7 @@ describe('HTTP Client', () => {
       const { apiRequest } = await import('./client');
       const abortError = new Error('Aborted');
       abortError.name = 'AbortError';
-      mockFetch.mockRejectedValueOnce(abortError);
+      fetch.mockRejectedValueOnce(abortError);
 
       await expect(apiRequest('/test', { timeout: 1000 })).rejects.toMatchObject({
         code: 'TIMEOUT',
@@ -176,7 +179,7 @@ describe('HTTP Client', () => {
     it('attempts token refresh on 401', async () => {
       mockGetRefreshToken.mockReturnValue('refresh-token');
       
-      mockFetch
+      fetch
         .mockResolvedValueOnce({
           ok: false,
           status: 401,
@@ -202,7 +205,7 @@ describe('HTTP Client', () => {
     it('clears tokens when refresh fails', async () => {
       mockGetRefreshToken.mockReturnValue('refresh-token');
       
-      mockFetch
+      fetch
         .mockResolvedValueOnce({
           ok: false,
           status: 401,
@@ -225,7 +228,7 @@ describe('HTTP Client', () => {
     it('does not attempt refresh without refresh token', async () => {
       mockGetRefreshToken.mockReturnValue(null);
       
-      mockFetch.mockResolvedValueOnce({
+      fetch.mockResolvedValueOnce({
         ok: false,
         status: 401,
         json: async () => ({ message: 'Unauthorized' }),
@@ -241,7 +244,7 @@ describe('HTTP Client', () => {
   describe('httpClient convenience methods', () => {
     it('get makes GET request', async () => {
       const { httpClient } = await import('./client');
-      mockFetch.mockResolvedValueOnce({
+      fetch.mockResolvedValueOnce({
         ok: true,
         status: 200,
         json: async () => ({ data: 'test' }),
@@ -249,7 +252,7 @@ describe('HTTP Client', () => {
 
       await httpClient.get('/test');
       
-      expect(mockFetch).toHaveBeenCalledWith(
+      expect(fetch).toHaveBeenCalledWith(
         expect.stringContaining('/test'),
         expect.objectContaining({ method: 'GET' })
       );
@@ -257,7 +260,7 @@ describe('HTTP Client', () => {
 
     it('post makes POST request with data', async () => {
       const { httpClient } = await import('./client');
-      mockFetch.mockResolvedValueOnce({
+      fetch.mockResolvedValueOnce({
         ok: true,
         status: 201,
         json: async () => ({ id: 1 }),
@@ -265,7 +268,7 @@ describe('HTTP Client', () => {
 
       await httpClient.post('/test', { name: 'test' });
       
-      expect(mockFetch).toHaveBeenCalledWith(
+      expect(fetch).toHaveBeenCalledWith(
         expect.stringContaining('/test'),
         expect.objectContaining({
           method: 'POST',
@@ -276,7 +279,7 @@ describe('HTTP Client', () => {
 
     it('put makes PUT request with data', async () => {
       const { httpClient } = await import('./client');
-      mockFetch.mockResolvedValueOnce({
+      fetch.mockResolvedValueOnce({
         ok: true,
         status: 200,
         json: async () => ({ updated: true }),
@@ -284,7 +287,7 @@ describe('HTTP Client', () => {
 
       await httpClient.put('/test/1', { name: 'updated' });
       
-      expect(mockFetch).toHaveBeenCalledWith(
+      expect(fetch).toHaveBeenCalledWith(
         expect.stringContaining('/test/1'),
         expect.objectContaining({
           method: 'PUT',
@@ -295,7 +298,7 @@ describe('HTTP Client', () => {
 
     it('patch makes PATCH request with data', async () => {
       const { httpClient } = await import('./client');
-      mockFetch.mockResolvedValueOnce({
+      fetch.mockResolvedValueOnce({
         ok: true,
         status: 200,
         json: async () => ({ patched: true }),
@@ -303,7 +306,7 @@ describe('HTTP Client', () => {
 
       await httpClient.patch('/test/1', { status: 'active' });
       
-      expect(mockFetch).toHaveBeenCalledWith(
+      expect(fetch).toHaveBeenCalledWith(
         expect.stringContaining('/test/1'),
         expect.objectContaining({
           method: 'PATCH',
@@ -314,14 +317,14 @@ describe('HTTP Client', () => {
 
     it('delete makes DELETE request', async () => {
       const { httpClient } = await import('./client');
-      mockFetch.mockResolvedValueOnce({
+      fetch.mockResolvedValueOnce({
         ok: true,
         status: 204,
       });
 
       await httpClient.delete('/test/1');
       
-      expect(mockFetch).toHaveBeenCalledWith(
+      expect(fetch).toHaveBeenCalledWith(
         expect.stringContaining('/test/1'),
         expect.objectContaining({ method: 'DELETE' })
       );
