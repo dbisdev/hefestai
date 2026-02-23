@@ -40,7 +40,7 @@ const Home: React.FC = () => {
         </div>
         <button 
           onClick={handleLogin}
-          className="group flex items-center gap-3 border border-primary/40 md:px-4 px-2 py-1.5 hover:bg-primary hover:text-black transition-all clip-tech-br"
+          className="cursor-pointer group flex items-center gap-3 border border-primary/40 md:px-4 px-2 py-1.5 hover:bg-primary hover:text-black transition-all clip-tech-br"
         >
           <span className="text-xs md:text-sm font-bold uppercase tracking-widest">Acceso al Sistema</span>
           <span className="material-icons text-sm group-hover:scale-125 transition-transform">login</span>
@@ -63,13 +63,13 @@ const Home: React.FC = () => {
           <div className="mt-12 flex flex-col sm:flex-row justify-center gap-4">
             <button 
               onClick={handleSignup}
-              className="px-8 py-4 bg-primary text-black font-bold uppercase tracking-widest hover:bg-white transition-all shadow-[0_0_30px_#25f46a44] clip-tech-tl"
+              className="cursor-pointer px-8 py-4 bg-primary text-black font-bold uppercase tracking-widest hover:bg-white transition-all shadow-[0_0_30px_#25f46a44] clip-tech-tl"
             >
               Inicializar Nuevo Perfil
             </button>
             <button 
               onClick={handleLogin}
-              className="px-8 py-4 border border-primary text-primary font-bold uppercase tracking-widest hover:bg-primary/10 transition-all"
+              className="cursor-pointer px-8 py-4 border border-primary text-primary font-bold uppercase tracking-widest hover:bg-primary/10 transition-all"
             >
               Verificar Credenciales
             </button>

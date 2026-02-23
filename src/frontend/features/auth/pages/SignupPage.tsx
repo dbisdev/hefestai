@@ -98,7 +98,7 @@ export const SignupPage: React.FC = () => {
           {/* Back to Home Button */}
           <button 
             onClick={handleBack}
-            className="flex items-center gap-1 text-primary/50 hover:text-primary text-xs uppercase transition-colors self-start"
+            className="cursor-pointer flex items-center gap-1 text-primary/50 hover:text-primary text-xs uppercase transition-colors self-start"
           >
             <span className="material-icons text-sm">arrow_back</span>
             VOLVER_AL_INICIO
@@ -131,7 +131,7 @@ export const SignupPage: React.FC = () => {
                 <button 
                   type="button"
                   onClick={() => setRole('PLAYER')}
-                  className={`py-3 text-md border uppercase font-bold transition-all ${
+                  className={`cursor-pointer py-3 text-md border uppercase font-bold transition-all ${
                     role === 'PLAYER' 
                       ? 'bg-primary text-black border-primary' 
                       : 'text-primary/60 border-primary/20 hover:border-primary hover:bg-primary/5'
@@ -142,7 +142,7 @@ export const SignupPage: React.FC = () => {
                 <button 
                   type="button"
                   onClick={() => setRole('MASTER')}
-                  className={`py-3 text-md border uppercase font-bold transition-all ${
+                  className={`cursor-pointer py-3 text-md border uppercase font-bold transition-all ${
                     role === 'MASTER' 
                       ? 'bg-primary text-black border-primary' 
                       : 'text-primary/60 border-primary/20 hover:border-primary hover:bg-primary/5'
@@ -179,7 +179,7 @@ export const SignupPage: React.FC = () => {
               <button
                 type="button"
                 onClick={() => setShowPassword(!showPassword)}
-                className="absolute right-3 top-[26px] text-primary/50 hover:text-primary transition-colors p-0.5"
+                className="cursor-pointer absolute right-3 top-[26px] text-primary/50 hover:text-primary transition-colors p-0.5"
                 aria-label={showPassword ? 'Ocultar contraseña' : 'Mostrar contraseña'}
               >
                 <span className="material-icons text-sm">
@@ -203,7 +203,7 @@ export const SignupPage: React.FC = () => {
               <button
                 type="button"
                 onClick={() => setShowConfirmPassword(!showConfirmPassword)}
-                className="absolute right-3 top-[26px] text-primary/50 hover:text-primary transition-colors p-0.5"
+                className="cursor-pointer absolute right-3 top-[26px] text-primary/50 hover:text-primary transition-colors p-0.5"
                 aria-label={showConfirmPassword ? 'Ocultar contraseña' : 'Mostrar contraseña'}
               >
                 <span className="material-icons text-sm">
@@ -260,7 +260,7 @@ export const SignupPage: React.FC = () => {
           <div className="pt-4 border-t border-primary/10 text-center">
             <button 
               onClick={handleGoLogin}
-              className="text-primary/50 text-xs uppercase hover:text-primary transition-colors font-bold flex items-center gap-1 justify-center w-full"
+              className="cursor-pointer text-primary/50 text-xs uppercase hover:text-primary transition-colors font-bold flex items-center gap-1 justify-center w-full"
             >
               <span className="material-icons text-sm">arrow_back</span>
               VOLVER_AL_ACCESO

@@ -49,7 +49,7 @@ export const LoginPage: React.FC = () => {
           {/* Back to Home Button */}
           <button 
             onClick={handleBack}
-            className="flex items-center gap-1 text-primary/50 hover:text-primary text-xs uppercase transition-colors self-start"
+            className="cursor-pointer flex items-center gap-1 text-primary/50 hover:text-primary text-xs uppercase transition-colors self-start"
           >
             <span className="material-icons text-sm">arrow_back</span>
             VOLVER_AL_INICIO
@@ -113,7 +113,7 @@ export const LoginPage: React.FC = () => {
             </p>
             <button 
               onClick={handleGoSignup}
-              className="text-primary text-sm uppercase hover:text-white transition-colors underline underline-offset-4 font-bold"
+              className="cursor-pointer text-primary text-sm uppercase hover:text-white transition-colors underline underline-offset-4 font-bold"
             >
               CREAR_NUEVO_REGISTRO
             </button>

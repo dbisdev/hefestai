@@ -147,10 +147,20 @@ hefestai/
 │   │   │   └── utils/               # Utilidades de seguridad, validación
 │   │   ├── features/                # Módulos de funcionalidades
 │   │   │   ├── auth/                # Páginas Login, Signup
+│   │   │   ├── admin/               # Páginas administración
+│   │   │   ├── invitations/         # Páginas invitaciones
 │   │   │   ├── gallery/             # Galería y gestión de entidades
 │   │   │   └── generators/          # 10 páginas de generadores
 │   │   ├── shared/                  # Componentes compartidos
-│   │   │   ├── components/          # UI, layout, feedback, modals, visualization
+│   │   │   ├── components/          # Subcarpetas por tipo
+│   │   │   │   ├── feedback/        # Componentes de feedback
+│   │   │   │   ├── layout/          # Layouts
+│   │   │   │   ├── modals/          # Modales
+│   │   │   │   ├── navigation/      # Navegación
+│   │   │   │   ├── pdf/             # Componentes PDF
+│   │   │   │   ├── routing/         # Routing
+│   │   │   │   ├── ui/              # UI base
+│   │   │   │   └── visualization/   # SolarSystemVisualization, PlanetCard
 │   │   │   └── guards/              # AuthGuard, RoleGuard
 │   │   └── components/              # DiceRoller, RuleQuery
 │   │
@@ -173,10 +183,25 @@ hefestai/
 │   │
 │   └── genkit-service/              # Microservicio IA Node.js
 │       └── src/
-│           ├── index.ts             # Servidor Express
-│           ├── flows.ts             # Flujos AI Genkit (6 flujos)
-│           ├── schemas.ts           # Validación Zod
-│           └── middleware/          # Auth JWT
+│           ├── app.ts               # Express app factory
+│           ├── index.ts             # Server entry point
+│           ├── logger.ts            # Pino logger
+│           ├── common/              # Utilidades compartidas
+│           │   ├── errors/          # Manejo de errores
+│           │   ├── types/           # Tipos comunes
+│           │   └── utils/           # Utilidades (JSON, prompts)
+│           ├── config/              # Configuración
+│           │   ├── express.ts       # Middleware Express
+│           │   └── genkit.ts        # Config Genkit
+│           ├── features/            # Módulos por funcionalidad
+│           │   ├── chat/            # Chat multi-turno
+│           │   ├── embeddings/      # Vector embeddings
+│           │   ├── generate/        # Generación texto
+│           │   ├── generate-image/  # Generación imágenes
+│           │   ├── rag-generate/    # RAG generation
+│           │   └── summarize/       # Resumen texto
+│           ├── middleware/          # JWT auth
+│           └── __tests__/           # Tests
 │
 ├── docker/
 │   └── init.sql                     # Inicialización PostgreSQL
@@ -195,12 +220,15 @@ hefestai/
 | **Campaign** | Campañas de juego con códigos de unión y sistema de juego |
 | **CampaignMember** | Participación de usuario con roles específicos de campaña |
 | **GameSystem** | Sistemas RPG soportados |
-| **LoreEntity** | Entidad polimórfica para todo el contenido de lore |
 | **EntityTemplate** | Plantillas reutilizables con definiciones de campos |
 | **Document** | Documentos ingeridos para RAG |
 | **RagSource** | Fuentes de documentos RAG (manuales, suplementos) |
 | **GenerationRequest** | Seguimiento de peticiones de generación IA |
 | **GenerationResult** | Salidas de generación IA con trazabilidad de fuentes |
+| **LoreEntity** | Entidad polimórfica para todo el contenido de lore |
+| **LoreEntityImport** | Registro de importaciones de entidades |
+| **LoreEntityRelationship** | Relaciones entre entidades |
+| **GenerationResultSource** | Fuentes de resultados de generación IA |
 
 ### Categorías de Entidades
 
@@ -221,6 +249,7 @@ hefestai/
 
 ### API Backend (Puerto 5000)
 
+ Autenticación
 | Endpoint | Método | Descripción | Auth |
 |----------|--------|-------------|------|
 | `/api/auth/register` | POST | Registrar nuevo usuario | No |
@@ -228,18 +257,80 @@ hefestai/
 | `/api/auth/refresh-token` | POST | Refrescar access token | No |
 | `/api/auth/me` | GET | Obtener usuario actual | Sí |
 | `/api/auth/logout` | POST | Logout, revocar refresh token | Sí |
-| `/api/campaigns` | GET/POST | Listar/crear campañas | Sí |
+
+ Campañas
+| Endpoint | Método | Descripción | Auth |
+|----------|--------|-------------|------|
+| `/api/campaigns` | GET | Listar mis campañas | Sí |
+| `/api/campaigns` | POST | Crear campaña | Sí |
 | `/api/campaigns/{id}` | GET/PUT/DELETE | CRUD de campaña | Sí |
-| `/api/campaigns/{id}/join` | POST | Unirse a campaña con código | Sí |
-| `/api/entities` | GET/POST | Listar/crear entidades de lore | Sí |
-| `/api/entities/{id}` | GET/PUT/DELETE | CRUD de entidad | Sí |
-| `/api/entity-templates` | GET/POST | Listar/crear plantillas | Sí |
-| `/api/entity-templates/{id}` | GET/PUT/DELETE | CRUD de plantilla | Sí |
-| `/api/game-systems` | GET/POST | Listar/crear sistemas de juego | Sí |
-| `/api/documents/ingest` | POST | Ingerir documento para RAG | Sí |
+| `/api/campaigns/{id}/join` | POST | Unirse con código | Sí |
+| `/api/campaigns/{id}/leave` | POST | Salir de campaña | Sí |
+| `/api/campaigns/{id}/members` | GET | Ver miembros | Sí |
+| `/api/campaigns/{id}/members/{userId}/role` | PUT | Cambiar rol | Sí |
+| `/api/campaigns/{id}/members/{userId}` | DELETE | Eliminar miembro | Sí |
+| `/api/campaigns/{id}/regenerate-code` | POST | Regenerar código | Sí |
+| `/api/campaigns/{id}/status` | PUT | Cambiar estado | Sí |
+
+ Entidades (anidado en campaña)
+| Endpoint | Método | Descripción | Auth |
+|----------|--------|-------------|------|
+| `/api/campaigns/{campaignId}/entities` | GET/POST | Listar/crear entidades | Sí |
+| `/api/campaigns/{campaignId}/entities/{id}` | GET/PUT/DELETE | CRUD entidad | Sí |
+| `/api/campaigns/{campaignId}/entities/{id}/visibility` | PUT | Cambiar visibilidad | Sí |
+| `/api/campaigns/{campaignId}/entities/{id}/transfer` | POST | Transferir propiedad | Sí |
+
+ Generación con RAG
+| Endpoint | Método | Descripción | Auth |
+|----------|--------|-------------|------|
+| `/api/campaigns/{campaignId}/generation/fields` | POST | Generar campos con RAG | Sí |
+| `/api/campaigns/{campaignId}/generation/entities/{entityId}/image` | POST | Generar imagen | Sí |
+
+ Generación de IA
+| Endpoint | Método | Descripción | Auth |
+|----------|--------|-------------|------|
+| `/api/ai/generate/character` | POST | Generar personaje | Sí |
+| `/api/ai/generate/npc` | POST | Generar PNJ | Sí |
+| `/api/ai/generate/enemy` | POST | Generar enemigo | Sí |
+| `/api/ai/generate/vehicle` | POST | Generar vehículo | Sí |
+| `/api/ai/generate/solar-system` | POST | Generar sistema solar | Sí |
+| `/api/ai/generate/mission` | POST | Generar misión | Sí |
+| `/api/ai/generate/encounter` | POST | Generar encuentro | Sí |
+
+ Plantillas (anidado en game-system)
+| Endpoint | Método | Descripción | Auth |
+|----------|--------|-------------|------|
+| `/api/game-systems/{gameSystemId}/templates` | GET/POST | Listar/crear plantillas | Sí |
+| `/api/game-systems/{gameSystemId}/templates/{id}` | GET/PUT/DELETE | CRUD plantilla | Sí |
+| `/api/game-systems/{gameSystemId}/templates/confirm-all` | POST | Confirmar todas | Sí |
+
+ Sistemas de Juego
+| Endpoint | Método | Descripción | Auth |
+|----------|--------|-------------|------|
+| `/api/game-systems` | GET/POST | Listar/crear sistemas | Sí |
+| `/api/game-systems/{id}` | GET/PUT/DELETE | CRUD sistema | Sí |
+
+ Documentos y RAG
+| Endpoint | Método | Descripción | Auth |
+|----------|--------|-------------|------|
+| `/api/documents/ingest` | POST | Ingerir documento | Sí |
 | `/api/documents/search` | POST | Búsqueda semántica | Sí |
-| `/api/ai/generate` | POST | Generar contenido de texto | Sí |
-| `/api/ai/chat` | POST | Chat multi-turno | Sí |
+| `/api/documents/upload` | POST | Subir manual PDF | Sí |
+| `/api/documents/manuals` | GET | Listar manuales | Sí |
+| `/api/documents/manuals/{id}` | GET | Obtener manual | Sí |
+| `/api/documents/manuals/{id}/embeddings` | POST | Generar embeddings | Sí |
+
+ Administración (Solo Admin)
+| Endpoint | Método | Descripción | Auth |
+|----------|--------|-------------|------|
+| `/api/admin/users` | GET/POST | Listar/crear usuarios | Admin |
+| `/api/admin/users/{id}` | GET/PUT/DELETE | CRUD usuario | Admin |
+| `/api/admin/campaigns` | GET | Listar campañas | Admin |
+| `/api/admin/campaigns/{id}` | GET/PUT/DELETE | CRUD campaña | Admin |
+
+ Health Checks
+| Endpoint | Método | Descripción | Auth |
+|----------|--------|-------------|------|
 | `/health` | GET | Health check | No |
 | `/health/ready` | GET | Readiness probe | No |
 | `/health/live` | GET | Liveness probe | No |
@@ -452,6 +543,8 @@ npm run build
 | Npgsql + pgvector | 8.0.0 | PostgreSQL + vectores |
 | xUnit | 2.6.4 | Testing unitario |
 | Testcontainers | 3.7.0 | Tests de integración |
+| SixLabors.ImageSharp | 3.1.12 | Procesamiento de imágenes |
+| Pgvector.EntityFrameworkCore | 0.2.0 | Soporte pgvector para EF Core |
 
 ### Servicio IA
 
@@ -464,6 +557,7 @@ npm run build
 | Zod | 3.23.8 | Validación de esquemas |
 | Pino | 9.5.0 | Logging |
 | Helmet | 8.0.0 | Cabeceras de seguridad |
+| dirty-json | 0.9.2 | Sanitización de JSON mal formado |
 
 ### Modelos IA
 
