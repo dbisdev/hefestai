@@ -27,10 +27,11 @@ CREATE TYPE user_role AS ENUM ('admin', 'master', 'player');
 CREATE TYPE campaign_role AS ENUM ('master', 'player');
 CREATE TYPE ownership_type AS ENUM ('master', 'player', 'shared');
 CREATE TYPE visibility_level AS ENUM ('draft', 'private', 'campaign', 'public');
-CREATE TYPE generation_request_type AS ENUM ('rag_dice_roll', 'ai_narrative', 'pdf_import', 'ocr_import');
+CREATE TYPE generation_request_type AS ENUM ('rag_dice_roll', 'ai_narrative', 'pdf_import', 'ocr_import', 'entity_field_generation', 'entity_image_generation');
 CREATE TYPE generation_status AS ENUM ('pending', 'processing', 'completed', 'failed');
 CREATE TYPE import_type AS ENUM ('pdf', 'ocr');
 CREATE TYPE rag_source_type AS ENUM ('rulebook', 'supplement', 'custom');
+CREATE TYPE template_status AS ENUM ('draft', 'pending_review', 'confirmed', 'rejected');
 
 -- =============================================================================
 -- TABLE: user
@@ -107,6 +108,43 @@ CREATE TABLE game_system (
 
 CREATE INDEX ix_game_system_code ON game_system(code);
 CREATE INDEX ix_game_system_is_active ON game_system(is_active) WHERE is_active = true;
+
+-- =============================================================================
+-- TABLE: documents
+-- RAG document storage with vector embeddings for semantic search
+-- =============================================================================
+
+CREATE TABLE documents (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    title VARCHAR(500) NOT NULL,
+    content TEXT NOT NULL,
+    source VARCHAR(1000),
+    metadata JSONB,
+    embedding vector(3072),
+    embedding_dimensions INTEGER,
+    owner_id UUID NOT NULL,
+    game_system_id UUID,
+    source_type rag_source_type,
+    chunk_index INTEGER,
+    parent_document_id UUID,
+    created_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMPTZ,
+    created_by TEXT,
+    updated_by TEXT,
+    
+    CONSTRAINT fk_documents_owner FOREIGN KEY (owner_id) 
+        REFERENCES "user"(id) ON DELETE CASCADE,
+    CONSTRAINT fk_documents_game_system FOREIGN KEY (game_system_id) 
+        REFERENCES game_system(id) ON DELETE SET NULL,
+    CONSTRAINT fk_documents_parent FOREIGN KEY (parent_document_id) 
+        REFERENCES documents(id) ON DELETE SET NULL
+);
+
+CREATE INDEX ix_documents_owner_id ON documents(owner_id);
+CREATE INDEX ix_documents_game_system_id ON documents(game_system_id) WHERE game_system_id IS NOT NULL;
+CREATE INDEX ix_documents_embedding ON documents USING ivfflat (embedding vector_cosine_ops) WITH (lists = 100);
+CREATE INDEX ix_documents_parent ON documents(parent_document_id);
+CREATE INDEX ix_documents_chunk ON documents(parent_document_id, chunk_index);
 
 -- =============================================================================
 -- TABLE: campaign
@@ -373,6 +411,45 @@ CREATE INDEX ix_rag_source_type ON rag_source(source_type);
 CREATE INDEX ix_rag_source_hash ON rag_source(content_hash) WHERE content_hash IS NOT NULL;
 
 -- =============================================================================
+-- TABLE: entity_template
+-- Entity type templates extracted from game system manuals
+-- =============================================================================
+
+CREATE TABLE entity_template (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    entity_type_name VARCHAR(100) NOT NULL,
+    display_name VARCHAR(200) NOT NULL,
+    description TEXT,
+    status template_status NOT NULL DEFAULT 'draft',
+    field_definitions_json JSONB NOT NULL DEFAULT '[]',
+    icon_hint VARCHAR(50),
+    version VARCHAR(50),
+    review_notes TEXT,
+    confirmed_at TIMESTAMPTZ,
+    confirmed_by_user_id UUID,
+    game_system_id UUID NOT NULL,
+    source_document_id UUID,
+    created_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    owner_id UUID NOT NULL,
+    
+    CONSTRAINT fk_entity_template_game_system FOREIGN KEY (game_system_id) 
+        REFERENCES game_system(id) ON DELETE CASCADE,
+    CONSTRAINT fk_entity_template_source_document FOREIGN KEY (source_document_id) 
+        REFERENCES documents(id) ON DELETE SET NULL,
+    CONSTRAINT fk_entity_template_owner FOREIGN KEY (owner_id) 
+        REFERENCES "user"(id) ON DELETE CASCADE,
+    CONSTRAINT fk_entity_template_confirmed_by FOREIGN KEY (confirmed_by_user_id) 
+        REFERENCES "user"(id) ON DELETE SET NULL,
+    CONSTRAINT uq_entity_template UNIQUE (game_system_id, entity_type_name, owner_id)
+);
+
+CREATE INDEX ix_entity_template_game_system ON entity_template(game_system_id);
+CREATE INDEX ix_entity_template_owner ON entity_template(owner_id);
+CREATE INDEX ix_entity_template_status ON entity_template(status);
+CREATE INDEX ix_entity_template_entity_type ON entity_template(entity_type_name);
+
+-- =============================================================================
 -- TABLE: generation_result
 -- AI/RAG generation outputs
 -- =============================================================================
@@ -519,6 +596,10 @@ CREATE TRIGGER tr_rag_source_updated_at
     BEFORE UPDATE ON rag_source
     FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
 
+CREATE TRIGGER tr_entity_template_updated_at
+    BEFORE UPDATE ON entity_template
+    FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
+
 CREATE TRIGGER tr_lore_entity_import_updated_at
     BEFORE UPDATE ON lore_entity_import
     FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
@@ -549,5 +630,9 @@ CREATE TABLE IF NOT EXISTS "__EFMigrationsHistory" (
 
 -- Mark migration as applied
 INSERT INTO "__EFMigrationsHistory" ("MigrationId", "ProductVersion")
-VALUES ('20250129000002_UserPasswordAuth', '8.0.0')
+VALUES 
+    ('20250129000002_UserPasswordAuth', '8.0.0'),
+    ('20260203110219_InitialCreate', '8.0.0'),
+    ('20260209000001_UpdateEmbeddingDimensions', '8.0.0'),
+    ('20260219141417_AddOwnerIdToGameSystem', '8.0.0')
 ON CONFLICT ("MigrationId") DO NOTHING;
