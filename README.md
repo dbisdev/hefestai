@@ -52,7 +52,7 @@ Dado que algunos componentes pueden requerir desarrollo específico para cada re
 
 | Generador | Descripción | Rol Requerido |
 |-----------|-------------|---------------|
-| Personaje | Generación de personajes jugador | Player+ |
+| Personaje | Generación de personajes jugador | Master+ |
 | PNJ | Generación de personajes no jugadores | Master+ |
 | Enemigo | Generación de antagonistas y monstruos | Master+ |
 | Vehículo | Naves, vehículos terrestres, monturas | Master+ |
