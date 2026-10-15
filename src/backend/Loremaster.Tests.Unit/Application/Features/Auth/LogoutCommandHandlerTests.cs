@@ -54,7 +54,7 @@ public class LogoutCommandHandlerTests
         user.RefreshTokenExpiryTime.Should().BeNull();
 
         _userRepositoryMock.Verify(
-            x => x.UpdateAsync(user, It.IsAny<CancellationToken>()),
+            x => x.Update(user),
             Times.Once);
         _unitOfWorkMock.Verify(
             x => x.SaveChangesAsync(It.IsAny<CancellationToken>()),
@@ -104,7 +104,7 @@ public class LogoutCommandHandlerTests
         result.Should().Be(MediatR.Unit.Value);
 
         _userRepositoryMock.Verify(
-            x => x.UpdateAsync(It.IsAny<User>(), It.IsAny<CancellationToken>()),
+            x => x.Update(It.IsAny<User>()),
             Times.Never);
         _unitOfWorkMock.Verify(
             x => x.SaveChangesAsync(It.IsAny<CancellationToken>()),

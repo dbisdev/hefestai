@@ -17,6 +17,20 @@ public partial class TextChunkingService : ITextChunkingService
     [GeneratedRegex(@"\n\s*\n", RegexOptions.Compiled)]
     private static partial Regex ParagraphBoundaryRegex();
 
+    /// <summary>
+    /// Collapses two or more consecutive space characters into a single space.
+    /// Replaces the O(n²) while+Replace loop with a single linear-scan Regex.Replace.
+    /// </summary>
+    [GeneratedRegex(@" {2,}", RegexOptions.Compiled)]
+    private static partial Regex MultipleSpacesRegex();
+
+    /// <summary>
+    /// Collapses three or more consecutive newline characters into exactly two.
+    /// Replaces the O(n²) while+Replace loop with a single linear-scan Regex.Replace.
+    /// </summary>
+    [GeneratedRegex(@"\n{3,}", RegexOptions.Compiled)]
+    private static partial Regex ExcessiveNewlinesRegex();
+
     /// <inheritdoc />
     public IReadOnlyList<TextChunk> ChunkText(string text)
     {
@@ -224,24 +238,23 @@ public partial class TextChunkingService : ITextChunkingService
 
     /// <summary>
     /// Normalizes text whitespace and formatting.
+    /// Uses Regex.Replace for O(n) performance instead of while+Replace loops.
     /// </summary>
     private static string NormalizeText(string text)
     {
-        // Replace various whitespace with standard characters
+        // Normalize CR and tab to their standard equivalents
         var normalized = text
             .Replace('\r', '\n')
             .Replace('\t', ' ');
 
-        // Collapse multiple spaces
-        while (normalized.Contains("  "))
-            normalized = normalized.Replace("  ", " ");
+        // Collapse multiple consecutive spaces → single space (O(n) single pass)
+        normalized = MultipleSpacesRegex().Replace(normalized, " ");
 
-        // Normalize line endings
+        // Strip trailing/leading spaces around newlines
         normalized = normalized.Replace(" \n", "\n").Replace("\n ", "\n");
-        
-        // Keep paragraph breaks but collapse excessive newlines
-        while (normalized.Contains("\n\n\n"))
-            normalized = normalized.Replace("\n\n\n", "\n\n");
+
+        // Collapse three or more consecutive newlines → two (O(n) single pass)
+        normalized = ExcessiveNewlinesRegex().Replace(normalized, "\n\n");
 
         return normalized.Trim();
     }

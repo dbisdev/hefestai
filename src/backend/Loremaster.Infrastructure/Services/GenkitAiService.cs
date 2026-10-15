@@ -1,39 +1,28 @@
-using System.Net.Http.Json;
-using System.Text.Json;
-using System.Text.Json.Serialization;
 using Loremaster.Application.Common.Interfaces;
-using Microsoft.Extensions.Configuration;
+using Loremaster.Application.Common.Models;
 using Microsoft.Extensions.Logging;
-using SixLabors.ImageSharp;
-using SixLabors.ImageSharp.Formats.Webp;
-using SixLabors.ImageSharp.Processing;
 
 namespace Loremaster.Infrastructure.Services;
 
 /// <summary>
-/// HTTP client for communicating with Genkit AI microservice
+/// HTTP client for communicating with Genkit AI microservice.
+/// Handles text generation, image generation, summarization and chat.
+/// Inherits shared HTTP transport and auth logic from <see cref="GenkitClientBase"/>.
+/// Image compression is delegated to <see cref="IImageCompressionService"/>.
 /// </summary>
-public class GenkitAiService : IAiService
+public class GenkitAiService : GenkitClientBase, IAiService
 {
-    private readonly HttpClient _httpClient;
-    private readonly IServiceTokenGenerator _tokenGenerator;
-    private readonly ILogger<GenkitAiService> _logger;
-    private readonly JsonSerializerOptions _jsonOptions;
+    private readonly IImageCompressionService _imageCompression;
 
+    /// <summary>Initializes a new instance of <see cref="GenkitAiService"/>.</summary>
     public GenkitAiService(
         HttpClient httpClient,
         IServiceTokenGenerator tokenGenerator,
-        ILogger<GenkitAiService> logger)
+        ILogger<GenkitAiService> logger,
+        IImageCompressionService imageCompression)
+        : base(httpClient, tokenGenerator, logger)
     {
-        _httpClient = httpClient;
-        _tokenGenerator = tokenGenerator;
-        _logger = logger;
-
-        _jsonOptions = new JsonSerializerOptions
-        {
-            PropertyNamingPolicy = JsonNamingPolicy.CamelCase,
-            DefaultIgnoreCondition = JsonIgnoreCondition.WhenWritingNull,
-        };
+        _imageCompression = imageCompression;
     }
 
     public async Task<GenerateTextResult> GenerateTextAsync(
@@ -66,7 +55,7 @@ public class GenkitAiService : IAiService
         int maxTokens = 2048,
         CancellationToken cancellationToken = default)
     {
-        var request = new GenerateJsonRequest
+        var request = new GenerateRequest
         {
             Prompt = prompt,
             SystemPrompt = systemPrompt ?? "You are a helpful assistant. Always respond with valid minified JSON only, no additional text or markdown.",
@@ -75,7 +64,7 @@ public class GenkitAiService : IAiService
             ResponseFormat = "json"  // Explicitly request JSON format for validation
         };
 
-        var response = await SendRequestAsync<GenerateJsonRequest, GenerateResponse>(
+        var response = await SendRequestAsync<GenerateRequest, GenerateResponse>(
             "/api/generate", request, cancellationToken);
 
         return new GenerateJsonResult(
@@ -108,7 +97,7 @@ public class GenkitAiService : IAiService
             // Compress image to WebP at 80% quality with max 500px width
             if (!string.IsNullOrEmpty(imageBase64))
             {
-                imageBase64 = await CompressImageToWebPAsync(imageBase64, 80, 500);
+                imageBase64 = await _imageCompression.CompressToWebPAsync(imageBase64, 80, 500);
             }
             
             const string mimeType = "image/webp";
@@ -125,70 +114,8 @@ public class GenkitAiService : IAiService
         }
         catch (Exception ex)
         {
-            _logger.LogWarning(ex, "Image generation failed");
+            Logger.LogWarning(ex, "Image generation failed");
             return new GenerateImageResult(null, null, false);
-        }
-    }
-
-    /// <summary>
-    /// Compresses an image to WebP format with specified quality and max width.
-    /// </summary>
-    /// <param name="base64Image">Base64 encoded image data</param>
-    /// <param name="quality">Compression quality (0-100)</param>
-    /// <param name="maxWidth">Maximum width in pixels</param>
-    /// <returns>Base64 encoded WebP image</returns>
-    private async Task<string> CompressImageToWebPAsync(string base64Image, int quality = 80, int maxWidth = 500)
-    {
-        try
-        {
-            // Remove data URL prefix if present
-            var imageData = base64Image.Contains(',') 
-                ? base64Image.Split(',')[1] 
-                : base64Image;
-            
-            var imageBytes = Convert.FromBase64String(imageData);
-            var originalSize = imageBytes.Length;
-            
-            _logger.LogInformation("Compressing image: {OriginalSize} bytes to WebP", originalSize);
-            
-            using var inputStream = new MemoryStream(imageBytes);
-            using var outputStream = new MemoryStream();
-            
-            using (var image = await Image.LoadAsync(inputStream))
-            {
-                _logger.LogInformation("Image loaded: {Width}x{Height}", image.Width, image.Height);
-                
-                // Resize if wider than maxWidth while maintaining aspect ratio
-                if (image.Width > maxWidth)
-                {
-                    var newHeight = (int)((double)image.Height * maxWidth / image.Width);
-                    _logger.LogInformation("Resizing to {Width}x{Height}", maxWidth, newHeight);
-                    image.Mutate(x => x.Resize(maxWidth, newHeight));
-                }
-                
-                // Encode to WebP with specified quality
-                var encoder = new WebpEncoder
-                {
-                    Quality = quality,
-                    FileFormat = WebpFileFormatType.Lossy
-                };
-                
-                await image.SaveAsync(outputStream, encoder);
-            }
-            
-            var result = Convert.ToBase64String(outputStream.ToArray());
-            var compressedSize = result.Length;
-            var savings = ((double)(originalSize - compressedSize) / originalSize * 100).ToString("F1");
-            
-            _logger.LogInformation("Image compressed: {OriginalSize} -> {CompressedSize} bytes ({Savings}% smaller)", 
-                originalSize, compressedSize, savings);
-            
-            return result;
-        }
-        catch (Exception ex)
-        {
-            _logger.LogError(ex, "Image compression failed. Original size: {Size}", base64Image.Length);
-            throw; // Re-throw to let the caller handle the failure
         }
     }
 
@@ -257,74 +184,30 @@ public class GenkitAiService : IAiService
     {
         try
         {
-            var response = await _httpClient.GetAsync("/health", cancellationToken);
+            var response = await HttpClient.GetAsync("/health", cancellationToken);
             return response.IsSuccessStatusCode;
         }
         catch (Exception ex)
         {
-            _logger.LogWarning(ex, "Genkit health check failed");
+            Logger.LogWarning(ex, "Genkit health check failed");
             return false;
         }
     }
 
-    private async Task<TResponse> SendRequestAsync<TRequest, TResponse>(
-        string endpoint,
-        TRequest request,
-        CancellationToken cancellationToken)
-    {
-        // Generate service token
-        var token = _tokenGenerator.GenerateServiceToken(ServiceScopes.GenkitExecute);
-
-        using var httpRequest = new HttpRequestMessage(HttpMethod.Post, endpoint);
-        httpRequest.Headers.Authorization = new System.Net.Http.Headers.AuthenticationHeaderValue("Bearer", token);
-        httpRequest.Content = JsonContent.Create(request, options: _jsonOptions);
-
-        _logger.LogDebug("Sending request to Genkit: {Endpoint}", endpoint);
-
-        var response = await _httpClient.SendAsync(httpRequest, cancellationToken);
-
-        if (!response.IsSuccessStatusCode)
-        {
-            var errorContent = await response.Content.ReadAsStringAsync(cancellationToken);
-            _logger.LogError("Genkit request failed: {StatusCode} - {Content}", 
-                response.StatusCode, errorContent);
-            
-            throw new HttpRequestException(
-                $"Genkit request failed with status {response.StatusCode}: {errorContent}");
-        }
-
-        var result = await response.Content.ReadFromJsonAsync<TResponse>(_jsonOptions, cancellationToken);
-        
-        if (result == null)
-        {
-            throw new InvalidOperationException("Failed to deserialize Genkit response");
-        }
-
-        return result;
-    }
-
-    private static TokenUsage? MapTokenUsage(TokenUsageDto? usage)
-    {
-        if (usage == null) return null;
-        return new TokenUsage(usage.PromptTokens, usage.CompletionTokens, usage.TotalTokens);
-    }
-
     // Internal DTOs for Genkit API
+
+    /// <summary>
+    /// Request DTO for the <c>/api/generate</c> endpoint.
+    /// Set <see cref="ResponseFormat"/> to <c>"json"</c> to enable JSON mode.
+    /// </summary>
     private record GenerateRequest
     {
         public string Prompt { get; init; } = null!;
         public string? SystemPrompt { get; init; }
         public float Temperature { get; init; }
         public int MaxTokens { get; init; }
-    }
-
-    private record GenerateJsonRequest
-    {
-        public string Prompt { get; init; } = null!;
-        public string? SystemPrompt { get; init; }
-        public float Temperature { get; init; }
-        public int MaxTokens { get; init; }
-        public string ResponseFormat { get; init; } = "json";
+        /// <summary>Optional response format hint; pass <c>"json"</c> to request structured output.</summary>
+        public string? ResponseFormat { get; init; }
     }
 
     private record GenerateResponse
@@ -390,12 +273,5 @@ public class GenkitAiService : IAiService
     {
         public string Message { get; init; } = null!;
         public TokenUsageDto? Usage { get; init; }
-    }
-
-    private record TokenUsageDto
-    {
-        public int PromptTokens { get; init; }
-        public int CompletionTokens { get; init; }
-        public int TotalTokens { get; init; }
     }
 }

@@ -12,6 +12,9 @@ import { TerminalLog } from '@shared/components/ui';
 import { useTerminalLog } from '@core/hooks/useTerminalLog';
 import { useAuth, useCampaign } from '@core/context';
 import { gameSystemService } from '@core/services/api';
+import { extractErrorMessage } from '@core/utils/error';
+import { logger } from '@core/utils';
+import { TERMINAL_LOG_COMPACT } from '@core/config/constants';
 import type { GameSystem } from '@core/types';
 
 interface CampaignGeneratorPageProps {
@@ -28,7 +31,7 @@ export const CampaignGeneratorPage: React.FC<CampaignGeneratorPageProps> = ({ on
   const { createCampaign, joinCampaign, isLoading } = useCampaign();
   
   const { logs, addLog } = useTerminalLog({
-    maxLogs: 6,
+    maxLogs: TERMINAL_LOG_COMPACT,
     initialLogs: [
       '> Campaign management system online...',
       '> [SUCCESS] Command protocols established.',
@@ -71,7 +74,7 @@ export const CampaignGeneratorPage: React.FC<CampaignGeneratorPageProps> = ({ on
         
         addLog(`[SUCCESS] ${systems.length} sistema(s) de juego cargado(s).`);
       } catch (error) {
-        console.error('Failed to load game systems:', error);
+        logger.error('Failed to load game systems:', error);
         addLog('ERROR: No se pudieron cargar los sistemas de juego.');
       } finally {
         setIsLoadingGameSystems(false);
@@ -113,9 +116,9 @@ export const CampaignGeneratorPage: React.FC<CampaignGeneratorPageProps> = ({ on
       
       setTimeout(onBack, 1500);
     } catch (error: unknown) {
-      const message = error instanceof Error ? error.message : 'CREACION FALLIDA';
+      const message = extractErrorMessage(error, 'CREACION FALLIDA');
       addLog(`ERROR_CRITICO: ${message}`);
-      console.error(error);
+      logger.error(error);
     } finally {
       setIsCreating(false);
     }
@@ -144,9 +147,9 @@ export const CampaignGeneratorPage: React.FC<CampaignGeneratorPageProps> = ({ on
       
       setTimeout(onBack, 1500);
     } catch (error: unknown) {
-      const message = error instanceof Error ? error.message : 'ACCESO DENEGADO';
+      const message = extractErrorMessage(error, 'ACCESO DENEGADO');
       addLog(`ERROR_CRITICO: ${message}`);
-      console.error(error);
+      logger.error(error);
     } finally {
       setIsJoining(false);
     }
@@ -440,7 +443,7 @@ export const CampaignGeneratorPage: React.FC<CampaignGeneratorPageProps> = ({ on
           </div>
 
           {/* Log Panel */}
-          <TerminalLog logs={logs} maxLogs={6} className="h-24" />
+          <TerminalLog logs={logs} maxLogs={TERMINAL_LOG_COMPACT} className="h-24" />
         </div>
       </div>
     </TerminalLayout>

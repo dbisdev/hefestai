@@ -1,4 +1,6 @@
 using Loremaster.Application.Common.Interfaces;
+using Loremaster.Domain.Entities;
+using Loremaster.Domain.Exceptions;
 using MediatR;
 using Microsoft.Extensions.Logging;
 
@@ -11,18 +13,18 @@ namespace Loremaster.Application.Features.EntityTemplates.Commands.RevertTemplat
 public class RevertTemplateToDraftCommandHandler : IRequestHandler<RevertTemplateToDraftCommand, Unit>
 {
     private readonly IEntityTemplateRepository _templateRepository;
-    private readonly IGameSystemRepository _gameSystemRepository;
+    private readonly IGameSystemAuthorizationService _authorizationService;
     private readonly IUnitOfWork _unitOfWork;
     private readonly ILogger<RevertTemplateToDraftCommandHandler> _logger;
 
     public RevertTemplateToDraftCommandHandler(
         IEntityTemplateRepository templateRepository,
-        IGameSystemRepository gameSystemRepository,
+        IGameSystemAuthorizationService authorizationService,
         IUnitOfWork unitOfWork,
         ILogger<RevertTemplateToDraftCommandHandler> logger)
     {
         _templateRepository = templateRepository;
-        _gameSystemRepository = gameSystemRepository;
+        _authorizationService = authorizationService;
         _unitOfWork = unitOfWork;
         _logger = logger;
     }
@@ -40,24 +42,17 @@ public class RevertTemplateToDraftCommandHandler : IRequestHandler<RevertTemplat
 
         if (template == null)
         {
-            throw new ArgumentException($"Template with ID {request.TemplateId} not found");
+            throw new NotFoundException(nameof(EntityTemplate), request.TemplateId);
         }
 
-        var gameSystem = await _gameSystemRepository.GetByIdAsync(
-            request.GameSystemId, cancellationToken);
-
-        if (gameSystem == null)
-        {
-            throw new ArgumentException($"Game system with ID {request.GameSystemId} not found");
-        }
-
-        var isSystemOwner = gameSystem.OwnerId == request.OwnerId;
-        if (!request.IsAdmin && !isSystemOwner)
-        {
-            throw new UnauthorizedAccessException(
-                "You do not have permission to revert templates in this game system. " +
-                "Only the system owner or an Admin can revert templates.");
-        }
+        // Delegates ownership check to the shared authorization service.
+        // Admins may revert any template; non-admins must be the system owner.
+        await _authorizationService.RequireOwnerOrAdminAsync(
+            request.GameSystemId,
+            request.OwnerId,
+            request.IsAdmin,
+            action: "revert templates",
+            cancellationToken);
 
         template.RevertToDraft(adminOverride: request.IsAdmin);
 

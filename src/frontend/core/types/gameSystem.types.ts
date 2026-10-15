@@ -30,10 +30,9 @@ export interface GameSystemOption {
 }
 
 /**
- * Request payload for creating a new game system
- * Matches backend CreateGameSystemRequest
+ * Input payload for creating a new game system
  */
-export interface CreateGameSystemRequest {
+export interface CreateGameSystemInput {
   code: string;
   name: string;
   publisher?: string;
@@ -43,10 +42,9 @@ export interface CreateGameSystemRequest {
 }
 
 /**
- * Request payload for updating an existing game system
- * Matches backend UpdateGameSystemRequest
+ * Input payload for updating an existing game system
  */
-export interface UpdateGameSystemRequest {
+export interface UpdateGameSystemInput {
   name: string;
   publisher?: string;
   version?: string;
@@ -55,9 +53,8 @@ export interface UpdateGameSystemRequest {
 }
 
 /**
- * Request payload for updating game system status
- * Matches backend UpdateGameSystemStatusRequest
+ * Input payload for updating game system status
  */
-export interface UpdateGameSystemStatusRequest {
+export interface UpdateGameSystemStatusInput {
   isActive: boolean;
 }

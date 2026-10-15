@@ -6,7 +6,7 @@ namespace Loremaster.Tests.Unit.Application.Features.GameSystems;
 
 /// <summary>
 /// Unit tests for GetAllGameSystemsQueryHandler.
-/// Tests retrieval of active game systems.
+/// Tests ownership-scoped retrieval of active game systems.
 /// </summary>
 public class GetAllGameSystemsQueryHandlerTests
 {
@@ -20,7 +20,7 @@ public class GetAllGameSystemsQueryHandlerTests
     }
 
     [Fact]
-    public async Task Handle_WhenActiveSystemsExist_ShouldReturnAllActiveSystems()
+    public async Task Handle_WhenActiveSystemsExist_ShouldReturnMappedDtos()
     {
         // Arrange
         var gameSystems = new List<GameSystem>
@@ -30,11 +30,12 @@ public class GetAllGameSystemsQueryHandlerTests
             CreateGameSystem("swrpg", "Star Wars RPG")
         };
 
+        var masterId = Guid.NewGuid();
         _gameSystemRepositoryMock
-            .Setup(x => x.GetActiveAsync(It.IsAny<CancellationToken>()))
+            .Setup(x => x.GetActiveForUserAsync(masterId, false, false, It.IsAny<CancellationToken>()))
             .ReturnsAsync(gameSystems);
 
-        var query = new GetAllGameSystemsQuery();
+        var query = new GetAllGameSystemsQuery(UserId: masterId, IncludeAll: false);
 
         // Act
         var result = await _handler.Handle(query, CancellationToken.None);
@@ -49,11 +50,12 @@ public class GetAllGameSystemsQueryHandlerTests
     public async Task Handle_WhenNoActiveSystems_ShouldReturnEmptyCollection()
     {
         // Arrange
+        var masterId = Guid.NewGuid();
         _gameSystemRepositoryMock
-            .Setup(x => x.GetActiveAsync(It.IsAny<CancellationToken>()))
+            .Setup(x => x.GetActiveForUserAsync(masterId, false, false, It.IsAny<CancellationToken>()))
             .ReturnsAsync(new List<GameSystem>());
 
-        var query = new GetAllGameSystemsQuery();
+        var query = new GetAllGameSystemsQuery(UserId: masterId, IncludeAll: false);
 
         // Act
         var result = await _handler.Handle(query, CancellationToken.None);
@@ -74,11 +76,12 @@ public class GetAllGameSystemsQueryHandlerTests
             version: "5.2",
             description: "Fantasy RPG");
 
+        var masterId = Guid.NewGuid();
         _gameSystemRepositoryMock
-            .Setup(x => x.GetActiveAsync(It.IsAny<CancellationToken>()))
+            .Setup(x => x.GetActiveForUserAsync(masterId, false, false, It.IsAny<CancellationToken>()))
             .ReturnsAsync(new List<GameSystem> { gameSystem });
 
-        var query = new GetAllGameSystemsQuery();
+        var query = new GetAllGameSystemsQuery(UserId: masterId, IncludeAll: false);
 
         // Act
         var result = await _handler.Handle(query, CancellationToken.None);
@@ -93,24 +96,73 @@ public class GetAllGameSystemsQueryHandlerTests
         dto.IsActive.Should().BeTrue();
     }
 
+    [Fact]
+    public async Task Handle_WhenAdmin_ShouldPassIncludeAllTrue()
+    {
+        // Arrange
+        var allSystems = new List<GameSystem>
+        {
+            CreateGameSystem("sys1", "System 1"),
+            CreateGameSystem("sys2", "System 2")
+        };
+
+        _gameSystemRepositoryMock
+            .Setup(x => x.GetActiveForUserAsync(null, true, false, It.IsAny<CancellationToken>()))
+            .ReturnsAsync(allSystems);
+
+        var query = new GetAllGameSystemsQuery(UserId: null, IncludeAll: true);
+
+        // Act
+        var result = await _handler.Handle(query, CancellationToken.None);
+
+        // Assert
+        result.Should().HaveCount(2);
+        _gameSystemRepositoryMock.Verify(
+            x => x.GetActiveForUserAsync(null, true, false, It.IsAny<CancellationToken>()),
+            Times.Once);
+    }
+
+    [Fact]
+    public async Task Handle_WhenPlayer_ShouldPassIsPlayerTrue()
+    {
+        // Arrange
+        var playerId = Guid.NewGuid();
+        var visibleSystems = new List<GameSystem>
+        {
+            CreateGameSystem("admin-sys", "Admin Owned System"),
+            CreateGameSystem("master-sys", "Campaign Master System")
+        };
+
+        _gameSystemRepositoryMock
+            .Setup(x => x.GetActiveForUserAsync(playerId, false, true, It.IsAny<CancellationToken>()))
+            .ReturnsAsync(visibleSystems);
+
+        var query = new GetAllGameSystemsQuery(UserId: playerId, IncludeAll: false, IsPlayer: true);
+
+        // Act
+        var result = await _handler.Handle(query, CancellationToken.None);
+
+        // Assert
+        result.Should().HaveCount(2);
+        _gameSystemRepositoryMock.Verify(
+            x => x.GetActiveForUserAsync(playerId, false, true, It.IsAny<CancellationToken>()),
+            Times.Once);
+    }
+
     #region Helper Methods
 
     private static readonly Guid TestOwnerId = Guid.NewGuid();
 
     private static GameSystem CreateGameSystem(string code, string name)
-    {
-        return GameSystem.Create(code, name, TestOwnerId);
-    }
+        => GameSystem.Create(code, name, TestOwnerId);
 
     private static GameSystem CreateGameSystemWithDetails(
-        string code, 
-        string name, 
-        string? publisher = null, 
-        string? version = null, 
+        string code,
+        string name,
+        string? publisher = null,
+        string? version = null,
         string? description = null)
-    {
-        return GameSystem.Create(code, name, TestOwnerId, publisher, version, description);
-    }
+        => GameSystem.Create(code, name, TestOwnerId, publisher, version, description);
 
     #endregion
 }

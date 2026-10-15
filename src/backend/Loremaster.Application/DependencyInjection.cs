@@ -1,7 +1,10 @@
 using System.Reflection;
 using FluentValidation;
 using Loremaster.Application.Common.Behaviors;
+using Loremaster.Application.Common.Interfaces;
+using Loremaster.Application.Common.Services;
 using Loremaster.Application.Features.EntityGeneration.Services;
+using Loremaster.Application.Features.EntityTemplates.Commands.ExtractTemplatesFromManual.Services;
 using MediatR;
 using Microsoft.Extensions.DependencyInjection;
 
@@ -21,10 +24,17 @@ public static class DependencyInjection
             cfg.AddBehavior(typeof(IPipelineBehavior<,>), typeof(PerformanceBehavior<,>));
         });
 
+        // Entity generation services
+        services.AddScoped<IGameSystemAuthorizationService, GameSystemAuthorizationService>();
         services.AddScoped<IPromptBuilderService, PromptBuilderService>();
         services.AddScoped<IImageGenerationService, ImageGenerationService>();
         services.AddScoped<IGenerationTrackingService, GenerationTrackingService>();
         services.AddScoped<ITemplateResolutionService, TemplateResolutionService>();
+
+        // Template extraction services (internal — registered via concrete interface)
+        services.AddScoped<IEntityExtractionRagService, EntityExtractionRagService>();
+        services.AddScoped<IEntityTypeParser, EntityTypeParser>();
+        services.AddScoped<IFieldDefinitionConverter, FieldDefinitionConverter>();
 
         return services;
     }

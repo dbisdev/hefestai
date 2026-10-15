@@ -52,7 +52,7 @@ export const EntityDetailModal: React.FC<EntityDetailModalProps> = ({
 
   // Detect solar system for special visualization
   const isSolarSystem = entity.entityType === 'solar_system';
-  const attributes = (entity.attributes || {}) as Record<string, unknown>;
+  const attributes = entity.attributes ?? {};
   const planets = (attributes?.planets as PlanetData[] | undefined) ?? [];
   const spectralClass = attributes?.spectralClass as string | undefined;
 

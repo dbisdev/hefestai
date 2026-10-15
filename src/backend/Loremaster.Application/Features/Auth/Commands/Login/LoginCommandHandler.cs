@@ -42,7 +42,7 @@ public class LoginCommandHandler : IRequestHandler<LoginCommand, LoginResponse>
         user.SetRefreshToken(refreshToken, refreshTokenExpiry);
         user.RecordLogin();
 
-        await _userRepository.UpdateAsync(user, cancellationToken);
+        _userRepository.Update(user);
         await _unitOfWork.SaveChangesAsync(cancellationToken);
 
         var accessToken = _jwtTokenGenerator.GenerateAccessToken(user);

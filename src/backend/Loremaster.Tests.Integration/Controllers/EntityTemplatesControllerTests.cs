@@ -30,7 +30,9 @@ public class EntityTemplatesControllerTests : IClassFixture<CustomWebApplication
     /// <summary>
     /// Creates a game system directly in the database for testing.
     /// </summary>
-    private async Task<GameSystem> CreateGameSystemInDbAsync(string? code = null)
+    /// <param name="code">Optional game system code (auto-generated if null).</param>
+    /// <param name="ownerId">Optional owner ID; use the authenticated user's ID when testing owner-restricted operations.</param>
+    private async Task<GameSystem> CreateGameSystemInDbAsync(string? code = null, Guid? ownerId = null)
     {
         using var scope = _factory.Services.CreateScope();
         var dbContext = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
@@ -38,7 +40,7 @@ public class EntityTemplatesControllerTests : IClassFixture<CustomWebApplication
         var gameSystem = GameSystem.Create(
             code: code ?? $"test-{Guid.NewGuid():N}".Substring(0, 20),
             name: "Test Game System",
-            ownerId: Guid.NewGuid(),
+            ownerId: ownerId ?? Guid.NewGuid(),
             publisher: "Test Publisher",
             version: "1.0",
             description: "A test game system"
@@ -136,7 +138,7 @@ public class EntityTemplatesControllerTests : IClassFixture<CustomWebApplication
         // Assert
         response.StatusCode.Should().Be(HttpStatusCode.OK);
         
-        var content = await response.Content.ReadFromJsonAsync<GetTemplatesResponse>();
+        var content = await response.Content.ReadFromJsonAsync<GetTemplatesResponse>(TestJsonOptions.Default);
         content.Should().NotBeNull();
         content!.Templates.Should().HaveCount(2);
     }
@@ -162,10 +164,10 @@ public class EntityTemplatesControllerTests : IClassFixture<CustomWebApplication
         // Assert
         response.StatusCode.Should().Be(HttpStatusCode.OK);
         
-        var content = await response.Content.ReadFromJsonAsync<GetTemplatesResponse>();
+        var content = await response.Content.ReadFromJsonAsync<GetTemplatesResponse>(TestJsonOptions.Default);
         content.Should().NotBeNull();
         // Status 2 = Confirmed
-        content!.Templates.Should().OnlyContain(t => t.Status == 2);
+        content!.Templates.Should().OnlyContain(t => t.Status == "Confirmed");
     }
 
     [Fact]
@@ -189,10 +191,10 @@ public class EntityTemplatesControllerTests : IClassFixture<CustomWebApplication
         // Assert
         response.StatusCode.Should().Be(HttpStatusCode.OK);
         
-        var content = await response.Content.ReadFromJsonAsync<GetTemplatesResponse>();
+        var content = await response.Content.ReadFromJsonAsync<GetTemplatesResponse>(TestJsonOptions.Default);
         content.Should().NotBeNull();
         // Status 2 = Confirmed
-        content!.Templates.Should().OnlyContain(t => t.Status == 2);
+        content!.Templates.Should().OnlyContain(t => t.Status == "Confirmed");
     }
 
     [Fact]
@@ -219,7 +221,7 @@ public class EntityTemplatesControllerTests : IClassFixture<CustomWebApplication
         // Assert
         response.StatusCode.Should().Be(HttpStatusCode.OK);
         
-        var content = await response.Content.ReadFromJsonAsync<GetTemplatesResponse>();
+        var content = await response.Content.ReadFromJsonAsync<GetTemplatesResponse>(TestJsonOptions.Default);
         content.Should().NotBeNull();
         // User2 should see no templates (they don't own any)
         content!.Templates.Should().BeEmpty();
@@ -248,7 +250,7 @@ public class EntityTemplatesControllerTests : IClassFixture<CustomWebApplication
         // Assert
         response.StatusCode.Should().Be(HttpStatusCode.OK);
         
-        var content = await response.Content.ReadFromJsonAsync<EntityTemplateResponse>();
+        var content = await response.Content.ReadFromJsonAsync<EntityTemplateResponse>(TestJsonOptions.Default);
         content.Should().NotBeNull();
         content!.Id.Should().Be(template.Id);
         content.EntityTypeName.Should().Be("test_entity");
@@ -304,13 +306,12 @@ public class EntityTemplatesControllerTests : IClassFixture<CustomWebApplication
     [Fact]
     public async Task ConfirmTemplate_WhenDraft_ShouldConfirmAndReturn200()
     {
-        // Arrange
-        var gameSystem = await CreateGameSystemInDbAsync();
-        
+        // Arrange — create the authenticated user first so we can set them as game system owner
         var authFactory = new AuthenticatedHttpClientFactory(_factory);
         var (client, _, userIdStr) = await authFactory.CreateAuthenticatedClientAsync(
             $"templates-confirm-{Guid.NewGuid()}@example.com");
         var userId = Guid.Parse(userIdStr);
+        var gameSystem = await CreateGameSystemInDbAsync(ownerId: userId);
 
         var template = await CreateTemplateInDbAsync(gameSystem.Id, userId, "to_confirm", "To Confirm", TemplateStatus.Draft);
 
@@ -324,7 +325,7 @@ public class EntityTemplatesControllerTests : IClassFixture<CustomWebApplication
         // Assert
         response.StatusCode.Should().Be(HttpStatusCode.OK);
         
-        var content = await response.Content.ReadFromJsonAsync<ConfirmTemplateResponse>();
+        var content = await response.Content.ReadFromJsonAsync<ConfirmTemplateResponse>(TestJsonOptions.Default);
         content.Should().NotBeNull();
         content!.TemplateId.Should().Be(template.Id);
         content.EntityTypeName.Should().Be("to_confirm");
@@ -334,13 +335,12 @@ public class EntityTemplatesControllerTests : IClassFixture<CustomWebApplication
     [Fact]
     public async Task ConfirmTemplate_WhenAlreadyConfirmed_ShouldReturnBadRequest()
     {
-        // Arrange
-        var gameSystem = await CreateGameSystemInDbAsync();
-        
+        // Arrange — create the authenticated user first so we can set them as game system owner
         var authFactory = new AuthenticatedHttpClientFactory(_factory);
         var (client, _, userIdStr) = await authFactory.CreateAuthenticatedClientAsync(
             $"templates-reconfirm-{Guid.NewGuid()}@example.com");
         var userId = Guid.Parse(userIdStr);
+        var gameSystem = await CreateGameSystemInDbAsync(ownerId: userId);
 
         var template = await CreateTemplateInDbAsync(gameSystem.Id, userId, "already_confirmed", "Already Confirmed", TemplateStatus.Confirmed);
 
@@ -356,7 +356,7 @@ public class EntityTemplatesControllerTests : IClassFixture<CustomWebApplication
     }
 
     [Fact]
-    public async Task ConfirmTemplate_WhenOtherUser_ShouldReturnNotFound()
+    public async Task ConfirmTemplate_WhenOtherUser_ShouldReturnForbidden()
     {
         // Arrange
         var gameSystem = await CreateGameSystemInDbAsync();
@@ -380,8 +380,8 @@ public class EntityTemplatesControllerTests : IClassFixture<CustomWebApplication
             $"/api/game-systems/{gameSystem.Id}/templates/{template.Id}/confirm", 
             request);
 
-        // Assert
-        response.StatusCode.Should().Be(HttpStatusCode.NotFound);
+        // Assert — non-owner, non-admin gets 403 Forbidden (not 404)
+        response.StatusCode.Should().Be(HttpStatusCode.Forbidden);
     }
 
     #endregion
@@ -391,13 +391,12 @@ public class EntityTemplatesControllerTests : IClassFixture<CustomWebApplication
     [Fact]
     public async Task UpdateTemplate_WhenDraft_ShouldUpdateAndReturn200()
     {
-        // Arrange
-        var gameSystem = await CreateGameSystemInDbAsync();
-        
+        // Arrange — create the authenticated user first so we can set them as game system owner
         var authFactory = new AuthenticatedHttpClientFactory(_factory);
         var (client, _, userIdStr) = await authFactory.CreateAuthenticatedClientAsync(
             $"templates-update-{Guid.NewGuid()}@example.com");
         var userId = Guid.Parse(userIdStr);
+        var gameSystem = await CreateGameSystemInDbAsync(ownerId: userId);
 
         var template = await CreateTemplateInDbAsync(gameSystem.Id, userId, "updatable", "Updatable", TemplateStatus.Draft);
 
@@ -416,7 +415,7 @@ public class EntityTemplatesControllerTests : IClassFixture<CustomWebApplication
         // Assert
         response.StatusCode.Should().Be(HttpStatusCode.OK);
         
-        var content = await response.Content.ReadFromJsonAsync<UpdateTemplateResponse>();
+        var content = await response.Content.ReadFromJsonAsync<UpdateTemplateResponse>(TestJsonOptions.Default);
         content.Should().NotBeNull();
         content!.TemplateId.Should().Be(template.Id);
         content.DisplayName.Should().Be("Updated Display Name");
@@ -486,7 +485,7 @@ public class EntityTemplatesControllerTests : IClassFixture<CustomWebApplication
         Guid Id,
         string EntityTypeName,
         string DisplayName,
-        int Status, // Enum is serialized as int
+        string Status, // Serialized as string via JsonStringEnumConverter
         int FieldCount
     );
 
@@ -495,7 +494,7 @@ public class EntityTemplatesControllerTests : IClassFixture<CustomWebApplication
         string EntityTypeName,
         string DisplayName,
         string? Description,
-        int Status, // Enum is serialized as int
+        string Status, // Serialized as string via JsonStringEnumConverter
         Guid GameSystemId,
         Guid OwnerId
     );

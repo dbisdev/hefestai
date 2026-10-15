@@ -1,5 +1,5 @@
-using System.Security.Claims;
-using Loremaster.Application.Common.Interfaces;
+using Loremaster.Application.Common.Models;
+using Loremaster.Application.Features.Ai.Queries.CheckAiHealth;
 using Loremaster.Application.Features.EntityGeneration.Commands.GenerateCharacter;
 using Loremaster.Application.Features.EntityGeneration.Commands.GenerateSolarSystem;
 using Loremaster.Application.Features.EntityGeneration.Commands.GenerateVehicle;
@@ -7,6 +7,7 @@ using Loremaster.Application.Features.EntityGeneration.Commands.GenerateNpc;
 using Loremaster.Application.Features.EntityGeneration.Commands.GenerateEnemy;
 using Loremaster.Application.Features.EntityGeneration.Commands.GenerateMission;
 using Loremaster.Application.Features.EntityGeneration.Commands.GenerateEncounter;
+using Loremaster.Application.Features.EntityGeneration.Commands.TestAi;
 using Loremaster.Application.Features.EntityGeneration.Commands.Shared;
 using Loremaster.Application.Features.EntityGeneration.DTOs;
 using MediatR;
@@ -18,31 +19,13 @@ namespace Loremaster.Api.Controllers;
 [ApiController]
 [Route("api/[controller]")]
 [Authorize]
-public class AiController : ControllerBase
+public class AiController : ApiControllerBase
 {
     private readonly IMediator _mediator;
-    private readonly IAiService _aiService;
-    private readonly ILogger<AiController> _logger;
 
-    public AiController(
-        IMediator mediator,
-        IAiService aiService,
-        ILogger<AiController> logger)
+    public AiController(IMediator mediator)
     {
         _mediator = mediator;
-        _aiService = aiService;
-        _logger = logger;
-    }
-
-    private Guid GetCurrentUserId()
-    {
-        var userIdClaim = User.FindFirst("sub")?.Value
-            ?? User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
-
-        if (string.IsNullOrEmpty(userIdClaim) || !Guid.TryParse(userIdClaim, out var userId))
-            throw new UnauthorizedAccessException("Invalid user token");
-
-        return userId;
     }
 
     #region Entity Generation Endpoints
@@ -307,7 +290,7 @@ public class AiController : ControllerBase
                 EncounterType = request.EncounterType,
                 Difficulty = request.Difficulty,
                 Environment = request.Environment,
-                EnemyCount = request.EnemyCount,
+                EnemyCount = request.EnemyCount.ToString().ToLowerInvariant(),
                 GenerateImage = request.GenerateImage
             };
 
@@ -335,94 +318,74 @@ public class AiController : ControllerBase
 
     #region Utility Endpoints
 
+    /// <summary>
+    /// Tests AI service connectivity by sending a prompt and returning the generated text.
+    /// Errors are captured inside <see cref="TestAiResult"/> rather than thrown, so the
+    /// endpoint always returns 200 with a success/error payload.
+    /// </summary>
     [HttpPost("test")]
     [ProducesResponseType(typeof(TestAiResponse), StatusCodes.Status200OK)]
-    [ProducesResponseType(StatusCodes.Status500InternalServerError)]
     public async Task<ActionResult<TestAiResponse>> TestGenkit(
         [FromBody] TestAiRequest request,
         CancellationToken cancellationToken)
     {
-        try
+        var command = new TestAiCommand(
+            Prompt: request.Prompt,
+            SystemPrompt: request.SystemPrompt,
+            Temperature: request.Temperature ?? 0.7f,
+            MaxTokens: request.MaxTokens ?? 256);
+
+        var result = await _mediator.Send(command, cancellationToken);
+
+        return Ok(new TestAiResponse
         {
-            _logger.LogInformation("Testing Genkit AI service with prompt: {Prompt}", request.Prompt);
-
-            var result = await _aiService.GenerateTextAsync(
-                request.Prompt,
-                request.SystemPrompt,
-                request.Temperature ?? 0.7f,
-                request.MaxTokens ?? 256,
-                cancellationToken);
-
-            return Ok(new TestAiResponse
-            {
-                Success = true,
-                Text = result.Text,
-                Usage = result.Usage != null ? new TokenUsageResponse
+            Success = result.Success,
+            Text = result.Text,
+            Error = result.Error,
+            Usage = result.Usage is not null
+                ? new TokenUsageResponse
                 {
                     PromptTokens = result.Usage.PromptTokens,
                     CompletionTokens = result.Usage.CompletionTokens,
                     TotalTokens = result.Usage.TotalTokens
-                } : null
-            });
-        }
-        catch (Exception ex)
-        {
-            _logger.LogError(ex, "Failed to test Genkit AI service");
-            return StatusCode(500, new TestAiResponse
-            {
-                Success = false,
-                Error = ex.Message
-            });
-        }
+                }
+                : null
+        });
     }
 
+    /// <summary>
+    /// Health-check endpoint for the AI service. Anonymous access allowed.
+    /// </summary>
     [HttpGet("health")]
     [AllowAnonymous]
     [ProducesResponseType(typeof(HealthResponse), StatusCodes.Status200OK)]
     public async Task<ActionResult<HealthResponse>> CheckHealth(CancellationToken cancellationToken)
     {
-        var isHealthy = await _aiService.IsHealthyAsync(cancellationToken);
+        var result = await _mediator.Send(new CheckAiHealthQuery(), cancellationToken);
 
         return Ok(new HealthResponse
         {
-            IsHealthy = isHealthy,
-            Service = "Genkit AI",
-            Timestamp = DateTime.UtcNow
+            IsHealthy = result.IsHealthy,
+            Service = result.Service,
+            Timestamp = result.Timestamp
         });
     }
 
     #endregion
 }
 
-#region Request/Response DTOs
+#region API-layer DTOs
 
-public record TestAiRequest
-{
-    public string Prompt { get; init; } = "Hello, can you confirm you are working?";
-    public string? SystemPrompt { get; init; }
-    public float? Temperature { get; init; }
-    public int? MaxTokens { get; init; }
-}
-
-public record TestAiResponse
-{
-    public bool Success { get; init; }
-    public string? Text { get; init; }
-    public string? Error { get; init; }
-    public TokenUsageResponse? Usage { get; init; }
-}
-
-public record TokenUsageResponse
-{
-    public int PromptTokens { get; init; }
-    public int CompletionTokens { get; init; }
-    public int TotalTokens { get; init; }
-}
-
+/// <summary>Response DTO for the <c>GET /api/ai/health</c> endpoint.</summary>
 public record HealthResponse
 {
+    /// <summary>Whether the AI service responded successfully.</summary>
     public bool IsHealthy { get; init; }
+
+    /// <summary>Human-readable service identifier.</summary>
     public string Service { get; init; } = null!;
+
+    /// <summary>UTC timestamp of the health check.</summary>
     public DateTime Timestamp { get; init; }
 }
 

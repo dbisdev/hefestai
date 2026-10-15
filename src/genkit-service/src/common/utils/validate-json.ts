@@ -4,19 +4,7 @@
  */
 
 import djson from 'dirty-json';
-
-/**
- * Strip markdown code fences from text
- */
-function stripMarkdownCodeFences(text: string): string {
-  const trimmed = text.trim();
-  if (!trimmed.startsWith('```')) {
-    return text;
-  }
-  let cleaned = trimmed.replace(/^```(?:\w+)?\s*\n?/, '');
-  cleaned = cleaned.replace(/\n?```\s*$/, '');
-  return cleaned.trim();
-}
+import { stripMarkdownCodeFences } from './strip-markdown.js';
 
 /**
  * Validates and repairs JSON received from AI responses.

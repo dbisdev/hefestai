@@ -4,16 +4,16 @@
  * Provides API interface for template management (Admin only)
  */
 
-import { httpClient } from './client';
+import { httpClient, ApiRequestError } from './client';
 import type {
   EntityTemplate,
   GetTemplatesResult,
   ExtractTemplatesResult,
   ConfirmTemplateResult,
-  ConfirmTemplateRequest,
-  CreateTemplateRequest,
+  ConfirmTemplateInput,
+  CreateTemplateInput,
   CreateTemplateResult,
-  UpdateTemplateRequest,
+  UpdateTemplateInput,
   UpdateTemplateResult,
   DeleteTemplateResult,
   FieldDefinition,
@@ -71,32 +71,37 @@ export const entityTemplateService = {
    * @param gameSystemId - The game system ID
    * @param entityTypeName - The entity type name (e.g., "character", "npc")
    * @returns The confirmed template or null if not found
+   * @throws {ApiRequestError} When the network request fails (non-404 errors are propagated)
    */
   async getConfirmedByEntityType(
     gameSystemId: string,
     entityTypeName: string
   ): Promise<EntityTemplate | null> {
+    // Get all confirmed templates — let network/auth errors propagate to the caller
+    const result = await this.getByGameSystem(gameSystemId, undefined, true);
+
+    // Normalize the entity type name for comparison
+    const normalizedName = entityTypeName.toLowerCase().replace(/\s+/g, '_');
+
+    // Find the matching template by entity type name
+    const templateSummary = result.templates.find(
+      t => t.entityTypeName.toLowerCase() === normalizedName
+    );
+
+    if (!templateSummary) {
+      return null;
+    }
+
+    // Fetch full template with field definitions
     try {
-      // Get all confirmed templates
-      const result = await this.getByGameSystem(gameSystemId, undefined, true);
-      
-      // Normalize the entity type name for comparison
-      const normalizedName = entityTypeName.toLowerCase().replace(/\s+/g, '_');
-      
-      // Find the matching template by entity type name
-      const templateSummary = result.templates.find(
-        t => t.entityTypeName.toLowerCase() === normalizedName
-      );
-      
-      if (!templateSummary) {
-        return null;
-      }
-      
-      // Fetch full template with field definitions
       return await this.getById(gameSystemId, templateSummary.id);
     } catch (error) {
-      console.error(`Failed to get template for ${entityTypeName}:`, error);
-      return null;
+      // A 404 on the detail endpoint means the template was deleted between
+      // the list and the detail request — treat as "not found", not as an error.
+      if (error instanceof ApiRequestError && error.status === 404) {
+        return null;
+      }
+      throw error;
     }
   },
 
@@ -151,7 +156,7 @@ export const entityTemplateService = {
   async update(
     gameSystemId: string,
     templateId: string,
-    request: UpdateTemplateRequest
+    request: UpdateTemplateInput
   ): Promise<UpdateTemplateResult> {
     return httpClient.put<UpdateTemplateResult>(
       `/game-systems/${gameSystemId}/templates/${templateId}`,
@@ -169,7 +174,7 @@ export const entityTemplateService = {
   async confirm(
     gameSystemId: string,
     templateId: string,
-    request?: ConfirmTemplateRequest
+    request?: ConfirmTemplateInput
   ): Promise<ConfirmTemplateResult> {
     return httpClient.post<ConfirmTemplateResult>(
       `/game-systems/${gameSystemId}/templates/${templateId}/confirm`,
@@ -212,32 +217,37 @@ export const entityTemplateService = {
   },
 
   /**
-   * Confirm all templates for a game system in one operation
-   * Confirms all templates that are in Draft or PendingReview status
+   * Confirm all templates for a game system in one operation.
+   * Confirms all templates that are in Draft or PendingReview status.
+   * Individual failures are collected rather than aborting the whole batch.
    * @param gameSystemId - The game system ID
+   * @returns Counts of confirmed/failed templates and the IDs that failed
+   * @throws {ApiRequestError} When the initial template list request fails
    */
-  async confirmAll(gameSystemId: string): Promise<{ confirmed: number; failed: number }> {
-    // First get all templates
+  async confirmAll(
+    gameSystemId: string
+  ): Promise<{ confirmed: number; failed: number; failedIds: string[] }> {
+    // Get all templates — let this propagate; without the list we can do nothing
     const result = await this.getByGameSystem(gameSystemId);
-    
+
     let confirmed = 0;
-    let failed = 0;
-    
+    const failedIds: string[] = [];
+
     // Filter templates that can be confirmed (Draft or PendingReview)
     const confirmableTemplates = result.templates.filter(
       t => t.status === TemplateStatus.Draft || t.status === TemplateStatus.PendingReview
     );
-    
-    // Confirm each one
+
+    // Confirm each one, collecting failures rather than swallowing them silently
     for (const template of confirmableTemplates) {
       try {
         await this.confirm(gameSystemId, template.id, { notes: 'Bulk confirmation' });
         confirmed++;
       } catch {
-        failed++;
+        failedIds.push(template.id);
       }
     }
-    
-    return { confirmed, failed };
+
+    return { confirmed, failed: failedIds.length, failedIds };
   },
 };

@@ -1,6 +1,6 @@
 import { ai, geminiModel } from '../../config/index.js';
 import { mapUsage, stripMarkdownCodeFences } from '../../common/index.js';
-import type { SummarizeRequest, SummarizeResponse } from './summarize.schema.js';
+import { SummarizeRequestSchema, SummarizeResponseSchema, type SummarizeRequest, type SummarizeResponse } from './summarize.schema.js';
 
 const STYLE_INSTRUCTIONS: Record<string, string> = {
   concise: 'Provide a concise summary that captures the main points in a few sentences.',
@@ -11,8 +11,8 @@ const STYLE_INSTRUCTIONS: Record<string, string> = {
 export const summarizeFlow = ai.defineFlow(
   {
     name: 'summarize',
-    inputSchema: null as any,
-    outputSchema: null as any,
+    inputSchema: SummarizeRequestSchema,
+    outputSchema: SummarizeResponseSchema,
   },
   async (input: SummarizeRequest): Promise<SummarizeResponse> => {
     const systemPrompt = `You are an expert summarizer. ${STYLE_INSTRUCTIONS[input.style]}

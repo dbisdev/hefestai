@@ -10,6 +10,9 @@ import { TerminalLayout } from '@shared/components/layout';
 import { Button, TerminalLog } from '@shared/components/ui';
 import { useAuth, useCampaign } from '@core/context';
 import { useTerminalLog } from '@core/hooks/useTerminalLog';
+import { extractErrorMessage } from '@core/utils/error';
+import { logger } from '@core/utils';
+import { COPY_FEEDBACK_DURATION_MS, TERMINAL_LOG_DEFAULT } from '@core/config/constants';
 import { CampaignRole, CampaignDetail } from '@core/types';
 import { campaignService } from '@core/services/api';
 
@@ -45,7 +48,7 @@ export const InvitationsPage: React.FC = () => {
 
   // Terminal logs
   const { logs, addLog } = useTerminalLog({
-    maxLogs: 12,
+    maxLogs: TERMINAL_LOG_DEFAULT,
     initialLogs: [
       'Sistema de invitaciones activo...',
       '[SUCCESS] Conexion establecida.',
@@ -84,7 +87,7 @@ export const InvitationsPage: React.FC = () => {
         setMasterCampaignDetails(details);
         addLog(`[SUCCESS] ${details.length} CAMPAÑAS CARGADAS`);
       } catch (err) {
-        console.error('Failed to fetch campaign details:', err);
+        logger.error('Failed to fetch campaign details:', err);
         addLog('ERROR: NO SE PUDIERON CARGAR LOS DETALLES');
       } finally {
         setIsLoadingDetails(false);
@@ -136,7 +139,7 @@ export const InvitationsPage: React.FC = () => {
       addLog(`[SUCCESS] UNIDO A: ${campaign.name.toUpperCase()}`);
       setJoinCode('');
     } catch (err) {
-      const message = err instanceof Error ? err.message : 'Error al unirse a la campaña';
+      const message = extractErrorMessage(err, 'Error al unirse a la campaña');
       setJoinError(message);
       addLog(`ERROR: ${message.toUpperCase()}`);
     } finally {
@@ -162,7 +165,7 @@ export const InvitationsPage: React.FC = () => {
       setCopiedCampaignId(campaignId);
       addLog(`[SUCCESS] CODIGO DE "${campaignName.toUpperCase()}" COPIADO`);
       // Reset copied state after 2 seconds
-      setTimeout(() => setCopiedCampaignId(null), 2000);
+      setTimeout(() => setCopiedCampaignId(null), COPY_FEEDBACK_DURATION_MS);
     } catch {
       addLog('ERROR: NO SE PUDO COPIAR AL PORTAPAPELES');
     }
@@ -423,7 +426,7 @@ export const InvitationsPage: React.FC = () => {
 
         {/* System Log - Fixed Width Right Sidebar */}
         <div className="w-full lg:w-80 flex flex-col border border-primary/30 bg-black/80">
-          <TerminalLog logs={logs} maxLogs={12} className="flex-1 h-24 md:h-32" />
+          <TerminalLog logs={logs} maxLogs={TERMINAL_LOG_DEFAULT} className="flex-1 h-24 md:h-32" />
         </div>
 
       </div>

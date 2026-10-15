@@ -6,6 +6,7 @@
 
 import { useState, useCallback } from 'react';
 import { entityTemplateService } from '@core/services/api';
+import { extractErrorMessage } from '@core/utils/error';
 import type { FieldDefinition } from '@core/types';
 
 interface UseTemplateFieldsConfig {
@@ -70,7 +71,7 @@ export function useTemplateFields({
       onSuccess?.();
       return true;
     } catch (err) {
-      const message = err instanceof Error ? err.message : 'Error saving fields';
+      const message = extractErrorMessage(err, 'Error saving fields');
       setError(message);
       return false;
     } finally {
@@ -99,7 +100,7 @@ export function useTemplateFields({
       onSuccess?.();
       return true;
     } catch (err) {
-      const message = err instanceof Error ? err.message : 'Error updating entity type';
+      const message = extractErrorMessage(err, 'Error updating entity type');
       setError(message);
       return false;
     } finally {

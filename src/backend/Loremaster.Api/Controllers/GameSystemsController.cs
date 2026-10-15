@@ -5,6 +5,7 @@ using Loremaster.Application.Features.GameSystems.DTOs;
 using Loremaster.Application.Features.GameSystems.Queries.GetAllGameSystems;
 using Loremaster.Application.Features.GameSystems.Queries.GetGameSystemByCode;
 using Loremaster.Application.Features.GameSystems.Queries.GetGameSystemById;
+using Loremaster.Domain.Enums;
 using MediatR;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
@@ -17,7 +18,7 @@ namespace Loremaster.Api.Controllers;
 /// </summary>
 [ApiController]
 [Route("api/[controller]")]
-public class GameSystemsController : ControllerBase
+public class GameSystemsController : ApiControllerBase
 {
     private readonly IMediator _mediator;
 
@@ -27,23 +28,36 @@ public class GameSystemsController : ControllerBase
     }
 
     /// <summary>
-    /// Get all active game systems (public endpoint).
+    /// Get active game systems visible to the authenticated caller.
+    /// Admins see all active systems; Masters see Admin-owned + own systems;
+    /// Players see Admin-owned systems + systems owned by Masters of their campaigns.
     /// </summary>
     [HttpGet]
-    [AllowAnonymous]
+    [Authorize(Policy = "RequirePlayerRole")]
     [ProducesResponseType(typeof(IEnumerable<GameSystemDto>), StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status401Unauthorized)]
+    [ProducesResponseType(StatusCodes.Status403Forbidden)]
     public async Task<ActionResult<IEnumerable<GameSystemDto>>> GetAll(CancellationToken cancellationToken)
     {
-        var result = await _mediator.Send(new GetAllGameSystemsQuery(), cancellationToken);
+        var userId = GetCurrentUserId();
+        var userRole = GetCurrentUserRole();
+
+        var query = new GetAllGameSystemsQuery(
+            UserId: userRole == UserRole.Admin ? null : userId,
+            IncludeAll: userRole == UserRole.Admin,
+            IsPlayer: userRole == UserRole.Player);
+
+        var result = await _mediator.Send(query, cancellationToken);
         return Ok(result);
     }
 
     /// <summary>
-    /// Get a game system by ID (public endpoint).
+    /// Get a game system by ID. Accessible to all authenticated users.
     /// </summary>
     [HttpGet("{id:guid}")]
-    [AllowAnonymous]
+    [Authorize(Policy = "RequirePlayerRole")]
     [ProducesResponseType(typeof(GameSystemDto), StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status401Unauthorized)]
     [ProducesResponseType(StatusCodes.Status404NotFound)]
     public async Task<ActionResult<GameSystemDto>> GetById(Guid id, CancellationToken cancellationToken)
     {
@@ -52,11 +66,12 @@ public class GameSystemsController : ControllerBase
     }
 
     /// <summary>
-    /// Get a game system by code (public endpoint).
+    /// Get a game system by code. Accessible to all authenticated users.
     /// </summary>
     [HttpGet("by-code/{code}")]
-    [AllowAnonymous]
+    [Authorize(Policy = "RequirePlayerRole")]
     [ProducesResponseType(typeof(GameSystemDto), StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status401Unauthorized)]
     [ProducesResponseType(StatusCodes.Status404NotFound)]
     public async Task<ActionResult<GameSystemDto>> GetByCode(string code, CancellationToken cancellationToken)
     {
@@ -68,7 +83,7 @@ public class GameSystemsController : ControllerBase
     /// Create a new game system (Master or Admin only).
     /// </summary>
     [HttpPost]
-    [Authorize(Roles = "Master,Admin")]
+    [Authorize(Policy = "RequireMasterRole")]
     [ProducesResponseType(typeof(GameSystemDto), StatusCodes.Status201Created)]
     [ProducesResponseType(StatusCodes.Status400BadRequest)]
     [ProducesResponseType(StatusCodes.Status403Forbidden)]
@@ -93,7 +108,7 @@ public class GameSystemsController : ControllerBase
     /// Update a game system (Master or Admin only).
     /// </summary>
     [HttpPut("{id:guid}")]
-    [Authorize(Roles = "Master,Admin")]
+    [Authorize(Policy = "RequireMasterRole")]
     [ProducesResponseType(typeof(GameSystemDto), StatusCodes.Status200OK)]
     [ProducesResponseType(StatusCodes.Status404NotFound)]
     [ProducesResponseType(StatusCodes.Status403Forbidden)]
@@ -119,7 +134,7 @@ public class GameSystemsController : ControllerBase
     /// Activate/Deactivate a game system (Master or Admin only).
     /// </summary>
     [HttpPatch("{id:guid}/status")]
-    [Authorize(Roles = "Master,Admin")]
+    [Authorize(Policy = "RequireMasterRole")]
     [ProducesResponseType(typeof(GameSystemDto), StatusCodes.Status200OK)]
     [ProducesResponseType(StatusCodes.Status404NotFound)]
     [ProducesResponseType(StatusCodes.Status403Forbidden)]

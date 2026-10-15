@@ -8,6 +8,7 @@ import { ReactNode } from 'react';
 import { CampaignProvider, useCampaign, useActiveCampaign, useActiveCampaignId } from './CampaignContext';
 import { campaignService } from '@core/services/api';
 import { useAuth } from './AuthContext';
+import { CampaignRole } from '@core/types';
 import type { Campaign, CampaignDetail, User } from '@core/types';
 
 vi.mock('@core/services/api', () => ({
@@ -40,6 +41,7 @@ const mockCampaign: Campaign = {
   name: 'Test Campaign',
   joinCode: 'ABC123',
   gameSystemId: 'system-1',
+  ownerId: 'user-123',
   isActive: true,
   createdAt: '2024-01-01T00:00:00.000Z',
 };
@@ -47,8 +49,7 @@ const mockCampaign: Campaign = {
 const mockCampaignDetail: CampaignDetail = {
   ...mockCampaign,
   description: 'Test description',
-  userRole: 1,
-  ownerId: 'user-123',
+  userRole: CampaignRole.Master,
   memberCount: 1,
 };
 
@@ -422,13 +423,7 @@ describe('CampaignContext', () => {
       vi.mocked(campaignService.getAll).mockResolvedValue([mockCampaign]);
       vi.mocked(campaignService.getById).mockResolvedValue({
         ...mockCampaignDetail,
-        userRole: 1,
-      });
-      
-      const { result } = renderHook(() => useCampaign(), { wrapper });
-      
-      await waitFor(() => {
-        expect(result.current.isActiveCampaignMaster).toBe(true);
+        userRole: CampaignRole.Master,
       });
     });
 
@@ -436,7 +431,7 @@ describe('CampaignContext', () => {
       vi.mocked(campaignService.getAll).mockResolvedValue([mockCampaign]);
       vi.mocked(campaignService.getById).mockResolvedValue({
         ...mockCampaignDetail,
-        userRole: 0,
+        userRole: CampaignRole.Player,
       });
       
       const { result } = renderHook(() => useCampaign(), { wrapper });

@@ -7,6 +7,7 @@
 import React, { createContext, useContext, useState, useEffect, useCallback, useMemo } from 'react';
 import { authService } from '@core/services/api';
 import { tokenService } from '@core/services/storage/token.service';
+import { extractErrorMessage } from '@core/utils/error';
 import type { User, LoginCredentials, RegisterCredentials, AuthState } from '@core/types';
 
 interface AuthContextValue extends AuthState {
@@ -54,7 +55,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
       const loggedInUser = await authService.login(credentials);
       setUser(loggedInUser);
     } catch (err) {
-      const message = err instanceof Error ? err.message : 'Error de autenticación';
+      const message = extractErrorMessage(err, 'Error de autenticación');
       setError(message);
       throw err;
     } finally {
@@ -69,7 +70,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
       const newUser = await authService.register(credentials);
       setUser(newUser);
     } catch (err) {
-      const message = err instanceof Error ? err.message : 'Error de registro';
+      const message = extractErrorMessage(err, 'Error de registro');
       setError(message);
       throw err;
     } finally {

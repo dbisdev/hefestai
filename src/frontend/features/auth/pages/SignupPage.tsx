@@ -15,7 +15,7 @@ import type { UserRole } from '@core/types';
 
 export const SignupPage: React.FC = () => {
   const navigate = useNavigate();
-  const { register, clearError } = useAuth();
+  const { register, error: authError, isLoading: authLoading, clearError } = useAuth();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
@@ -24,13 +24,11 @@ export const SignupPage: React.FC = () => {
   const [displayName, setDisplayName] = useState('');
   const [role, setRole] = useState<UserRole>('PLAYER');
   const [inviteCode, setInviteCode] = useState('');
-  const [error, setError] = useState('');
-  const [loading, setLoading] = useState(false);
   const [validationErrors, setValidationErrors] = useState<Record<string, string>>({});
 
   const handleSubmit = useCallback(async (e: React.FormEvent) => {
     e.preventDefault();
-    setError('');
+    clearError();
     setValidationErrors({});
 
     // Client-side validation (OWASP A03 - Input Validation)
@@ -59,7 +57,7 @@ export const SignupPage: React.FC = () => {
       return;
     }
 
-    setLoading(true);
+    // AuthContext manages loading and error state — no local duplicates needed
     try {
       await register({
         email,
@@ -69,23 +67,20 @@ export const SignupPage: React.FC = () => {
         inviteCode: role === 'PLAYER' && inviteCode ? inviteCode : undefined,
       });
       // Navigation is handled by AnimatedRoutes based on auth state
-    } catch (err: unknown) {
-      const message = err instanceof Error ? err.message : 'Error de registro';
-      setError(message);
-    } finally {
-      setLoading(false);
+    } catch {
+      // Error is stored in AuthContext.error and displayed via authError
     }
-  }, [register, email, password, confirmPassword, displayName, role, inviteCode]);
+  }, [register, clearError, email, password, confirmPassword, displayName, role, inviteCode]);
 
   const handleBack = useCallback(() => {
     navigate('/');
   }, [navigate]);
 
   const handleGoLogin = useCallback(() => {
-    setError('');
+    clearError();
     setValidationErrors({});
     navigate('/login');
-  }, [navigate]);
+  }, [navigate, clearError]);
 
   return (
     <div className="flex items-center justify-center min-h-screen bg-background-dark relative p-6 overflow-y-auto">
@@ -242,14 +237,14 @@ export const SignupPage: React.FC = () => {
               </div>
             )}
 
-            {error && <ErrorMessage message={error} />}
+            {authError && <ErrorMessage message={authError} />}
 
             <Button
               type="submit"
               variant="primary"
               fullWidth
               size="lg"
-              isLoading={loading}
+              isLoading={authLoading}
               icon="rocket_launch"
             >
               INICIALIZAR_PERFIL

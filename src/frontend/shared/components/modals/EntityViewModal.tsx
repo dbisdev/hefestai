@@ -45,7 +45,7 @@ export const EntityViewModal: React.FC<EntityViewModalProps> = ({
   const labelMap = fieldDefinitions ? buildLabelMapFromFields(fieldDefinitions) : undefined;
 
   // Get attributes from entity
-  const attributes = (entity.attributes || {}) as Record<string, unknown>;
+  const attributes = entity.attributes ?? {};
 
   // Categorize attributes by type for proper rendering
   const { numeric: numericAttrs, string: stringAttrs, nested: nestedAttrs } = categorizeAttributes(attributes);

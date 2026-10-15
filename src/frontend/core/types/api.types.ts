@@ -19,217 +19,154 @@ export interface ApiResponse<T> {
 // AI Generation Request/Response types
 
 /**
- * Parameters for character generation with optional RAG enhancement.
+ * Common parameters shared by every AI generation request.
+ * Each entity-specific Params interface extends this base.
  */
-export interface CharacterGenerationParams {
+export interface GenerationParamsBase {
   /** Optional game system ID for RAG-enhanced generation using manual lore */
   gameSystemId?: string;
+  /** Whether to generate an AI image for this entity */
+  generateImage?: boolean;
+}
+
+/**
+ * Common fields returned by every AI generation response.
+ * Each entity-specific Response interface extends this base.
+ */
+export interface GenerationResponseBase {
+  success: boolean;
+  imageBase64?: string;
+  imageUrl?: string;
+  error?: string;
+  /** Whether RAG context from game manuals was used for generation */
+  ragContextUsed?: boolean;
+  /** Number of RAG context chunks used (0 if none) */
+  ragSourceCount?: number;
+  /** Unique identifier for this generation request. Use when saving to link entity to generation history. */
+  generationRequestId?: string;
+}
+
+/**
+ * Parameters for character generation with optional RAG enhancement.
+ */
+export interface CharacterGenerationParams extends GenerationParamsBase {
   species: string;
   role: string;
   morphology: string;
   attire: string;
-  /** Whether to generate an AI image for this entity */
-  generateImage?: boolean;
 }
 
 /**
  * Response from character generation including RAG metadata.
  */
-export interface CharacterGenerationResponse {
-  success: boolean;
+export interface CharacterGenerationResponse extends GenerationResponseBase {
   characterJson?: string;
-  imageBase64?: string;
-  imageUrl?: string;
-  error?: string;
-  /** Whether RAG context from game manuals was used for generation */
-  ragContextUsed?: boolean;
-  /** Number of RAG context chunks used (0 if none) */
-  ragSourceCount?: number;
-  /** Unique identifier for this generation request. Use when saving to link entity to generation history. */
-  generationRequestId?: string;
 }
 
 /**
  * Parameters for solar system generation with optional RAG enhancement.
  */
-export interface SolarSystemGenerationParams {
-  /** Optional game system ID for RAG-enhanced generation using manual lore */
-  gameSystemId?: string;
+export interface SolarSystemGenerationParams extends GenerationParamsBase {
   spectralClass: string;
   planetCount: number;
-  /** Whether to generate an AI image for this entity */
-  generateImage?: boolean;
 }
 
 /**
  * Response from solar system generation including RAG metadata.
  */
-export interface SolarSystemGenerationResponse {
-  success: boolean;
+export interface SolarSystemGenerationResponse extends GenerationResponseBase {
   systemJson?: string;
-  imageBase64?: string;
-  imageUrl?: string;
-  error?: string;
-  /** Whether RAG context from game manuals was used for generation */
-  ragContextUsed?: boolean;
-  /** Number of RAG context chunks used (0 if none) */
-  ragSourceCount?: number;
-  /** Unique identifier for this generation request. Use when saving to link entity to generation history. */
-  generationRequestId?: string;
 }
 
 /**
  * Parameters for vehicle generation with optional RAG enhancement.
  */
-export interface VehicleGenerationParams {
-  /** Optional game system ID for RAG-enhanced generation using manual lore */
-  gameSystemId?: string;
+export interface VehicleGenerationParams extends GenerationParamsBase {
   type: string;
   class: string;
   engine: string;
-  /** Whether to generate an AI image for this entity */
-  generateImage?: boolean;
 }
 
 /**
  * Response from vehicle generation including RAG metadata.
  */
-export interface VehicleGenerationResponse {
-  success: boolean;
+export interface VehicleGenerationResponse extends GenerationResponseBase {
   vehicleJson?: string;
-  imageBase64?: string;
-  imageUrl?: string;
-  error?: string;
-  /** Whether RAG context from game manuals was used for generation */
-  ragContextUsed?: boolean;
-  /** Number of RAG context chunks used (0 if none) */
-  ragSourceCount?: number;
-  /** Unique identifier for this generation request. Use when saving to link entity to generation history. */
-  generationRequestId?: string;
 }
 
 /**
  * Parameters for NPC generation with optional RAG enhancement.
  */
-export interface NpcGenerationParams {
-  /** Optional game system ID for RAG-enhanced generation using manual lore */
-  gameSystemId?: string;
+export interface NpcGenerationParams extends GenerationParamsBase {
   species: string;
   occupation: string;
   personality: string;
   setting: string;
-  /** Whether to generate an AI image for this entity */
-  generateImage?: boolean;
 }
 
 /**
  * Response from NPC generation including RAG metadata.
  */
-export interface NpcGenerationResponse {
-  success: boolean;
+export interface NpcGenerationResponse extends GenerationResponseBase {
   npcJson?: string;
-  imageBase64?: string;
-  imageUrl?: string;
-  error?: string;
-  /** Whether RAG context from game manuals was used for generation */
-  ragContextUsed?: boolean;
-  /** Number of RAG context chunks used (0 if none) */
-  ragSourceCount?: number;
-  /** Unique identifier for this generation request. Use when saving to link entity to generation history. */
-  generationRequestId?: string;
 }
 
 /**
  * Parameters for enemy generation with optional RAG enhancement.
  */
-export interface EnemyGenerationParams {
-  /** Optional game system ID for RAG-enhanced generation using manual lore */
-  gameSystemId?: string;
+export interface EnemyGenerationParams extends GenerationParamsBase {
   species: string;
   threatLevel: string;
   behavior: string;
   environment: string;
-  /** Whether to generate an AI image for this entity */
-  generateImage?: boolean;
 }
 
 /**
  * Response from enemy generation including RAG metadata.
  */
-export interface EnemyGenerationResponse {
-  success: boolean;
+export interface EnemyGenerationResponse extends GenerationResponseBase {
   enemyJson?: string;
-  imageBase64?: string;
-  imageUrl?: string;
-  error?: string;
-  /** Whether RAG context from game manuals was used for generation */
-  ragContextUsed?: boolean;
-  /** Number of RAG context chunks used (0 if none) */
-  ragSourceCount?: number;
-  /** Unique identifier for this generation request. Use when saving to link entity to generation history. */
-  generationRequestId?: string;
 }
 
 /**
  * Parameters for mission generation with optional RAG enhancement.
  */
-export interface MissionGenerationParams {
-  /** Optional game system ID for RAG-enhanced generation using manual lore */
-  gameSystemId?: string;
+export interface MissionGenerationParams extends GenerationParamsBase {
   missionType: string;
   difficulty: string;
   environment: string;
   factionInvolved: string;
-  /** Whether to generate an AI image for this entity */
-  generateImage?: boolean;
 }
 
 /**
  * Response from mission generation including RAG metadata.
  */
-export interface MissionGenerationResponse {
-  success: boolean;
+export interface MissionGenerationResponse extends GenerationResponseBase {
   missionJson?: string;
-  imageBase64?: string;
-  imageUrl?: string;
-  error?: string;
-  /** Whether RAG context from game manuals was used for generation */
-  ragContextUsed?: boolean;
-  /** Number of RAG context chunks used (0 if none) */
-  ragSourceCount?: number;
-  /** Unique identifier for this generation request. Use when saving to link entity to generation history. */
-  generationRequestId?: string;
 }
+
+/**
+ * Valid enemy count categories for encounter generation.
+ * Must match the C# EnemyCountSize enum values (case-insensitive via JsonStringEnumConverter).
+ */
+export type EnemyCountSize = 'solo' | 'pair' | 'squad' | 'horde';
 
 /**
  * Parameters for encounter generation with optional RAG enhancement.
  */
-export interface EncounterGenerationParams {
-  /** Optional game system ID for RAG-enhanced generation using manual lore */
-  gameSystemId?: string;
+export interface EncounterGenerationParams extends GenerationParamsBase {
   encounterType: string;
   difficulty: string;
   environment: string;
-  enemyCount: string;
-  /** Whether to generate an AI image for this entity */
-  generateImage?: boolean;
+  /** Typed enemy count category. Must be one of the EnemyCountSize values. */
+  enemyCount: EnemyCountSize;
 }
 
 /**
  * Response from encounter generation including RAG metadata.
  */
-export interface EncounterGenerationResponse {
-  success: boolean;
+export interface EncounterGenerationResponse extends GenerationResponseBase {
   encounterJson?: string;
-  imageBase64?: string;
-  imageUrl?: string;
-  error?: string;
-  /** Whether RAG context from game manuals was used for generation */
-  ragContextUsed?: boolean;
-  /** Number of RAG context chunks used (0 if none) */
-  ragSourceCount?: number;
-  /** Unique identifier for this generation request. Use when saving to link entity to generation history. */
-  generationRequestId?: string;
 }
 
 // HTTP client types

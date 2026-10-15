@@ -10,8 +10,10 @@ import { Button, ImageSourceSelector, EditableField } from '@shared/components/u
 import { aiService, entityService } from '@core/services/api';
 import { useCampaign } from '@core/context';
 import { parseJsonResponse } from '@core/utils';
-import { useEntityGeneration } from '@core/hooks';
+import { useEntityGeneration, type SaveEntityParams } from '@core/hooks';
 import type { EncounterData } from '@core/types';
+import type { EnemyCountSize } from '@core/types/api.types';
+import { TERMINAL_LOG_COMPACT } from '@core/config/constants';
 
 const ENCOUNTER_PLACEHOLDER_IMAGE = "https://images.unsplash.com/photo-1534796636912-3b95b3ab5986?q=80&w=400&auto=format&fit=crop";
 
@@ -45,7 +47,7 @@ const ENVIRONMENT_OPTIONS = [
   { value: 'vehicle', label: 'Vehiculo/Nave' },
 ];
 
-const ENEMY_COUNT_OPTIONS = [
+const ENEMY_COUNT_OPTIONS: { value: EnemyCountSize; label: string }[] = [
   { value: 'solo', label: '1 Enemigo' },
   { value: 'pair', label: '2 Enemigos' },
   { value: 'squad', label: '3-5 Enemigos' },
@@ -63,11 +65,11 @@ export const EncounterGeneratorPage: React.FC<EncounterGeneratorPageProps> = ({ 
     encounterType: '',
     difficulty: 'MEDIUM' as DifficultyLevel,
     environment: 'open-area',
-    enemyCount: 'squad'
+    enemyCount: 'squad' as EnemyCountSize
   });
 
   const generateEncounter = useCallback(async (params: unknown, generateImage: boolean) => {
-    const formParams = params as { encounterType: string; difficulty: string; environment: string; enemyCount: string };
+    const formParams = params as { encounterType: string; difficulty: string; environment: string; enemyCount: EnemyCountSize };
     const result = await aiService.generateEncounter({
       gameSystemId: activeCampaign?.gameSystemId,
       encounterType: formParams.encounterType,
@@ -86,14 +88,7 @@ export const EncounterGeneratorPage: React.FC<EncounterGeneratorPageProps> = ({ 
     };
   }, [activeCampaign?.gameSystemId]);
 
-  const saveEncounter = useCallback(async (params: {
-    name: string;
-    description?: string;
-    imageUrl?: string;
-    attributes: Record<string, unknown>;
-    metadata?: Record<string, unknown>;
-    generationRequestId?: string;
-  }) => {
+  const saveEncounter = useCallback(async (params: SaveEntityParams) => {
     if (!activeCampaignId) return;
 
     await entityService.create(activeCampaignId, {
@@ -132,7 +127,7 @@ export const EncounterGeneratorPage: React.FC<EncounterGeneratorPageProps> = ({ 
       '> [SUCCESS] Combat analyzer loaded.',
       '> Awaiting encounter parameters...'
     ],
-    maxLogs: 6,
+    maxLogs: TERMINAL_LOG_COMPACT,
     generateFn: generateEncounter,
     saveFn: saveEncounter,
     onSaveSuccess: () => {

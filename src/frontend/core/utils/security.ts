@@ -4,6 +4,8 @@
  * Single Responsibility: Security-related utility functions
  */
 
+import { MAX_LOGIN_ATTEMPTS, LOCKOUT_DURATION_MS, RATE_LIMIT_WINDOW_MS, MAX_REQUESTS_PER_WINDOW } from '../config/constants';
+
 /**
  * Generates a cryptographically secure random string
  * Useful for CSRF tokens, nonces, etc.
@@ -51,7 +53,7 @@ class RateLimiter {
 }
 
 // Singleton rate limiter instance
-export const rateLimiter = new RateLimiter();
+export const rateLimiter = new RateLimiter(RATE_LIMIT_WINDOW_MS, MAX_REQUESTS_PER_WINDOW);
 
 /**
  * Login attempt tracker for brute force protection awareness
@@ -105,7 +107,7 @@ class LoginAttemptTracker {
 }
 
 // Singleton login tracker instance
-export const loginAttemptTracker = new LoginAttemptTracker();
+export const loginAttemptTracker = new LoginAttemptTracker(MAX_LOGIN_ATTEMPTS, LOCKOUT_DURATION_MS);
 
 /**
  * Checks if the current page is being served over HTTPS

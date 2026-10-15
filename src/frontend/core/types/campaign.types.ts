@@ -5,11 +5,14 @@
  */
 
 /**
- * Campaign role enum matching backend CampaignRole
+ * Campaign role enum matching backend CampaignRole.
+ * Uses string values because the backend serializes all enums as their
+ * PascalCase string names via JsonStringEnumConverter (Program.cs).
+ * The API sends "Master" / "Player" — not 0 / 1.
  */
 export enum CampaignRole {
-  Player = 0,
-  Master = 1
+  Player = 'Player',
+  Master = 'Master'
 }
 
 /**
@@ -21,12 +24,27 @@ export interface GameSystemSummary {
 }
 
 /**
+ * Settings object for a campaign (game rules, house rules, etc.)
+ * Extensible for future game system-specific settings.
+ */
+export interface CampaignSettings {
+  /** Maximum number of players allowed */
+  maxPlayers?: number;
+  /** Whether players can see other players' sheets */
+  sharedSheets?: boolean;
+  /** Any additional settings keyed by string */
+  [key: string]: string | number | boolean | undefined;
+}
+
+/**
  * Campaign summary DTO matching backend CampaignDto
  */
 export interface Campaign {
   id: string;
   name: string;
   description?: string;
+  /** The user ID of the campaign owner (Master who created it). */
+  ownerId: string;
   gameSystemId: string;
   /** Game system details (when included in response) */
   gameSystem?: GameSystemSummary;
@@ -41,9 +59,8 @@ export interface Campaign {
  * Detailed campaign DTO matching backend CampaignDetailDto
  */
 export interface CampaignDetail extends Campaign {
-  ownerId: string;
   joinCode?: string;  // Only visible to Masters
-  settings?: Record<string, unknown>;
+  settings?: CampaignSettings;
   memberCount: number;
   updatedAt?: string;
 }
@@ -66,7 +83,7 @@ export interface CreateCampaignInput {
   name: string;
   description?: string;
   gameSystemId: string;
-  settings?: Record<string, unknown>;
+  settings?: CampaignSettings;
 }
 
 /**
@@ -75,7 +92,7 @@ export interface CreateCampaignInput {
 export interface UpdateCampaignInput {
   name: string;
   description?: string;
-  settings?: Record<string, unknown>;
+  settings?: CampaignSettings;
 }
 
 /**

@@ -7,6 +7,8 @@
 import React, { useState, useEffect, useRef } from 'react';
 import type { Campaign, UpdateCampaignInput, CampaignMember } from '@core/types';
 import { CampaignRole } from '@core/types';
+import { extractErrorMessage } from '@core/utils/error';
+import { COPY_FEEDBACK_DURATION_MS } from '@core/config/constants';
 
 interface CampaignEditModalProps {
   campaign: Campaign;
@@ -83,7 +85,7 @@ export const CampaignEditModal: React.FC<CampaignEditModalProps> = ({
         description: description.trim() || undefined,
       });
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Error al guardar los cambios');
+      setError(extractErrorMessage(err, 'Error al guardar los cambios'));
     }
   };
 
@@ -91,7 +93,7 @@ export const CampaignEditModal: React.FC<CampaignEditModalProps> = ({
     if (campaign.joinCode) {
       navigator.clipboard.writeText(campaign.joinCode);
       setCodeCopied(true);
-      setTimeout(() => setCodeCopied(false), 2000);
+      setTimeout(() => setCodeCopied(false), COPY_FEEDBACK_DURATION_MS);
     }
   };
 

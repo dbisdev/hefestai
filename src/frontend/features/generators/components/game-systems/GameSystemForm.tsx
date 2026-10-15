@@ -6,12 +6,12 @@
 
 import React, { useState, useEffect, useRef } from 'react';
 import { Button, Input } from '@shared/components/ui';
-import type { GameSystem, CreateGameSystemRequest, UpdateGameSystemRequest } from '@core/types';
+import type { GameSystem, CreateGameSystemInput, UpdateGameSystemInput } from '@core/types';
 
 interface GameSystemFormProps {
   mode: 'create' | 'edit';
   initialData?: GameSystem | null;
-  onSubmit: (data: CreateGameSystemRequest | UpdateGameSystemRequest) => Promise<GameSystem | null>;
+  onSubmit: (data: CreateGameSystemInput | UpdateGameSystemInput) => Promise<GameSystem | null>;
   onCancel: () => void;
   isLoading: boolean;
 }
@@ -104,7 +104,7 @@ export const GameSystemForm: React.FC<GameSystemFormProps> = ({
           supportedEntityTypes,
         };
 
-    const result = await onSubmit(data as CreateGameSystemRequest | UpdateGameSystemRequest);
+    const result = await onSubmit(data as CreateGameSystemInput | UpdateGameSystemInput);
     if (!result) {
       setError('Error al guardar el sistema');
     }

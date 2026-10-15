@@ -39,11 +39,6 @@ export type {
   EnemyData,
   MissionData,
   EncounterData,
-  // Legacy aliases (deprecated)
-  Entity,
-  EntityDto,
-  CreateEntityInput,
-  UpdateEntityInput,
 } from './entity.types';
 
 // Campaign types
@@ -65,15 +60,17 @@ export type {
 export type {
   GameSystem,
   GameSystemOption,
-  CreateGameSystemRequest,
-  UpdateGameSystemRequest,
-  UpdateGameSystemStatusRequest,
+  CreateGameSystemInput,
+  UpdateGameSystemInput,
+  UpdateGameSystemStatusInput,
 } from './gameSystem.types';
 
 // API types
 export type {
   ApiError,
   ApiResponse,
+  GenerationParamsBase,
+  GenerationResponseBase,
   CharacterGenerationParams,
   CharacterGenerationResponse,
   SolarSystemGenerationParams,
@@ -106,10 +103,10 @@ export type {
   ExtractedTemplateInfo,
   ExtractTemplatesResult,
   ConfirmTemplateResult,
-  ConfirmTemplateRequest,
-  CreateTemplateRequest,
+  ConfirmTemplateInput,
+  CreateTemplateInput,
   CreateTemplateResult,
-  UpdateTemplateRequest,
+  UpdateTemplateInput,
   UpdateTemplateResult,
   DeleteTemplateResult,
 } from './template.types';
@@ -119,7 +116,23 @@ export { AdminUserRole, AdminUserRoleLabels, AdminUserRoleColors } from './admin
 export type {
   AdminUser,
   AdminCampaign,
-  CreateUserRequest,
-  UpdateUserRequest,
-  AdminUpdateCampaignRequest,
+  CreateUserInput,
+  UpdateUserInput,
+  AdminUpdateCampaignInput,
 } from './admin.types';
+
+// Document / RAG types
+export type {
+  DocumentDto,
+  DocumentSearchResult,
+  SemanticSearchParams,
+  SemanticSearchResult,
+  RagSourceType,
+  ManualDto,
+  ManualSummaryDto,
+  UploadManualResult,
+  UploadManualParams,
+  DocumentAvailabilityResult,
+  GenerateMissingEmbeddingsParams,
+  GenerateMissingEmbeddingsResult,
+} from './document.types';

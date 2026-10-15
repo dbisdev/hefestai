@@ -1,4 +1,6 @@
 using Loremaster.Application.Common.Interfaces;
+using Loremaster.Domain.Entities;
+using Loremaster.Domain.Exceptions;
 using MediatR;
 using Microsoft.Extensions.Logging;
 
@@ -11,18 +13,18 @@ namespace Loremaster.Application.Features.EntityTemplates.Commands.ConfirmTempla
 public class ConfirmTemplateCommandHandler : IRequestHandler<ConfirmTemplateCommand, ConfirmTemplateResult>
 {
     private readonly IEntityTemplateRepository _templateRepository;
-    private readonly IGameSystemRepository _gameSystemRepository;
+    private readonly IGameSystemAuthorizationService _authorizationService;
     private readonly IUnitOfWork _unitOfWork;
     private readonly ILogger<ConfirmTemplateCommandHandler> _logger;
 
     public ConfirmTemplateCommandHandler(
         IEntityTemplateRepository templateRepository,
-        IGameSystemRepository gameSystemRepository,
+        IGameSystemAuthorizationService authorizationService,
         IUnitOfWork unitOfWork,
         ILogger<ConfirmTemplateCommandHandler> logger)
     {
         _templateRepository = templateRepository;
-        _gameSystemRepository = gameSystemRepository;
+        _authorizationService = authorizationService;
         _unitOfWork = unitOfWork;
         _logger = logger;
     }
@@ -32,34 +34,25 @@ public class ConfirmTemplateCommandHandler : IRequestHandler<ConfirmTemplateComm
         CancellationToken cancellationToken)
     {
         _logger.LogInformation(
-            "Confirming template {TemplateId} by user {UserId}",
-            request.TemplateId, request.OwnerId);
+            "Confirming template {TemplateId} by user {UserId} (IsAdmin: {IsAdmin})",
+            request.TemplateId, request.OwnerId, request.IsAdmin);
 
         var template = await _templateRepository.GetByIdAsync(
-            request.TemplateId, request.OwnerId, cancellationToken);
+            request.TemplateId, cancellationToken);
 
         if (template == null)
         {
-            throw new ArgumentException($"Template with ID {request.TemplateId} not found");
+            throw new NotFoundException(nameof(EntityTemplate), request.TemplateId);
         }
 
-        // Verify game system ownership
-        var gameSystem = await _gameSystemRepository.GetByIdAsync(
-            request.GameSystemId, cancellationToken);
-        
-        if (gameSystem == null)
-        {
-            throw new ArgumentException($"Game system with ID {request.GameSystemId} not found");
-        }
-
-        // Check if user is Admin or owner of the game system
-        var isSystemOwner = gameSystem.OwnerId == request.OwnerId;
-        if (!isSystemOwner)
-        {
-            throw new UnauthorizedAccessException(
-                "You do not have permission to confirm templates in this game system. " +
-                "Only the system owner can confirm templates.");
-        }
+        // Delegates ownership check to the shared authorization service.
+        // Admins bypass; non-admins must be the system owner.
+        await _authorizationService.RequireOwnerOrAdminAsync(
+            request.GameSystemId,
+            request.OwnerId,
+            isAdmin: request.IsAdmin,
+            action: "confirm templates",
+            cancellationToken);
 
         // Confirm the template
         template.Confirm(request.OwnerId, request.Notes);

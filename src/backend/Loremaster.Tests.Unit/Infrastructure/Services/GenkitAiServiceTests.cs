@@ -2,6 +2,7 @@ using System.Net;
 using System.Net.Http.Json;
 using System.Text.Json;
 using Loremaster.Application.Common.Interfaces;
+using Loremaster.Application.Common.Models;
 using Loremaster.Infrastructure.Services;
 using Microsoft.Extensions.Logging;
 using Moq;
@@ -14,6 +15,7 @@ public class GenkitAiServiceTests
     private readonly Mock<IServiceTokenGenerator> _tokenGeneratorMock;
     private readonly Mock<ILogger<GenkitAiService>> _loggerMock;
     private readonly Mock<HttpMessageHandler> _httpHandlerMock;
+    private readonly Mock<IImageCompressionService> _imageCompressionMock;
     private readonly HttpClient _httpClient;
     private readonly GenkitAiService _sut;
 
@@ -22,6 +24,7 @@ public class GenkitAiServiceTests
         _tokenGeneratorMock = new Mock<IServiceTokenGenerator>();
         _loggerMock = new Mock<ILogger<GenkitAiService>>();
         _httpHandlerMock = new Mock<HttpMessageHandler>();
+        _imageCompressionMock = new Mock<IImageCompressionService>();
         
         _httpClient = new HttpClient(_httpHandlerMock.Object)
         {
@@ -32,7 +35,7 @@ public class GenkitAiServiceTests
             .Setup(x => x.GenerateServiceToken(It.IsAny<string>()))
             .Returns("test-service-token");
 
-        _sut = new GenkitAiService(_httpClient, _tokenGeneratorMock.Object, _loggerMock.Object);
+        _sut = new GenkitAiService(_httpClient, _tokenGeneratorMock.Object, _loggerMock.Object, _imageCompressionMock.Object);
     }
 
     #region GenerateTextAsync Tests

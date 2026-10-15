@@ -6,12 +6,18 @@
 
 import React, { useState, useCallback } from 'react';
 import { TerminalLayout } from '@shared/components/layout';
-import { Button, ImageSourceSelector, TerminalLog, EditableField } from '@shared/components/ui';
+import {
+  ImageSourceSelector,
+  TerminalLog,
+  EditableField,
+  GeneratorActionButtons,
+} from '@shared/components/ui';
 import { aiService, entityService } from '@core/services/api';
 import { useCampaign } from '@core/context';
 import { parseJsonResponse } from '@core/utils';
-import { useEntityGeneration } from '@core/hooks';
+import { useEntityGeneration, useGeneratorForm, type SaveEntityParams } from '@core/hooks';
 import type { MissionData } from '@core/types';
+import { TERMINAL_LOG_COMPACT } from '@core/config/constants';
 
 const MISSION_PLACEHOLDER_IMAGE = "https://images.unsplash.com/photo-1451187580459-43490279c0fa?q=80&w=400&auto=format&fit=crop";
 
@@ -79,14 +85,7 @@ export const MissionGeneratorPage: React.FC<MissionGeneratorPageProps> = ({ onBa
     };
   }, [activeCampaign?.gameSystemId]);
 
-  const saveMission = useCallback(async (params: {
-    name: string;
-    description?: string;
-    imageUrl?: string;
-    attributes: Record<string, unknown>;
-    metadata?: Record<string, unknown>;
-    generationRequestId?: string;
-  }) => {
+  const saveMission = useCallback(async (params: SaveEntityParams) => {
     if (!activeCampaignId) return;
 
     await entityService.create(activeCampaignId, {
@@ -114,6 +113,7 @@ export const MissionGeneratorPage: React.FC<MissionGeneratorPageProps> = ({ onBa
     uploadedImageData,
     generate,
     save,
+    loadFieldDefinitions,
     setEditableData,
     setImageMode,
     setUploadedImageData
@@ -125,13 +125,38 @@ export const MissionGeneratorPage: React.FC<MissionGeneratorPageProps> = ({ onBa
       '> [SUCCESS] Tactical database connected.',
       '> Awaiting mission parameters...'
     ],
-    maxLogs: 6,
+    maxLogs: TERMINAL_LOG_COMPACT,
     generateFn: generateMission,
     saveFn: saveMission,
     onSaveSuccess: () => {
       setTimeout(onBack, 1000);
     }
   });
+
+  // Centralised name/description handlers + field-definitions side-effect
+  const { handleNameChange, handleDescriptionChange } =
+    useGeneratorForm<MissionData>({
+      editableData,
+      setEditableData,
+      loadFieldDefinitions,
+      gameSystemId: activeCampaign?.gameSystemId,
+    });
+
+  /** Mission-specific: updates a single key inside editableData.stats */
+  const handleStatsChange = useCallback(
+    (key: string, value: string | number) => {
+      if (editableData) {
+        setEditableData({
+          ...editableData,
+          stats: { ...editableData.stats, [key]: value }
+        });
+      }
+    },
+    [editableData, setEditableData],
+  );
+
+  const getDifficultyInfo = () =>
+    DIFFICULTY_OPTIONS.find(d => d.value === form.difficulty) || DIFFICULTY_OPTIONS[1];
 
   const handleGenerate = async () => {
     if (!form.missionType) {
@@ -157,31 +182,6 @@ export const MissionGeneratorPage: React.FC<MissionGeneratorPageProps> = ({ onBa
     });
   };
 
-  const handleNameChange = (value: string | number) => {
-    if (editableData) {
-      setEditableData({ ...editableData, name: String(value) });
-    }
-  };
-
-  const handleDescriptionChange = (value: string | number) => {
-    if (editableData) {
-      setEditableData({ ...editableData, description: String(value) });
-    }
-  };
-
-  const handleStatsChange = (key: string, value: string | number) => {
-    if (editableData) {
-      setEditableData({
-        ...editableData,
-        stats: { ...editableData.stats, [key]: value }
-      });
-    }
-  };
-
-  const getDifficultyInfo = () => {
-    return DIFFICULTY_OPTIONS.find(d => d.value === form.difficulty) || DIFFICULTY_OPTIONS[1];
-  };
-
   return (
     <TerminalLayout
       title="SYNTH_MISION"
@@ -191,6 +191,7 @@ export const MissionGeneratorPage: React.FC<MissionGeneratorPageProps> = ({ onBa
       hideCampaignSelector={false}
     >
       <div className="flex flex-col md:flex-row gap-8 md:h-full font-mono">
+        {/* Left panel — form controls */}
         <div className="flex-1 flex flex-col gap-6 overflow-y-auto pr-2">
           {!activeCampaignId && (
             <div className="border border-yellow-500/50 bg-yellow-500/10 p-3 text-xs text-yellow-500 uppercase">
@@ -265,30 +266,18 @@ export const MissionGeneratorPage: React.FC<MissionGeneratorPageProps> = ({ onBa
             />
           </div>
 
-          <div className="mt-auto pt-6 border-t border-primary/30 grid grid-cols-2 gap-4">
-            <Button
-              onClick={handleGenerate}
-              disabled={isGenerating}
-              variant="secondary"
-              size="lg"
-              isLoading={isGenerating}
-              icon="assignment_add"
-            >
-              GENERAR
-            </Button>
-            <Button
-              onClick={handleSave}
-              disabled={!editableData || isSaving || isGenerating || !activeCampaignId}
-              variant="primary"
-              size="lg"
-              isLoading={isSaving}
-              icon="save"
-            >
-              GUARDAR
-            </Button>
-          </div>
+          <GeneratorActionButtons
+            onGenerate={handleGenerate}
+            onSave={handleSave}
+            isGenerating={isGenerating}
+            isSaving={isSaving}
+            hasData={!!editableData}
+            hasCampaign={!!activeCampaignId}
+            generateIcon="assignment_add"
+          />
         </div>
 
+        {/* Right panel — preview (mission-specific layout) */}
         <div className="flex-1 flex flex-col gap-4">
           <div className="flex-1 overflow-y-auto flex flex-col gap-4">
             <div className="relative w-full h-48 lg:h-64 border border-primary/30 bg-black p-1 clip-tech-br group">
@@ -301,7 +290,7 @@ export const MissionGeneratorPage: React.FC<MissionGeneratorPageProps> = ({ onBa
                 {isGenerating && (
                   <div className="absolute inset-0 flex flex-col items-center justify-center bg-black/40 z-20">
                     <div className="w-1/2 h-1 bg-primary/20 relative overflow-hidden mb-2">
-                      <div className="absolute inset-0 bg-primary animate-[scan_2s_linear_infinite]"></div>
+                      <div className="absolute inset-0 bg-primary animate-[scan_2s_linear_infinite]" />
                     </div>
                     <span className="text-primary text-[10px] animate-pulse">GENERANDO_MISION...</span>
                   </div>
@@ -314,6 +303,7 @@ export const MissionGeneratorPage: React.FC<MissionGeneratorPageProps> = ({ onBa
               )}
             </div>
 
+            {/* Briefing panel */}
             <div className={`border border-primary/30 bg-black p-4 transition-all ${editableData ? 'border-primary' : ''}`}>
               <div className="flex items-center justify-between mb-3">
                 <div className="flex items-center gap-2">
@@ -337,7 +327,7 @@ export const MissionGeneratorPage: React.FC<MissionGeneratorPageProps> = ({ onBa
                     className="text-xl font-display uppercase text-glow"
                     disabled={!editableData}
                   />
-                  <div className="h-0.5 bg-gradient-to-r from-primary via-primary/20 to-transparent"></div>
+                  <div className="h-0.5 bg-gradient-to-r from-primary via-primary/20 to-transparent" />
                 </div>
               ) : (
                 <div className="h-16 flex items-center justify-center">
@@ -421,7 +411,7 @@ export const MissionGeneratorPage: React.FC<MissionGeneratorPageProps> = ({ onBa
             )}
           </div>
 
-          <TerminalLog logs={logs} maxLogs={6} className="h-24 shrink-0" />
+          <TerminalLog logs={logs} maxLogs={TERMINAL_LOG_COMPACT} className="h-24 shrink-0" />
         </div>
       </div>
     </TerminalLayout>

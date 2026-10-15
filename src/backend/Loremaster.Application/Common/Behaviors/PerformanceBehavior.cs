@@ -4,34 +4,44 @@ using Microsoft.Extensions.Logging;
 
 namespace Loremaster.Application.Common.Behaviors;
 
+/// <summary>
+/// MediatR pipeline behaviour that logs a warning for requests that take longer than 500 ms.
+/// </summary>
 public class PerformanceBehavior<TRequest, TResponse> : IPipelineBehavior<TRequest, TResponse>
     where TRequest : notnull
 {
-    private readonly Stopwatch _timer;
+    /// <summary>Threshold in milliseconds above which a warning is emitted.</summary>
+    private const long SlowRequestThresholdMs = 500;
+
     private readonly ILogger<PerformanceBehavior<TRequest, TResponse>> _logger;
 
+    /// <summary>
+    /// Initialises the behaviour with a logger.
+    /// </summary>
     public PerformanceBehavior(ILogger<PerformanceBehavior<TRequest, TResponse>> logger)
     {
-        _timer = new Stopwatch();
         _logger = logger;
     }
 
-    public async Task<TResponse> Handle(TRequest request, RequestHandlerDelegate<TResponse> next, CancellationToken cancellationToken)
+    /// <inheritdoc/>
+    public async Task<TResponse> Handle(
+        TRequest request,
+        RequestHandlerDelegate<TResponse> next,
+        CancellationToken cancellationToken)
     {
-        _timer.Start();
+        // Stopwatch is a local variable to avoid shared state across concurrent requests.
+        var timer = Stopwatch.StartNew();
 
         var response = await next();
 
-        _timer.Stop();
+        timer.Stop();
 
-        var elapsedMilliseconds = _timer.ElapsedMilliseconds;
-
-        if (elapsedMilliseconds > 500)
+        if (timer.ElapsedMilliseconds > SlowRequestThresholdMs)
         {
-            var requestName = typeof(TRequest).Name;
-
-            _logger.LogWarning("Long Running Request: {Name} ({ElapsedMilliseconds} milliseconds)",
-                requestName, elapsedMilliseconds);
+            _logger.LogWarning(
+                "Long Running Request: {Name} ({ElapsedMilliseconds} milliseconds)",
+                typeof(TRequest).Name,
+                timer.ElapsedMilliseconds);
         }
 
         return response;

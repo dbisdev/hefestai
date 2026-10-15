@@ -12,7 +12,9 @@ import { Button, TerminalLog, EmptyState, ConfirmDialog, Select } from '@shared/
 import { useAuth } from '@core/context';
 import { useTerminalLog, useConfirmDialog } from '@core/hooks';
 import { gameSystemService, documentService } from '@core/services/api';
-import { 
+import { extractErrorMessage } from '@core/utils/error';
+import { TERMINAL_LOG_DEFAULT } from '@core/config/constants';
+import {
   useTemplates,
   useTemplateFields,
 } from '@features/generators/hooks';
@@ -27,6 +29,7 @@ import { CANONICAL_ENTITY_TYPE_OPTIONS } from '@features/gallery/constants/categ
 import type { 
   GameSystem,
   FieldDefinition,
+  ExtractedTemplateInfo,
 } from '@core/types';
 import { TemplateStatus, TemplateStatusLabels, FieldTypeLabels } from '@core/types';
 
@@ -36,7 +39,7 @@ export const TemplatesPage: React.FC = () => {
   const urlGameSystemId = searchParams.get('gameSystemId');
   const { user } = useAuth();
   const { logs, addLog } = useTerminalLog({
-    maxLogs: 12,
+    maxLogs: TERMINAL_LOG_DEFAULT,
     initialLogs: [
       '> Template management system online...',
       '> [SUCCESS] Admin protocols established.',
@@ -134,7 +137,7 @@ export const TemplatesPage: React.FC = () => {
           setSelectedGameSystem(selected);
         }
       } catch (error) {
-        const message = error instanceof Error ? error.message : 'Error loading systems';
+        const message = extractErrorMessage(error, 'Error loading systems');
         addLog(`ERROR: ${message}`);
       } finally {
         setIsLoadingGameSystems(false);
@@ -169,8 +172,25 @@ export const TemplatesPage: React.FC = () => {
   };
 
   const handleSelectTemplate = async (templateId: string) => {
-    await selectTemplate(templateId);
+    cancelEditing();
+
+    // If this template has a matching extraction with fields to compare, open the comparison panel
+    const matchingExtraction = extractionResult?.find(
+      e => e.templateId === templateId && e.extractedFields && e.extractedFields.length > 0
+    ) ?? null;
+
+    if (matchingExtraction) {
+      await handleViewComparison(matchingExtraction);
+    } else {
+      await selectTemplate(templateId);
+    }
+
     addLog(`Plantilla cargada`);
+  };
+
+  const handleViewComparison = async (info: ExtractedTemplateInfo) => {
+    cancelEditing();
+    await viewSkippedExtraction(info);
   };
 
   const handleConfirmTemplate = async (templateId: string) => {
@@ -430,7 +450,7 @@ export const TemplatesPage: React.FC = () => {
                     templates={templates}
                     selectedId={selectedTemplate?.id ?? null}
                     onSelect={handleSelectTemplate}
-                    onViewComparison={viewSkippedExtraction}
+                    onViewComparison={handleViewComparison}
                     onConfirm={handleConfirmTemplate}
                     confirmingId={confirmingId}
                     isNewlyExtracted={isNewlyExtracted}
@@ -498,7 +518,7 @@ export const TemplatesPage: React.FC = () => {
                       options={CANONICAL_ENTITY_TYPE_OPTIONS}
                       value={selectedTemplate.entityTypeName}
                       onChange={(e) => handleEntityTypeChange(e.target.value)}
-                      disabled={isSaving || (selectedTemplate.status === TemplateStatus.Confirmed && !isAdmin)}
+                      disabled={isSaving || selectedTemplate.status === TemplateStatus.Confirmed}
                       className="text-xs"
                     />
                   </div>
@@ -531,43 +551,51 @@ export const TemplatesPage: React.FC = () => {
                       </p>
                     </div>
                   )}
-                </div>
+                  {!selectedTemplate.confirmedAt && (
+                    <div>
+                      <span className="text-primary/40">Confirmado:</span>
+                      <p className="text-green-400">
+                        --
+                      </p>
+                    </div>
+                  )}
 
-                {/* Action Buttons */}
-                <div className="mt-4 flex justify-end gap-2">
-                  {(selectedTemplate.status === TemplateStatus.Draft || selectedTemplate.status === TemplateStatus.PendingReview) && (
-                    <Button
-                      onClick={() => handleConfirmTemplate(selectedTemplate.id)}
-                      disabled={isConfirming}
-                      size="sm"
-                      icon="check_circle"
-                    >
-                      {isConfirming ? 'CONFIRMANDO...' : 'CONFIRMAR'}
-                    </Button>
-                  )}
-                  
-                  {selectedTemplate.status === TemplateStatus.Confirmed && (
-                    <Button
-                      onClick={async () => {
-                        const confirmed = await confirm({
-                          title: 'Revertir a Borrador',
-                          message: '¿Estás seguro de que quieres revertir esta plantilla a borrador? Esto permitirá modificar sus campos.',
-                          confirmLabel: 'REVERTIR',
-                          variant: 'warning',
-                        });
-                        if (confirmed) {
-                          await revertToDraft();
-                        }
-                      }}
-                      disabled={isReverting}
-                      size="sm"
-                      icon="undo"
-                      variant="secondary"
-                    >
-                      {isReverting ? 'REVIRTIENDO...' : 'REVERTIR A BORRADOR'}
-                    </Button>
-                  )}
-                </div>
+                  {/* Action Buttons */}
+                  <div className="flex justify-end gap-2">
+                    {(selectedTemplate.status === TemplateStatus.Draft || selectedTemplate.status === TemplateStatus.PendingReview) && (
+                      <Button
+                        onClick={() => handleConfirmTemplate(selectedTemplate.id)}
+                        disabled={isConfirming}
+                        size="sm"
+                        icon="check_circle"
+                      >
+                        {isConfirming ? 'CONFIRMANDO...' : 'CONFIRMAR'}
+                      </Button>
+                    )}
+                    
+                    {selectedTemplate.status === TemplateStatus.Confirmed && (
+                      <Button
+                        onClick={async () => {
+                          const confirmed = await confirm({
+                            title: 'Revertir a Borrador',
+                            message: '¿Estás seguro de que quieres revertir esta plantilla a borrador? Esto permitirá modificar sus campos.',
+                            confirmLabel: 'REVERTIR',
+                            variant: 'warning',
+                          });
+                          if (confirmed) {
+                            await revertToDraft();
+                          }
+                        }}
+                        disabled={isReverting}
+                        size="sm"
+                        icon="undo"
+                        variant="secondary"
+                      >
+                        {isReverting ? 'REVIRTIENDO...' : 'REVERTIR A BORRADOR'}
+                      </Button>
+                    )}
+                  </div>
+                </div>                
               </div>
             </div>
 

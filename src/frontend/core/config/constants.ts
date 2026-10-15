@@ -38,6 +38,52 @@ export const MAX_INPUT_LENGTH = {
 export const TRANSITION_OUT_DURATION = 400;
 export const TRANSITION_IN_DURATION = 500;
 
+// Token Refresh Timing
+/** How early (in ms) to proactively refresh a token before it expires */
+export const TOKEN_REFRESH_THRESHOLD_MS = 5 * 60 * 1000; // 5 minutes
+/** Safety buffer (in ms) to consider a token effectively expired */
+export const TOKEN_EXPIRY_BUFFER_MS = 30_000; // 30 seconds
+
+// Terminal Log Limits
+/** Default max entries kept in the terminal log */
+export const TERMINAL_LOG_DEFAULT = 12;
+/** Max entries for pages with a compact log panel */
+export const TERMINAL_LOG_COMPACT = 6;
+/** Max entries for standard-sized log panels */
+export const TERMINAL_LOG_STANDARD = 8;
+/** Max entries for expanded log panels */
+export const TERMINAL_LOG_LARGE = 10;
+/** Max entries for admin/detail-heavy log panels */
+export const TERMINAL_LOG_ADMIN = 20;
+
+// Embedding / Document Processing Defaults
+/** Default number of documents processed per batch when generating embeddings */
+export const EMBEDDING_BATCH_SIZE_DEFAULT = 10;
+/** Default maximum total documents to process in one run */
+export const EMBEDDING_MAX_DOCUMENTS_DEFAULT = 100;
+/** Upper bound for batch size allowed via the admin UI */
+export const EMBEDDING_BATCH_SIZE_MAX = 50;
+/** Upper bound for max documents allowed via the admin UI */
+export const EMBEDDING_MAX_DOCUMENTS_MAX = 1000;
+
+// File Upload Limits
+/** Maximum allowed size for PDF manual uploads */
+export const PDF_MAX_FILE_SIZE = 50 * 1024 * 1024; // 50 MB
+/** Maximum allowed size for image uploads */
+export const IMAGE_MAX_FILE_SIZE = 5 * 1024 * 1024; // 5 MB
+/** Maximum dimension (px) for uploaded/compressed images */
+export const IMAGE_MAX_UPLOAD_WIDTH = 500;
+/** JPEG compression quality for uploaded images (0–1) */
+export const IMAGE_COMPRESSION_QUALITY = 0.8;
+/** MIME types accepted for image uploads */
+export const IMAGE_ACCEPTED_FORMATS: string[] = ['image/png', 'image/jpeg', 'image/webp'];
+
+// UX Timing
+/** Delay (ms) before clearing a transient "copied to clipboard" indicator */
+export const COPY_FEEDBACK_DURATION_MS = 2_000;
+/** Delay (ms) before navigating away after a successful generator save */
+export const GENERATOR_NAVIGATE_DELAY_MS = 1_000;
+
 // Placeholder Images
 export const PLACEHOLDER_IMAGES = {
   character: 'https://images.unsplash.com/photo-1683322001857-f4d932a40672?q=80&w=400&auto=format&fit=crop',

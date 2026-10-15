@@ -1,3 +1,4 @@
+using System.Text;
 using Loremaster.Application.Common.Interfaces;
 using Loremaster.Domain.Entities;
 using Loremaster.Domain.Enums;
@@ -91,25 +92,25 @@ public class DocumentRepository : IDocumentRepository
             queryEmbedding.Length,
             embeddingStr.Length);
         
-        // Build SQL with pgvector cosine distance
-        // Note: cosine distance = 1 - cosine similarity, so we subtract from 1
-        // IMPORTANT: We cast to vector(3072) explicitly to match the column definition (gemini-embedding-001)
-        // Note: Table/column names use snake_case to match migration
-        // Join with users table when we need to filter by Admin role
-        var sql = @"
+        // Build SQL with pgvector cosine distance using StringBuilder (avoids fragile string += pattern).
+        // All variable values are bound via NpgsqlParameter — no SQL injection risk.
+        // Note: cosine distance = 1 - cosine similarity, so we subtract from 1.
+        // IMPORTANT: We cast to vector(3072) explicitly to match the column definition (gemini-embedding-001).
+        // Table/column names use snake_case to match migration.
+        var sqlBuilder = new StringBuilder(@"
             SELECT d.*, (1 - (d.embedding <=> @embedding::vector(3072))) as similarity
-            FROM public.documents d";
+            FROM public.documents d");
         
         // Add join with users table if we need to check for Admin role
         if (includeAdminDocs && !skipOwnerFilter)
         {
-            sql += @"
-            INNER JOIN public.""user"" u ON d.owner_id = u.id";
+            sqlBuilder.Append(@"
+            INNER JOIN public.""user"" u ON d.owner_id = u.id");
         }
         
-        sql += @"
+        sqlBuilder.Append(@"
             WHERE d.embedding IS NOT NULL
-            AND (1 - (d.embedding <=> @embedding::vector(3072))) >= @threshold";
+            AND (1 - (d.embedding <=> @embedding::vector(3072))) >= @threshold");
         
         // Add owner filter based on mode:
         // - skipOwnerFilter: no owner filter (admin operations)
@@ -119,24 +120,26 @@ public class DocumentRepository : IDocumentRepository
         {
             if (includeAdminDocs)
             {
-                // Include documents owned by the specified owner OR by Admin users
-                // The role column uses PostgreSQL enum type 'user_role' with value 'admin'
-                sql += @" AND (d.owner_id = @ownerId OR u.role = 'admin'::user_role)";
+                // Include documents owned by the specified owner OR by Admin users.
+                // The role column uses PostgreSQL enum type 'user_role' with value 'admin'.
+                sqlBuilder.Append(@" AND (d.owner_id = @ownerId OR u.role = 'admin'::user_role)");
             }
             else
             {
-                sql += @" AND d.owner_id = @ownerId";
+                sqlBuilder.Append(@" AND d.owner_id = @ownerId");
             }
         }
         
         if (gameSystemId.HasValue)
         {
-            sql += @" AND d.game_system_id = @gameSystemId";
+            sqlBuilder.Append(@" AND d.game_system_id = @gameSystemId");
         }
         
-        sql += @"
+        sqlBuilder.Append(@"
             ORDER BY d.embedding <=> @embedding::vector(3072)
-            LIMIT @limit";
+            LIMIT @limit");
+
+        var sql = sqlBuilder.ToString();
 
         var parameters = new List<NpgsqlParameter>
         {
@@ -160,9 +163,12 @@ public class DocumentRepository : IDocumentRepository
         try
         {
             // Use the configured NpgsqlDataSource which has UseVector() enabled
-            // This ensures proper type handling for pgvector operations
-            var results = new List<DocumentSearchResult>();
-            
+            // This ensures proper type handling for pgvector operations.
+            //
+            // Step 1: run the vector-distance SQL via Npgsql (pgvector requires UseVector() on the data source).
+            // Collect (id, similarity) pairs — avoid calling GetByIdAsync per row (N+1).
+            var idSimilarityPairs = new List<(Guid Id, float Similarity)>();
+
             await using var connection = await _dataSource.OpenConnectionAsync(cancellationToken);
             
             await using var command = new NpgsqlCommand(sql, connection);
@@ -172,16 +178,28 @@ public class DocumentRepository : IDocumentRepository
             }
 
             await using var reader = await command.ExecuteReaderAsync(cancellationToken);
-            
             while (await reader.ReadAsync(cancellationToken))
             {
-                var document = await GetByIdAsync(reader.GetGuid(reader.GetOrdinal("id")), cancellationToken);
-                if (document != null)
-                {
-                    var similarity = reader.GetFloat(reader.GetOrdinal("similarity"));
-                    results.Add(new DocumentSearchResult(document, similarity));
-                }
+                var id = reader.GetGuid(reader.GetOrdinal("id"));
+                var similarity = reader.GetFloat(reader.GetOrdinal("similarity"));
+                idSimilarityPairs.Add((id, similarity));
             }
+
+            // Step 2: load all matched documents in a single EF Core query (with Owner navigation property).
+            // This replaces N individual GetByIdAsync calls with one WHERE id IN (...) query.
+            var ids = idSimilarityPairs.Select(p => p.Id).ToList();
+            var documents = await _context.Documents
+                .Include(d => d.Owner)
+                .Where(d => ids.Contains(d.Id))
+                .ToListAsync(cancellationToken);
+
+            var documentMap = documents.ToDictionary(d => d.Id);
+
+            // Step 3: re-order results to match the original ORDER BY (pgvector cosine distance).
+            var results = idSimilarityPairs
+                .Where(p => documentMap.ContainsKey(p.Id))
+                .Select(p => new DocumentSearchResult(documentMap[p.Id], p.Similarity))
+                .ToList();
 
             _logger.LogInformation(
                 "Semantic search found {Count} documents{OwnerInfo}{AdminInfo}{GameSystemInfo}", 

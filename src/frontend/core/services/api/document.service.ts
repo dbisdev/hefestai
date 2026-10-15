@@ -1,167 +1,34 @@
 /**
  * Document Service
- * Single Responsibility: Document and RAG search operations
+ * Single Responsibility: User-facing document and RAG search operations.
+ *
+ * Admin-only operations (e.g. generating missing embeddings) are handled
+ * by `adminDocument.service.ts` to keep this service focused on the
+ * operations available to all authenticated users.
  */
 
 import { httpClient } from './client';
-import { tokenService } from '../storage/token.service';
-
-/**
- * Document data transfer object
- */
-export interface DocumentDto {
-  id: string;
-  title: string;
-  content: string;
-  source?: string;
-  metadata?: string;
-  hasEmbedding: boolean;
-  embeddingDimensions?: number;
-  ownerId: string;
-  projectId?: string;
-  createdAt: string;
-  updatedAt?: string;
-}
-
-/**
- * Search result with similarity score
- */
-export interface DocumentSearchResult {
-  document: DocumentDto;
-  similarityScore: number;
-}
-
-/**
- * Parameters for semantic search
- */
-export interface SemanticSearchParams {
-  /** The search query text */
-  query: string;
-  /** Maximum number of results (default: 5) */
-  limit?: number;
-  /** Minimum similarity threshold 0.0-1.0 (default: 0.7) */
-  threshold?: number;
-  /** Optional project ID filter */
-  projectId?: string;
-  /** Optional game system ID filter (for RAG on manuals) */
-  gameSystemId?: string;
-  /** Whether to generate a RAG answer from results */
-  generateAnswer?: boolean;
-  /** Optional system prompt for answer generation */
-  systemPrompt?: string;
-  /** Optional Master ID to include their documents (for Players in a campaign) */
-  masterId?: string;
-}
-
-/**
- * Result of semantic search
- */
-export interface SemanticSearchResult {
-  documents: DocumentSearchResult[];
-  generatedAnswer?: string;
-}
-
-/**
- * Manual document DTO
- */
-export interface ManualDto {
-  id: string;
-  gameSystemId: string;
-  title: string;
-  pageCount: number;
-  chunkCount: number;
-  sourceType: 'Rulebook' | 'Supplement' | 'Custom';
-  version?: string;
-  createdAt: string;
-}
-
-/**
- * Manual summary DTO (for listing without page count)
- */
-export interface ManualSummaryDto {
-  id: string;
-  gameSystemId: string;
-  title: string;
-  chunkCount: number;
-  sourceType: 'Rulebook' | 'Supplement' | 'Custom';
-  version?: string;
-  createdAt: string;
-}
-
-/**
- * RAG source type enum
- */
-export type RagSourceType = 'Rulebook' | 'Supplement' | 'Custom';
-
-/**
- * Result of manual upload operation
- */
-export interface UploadManualResult {
-  manualId: string;
-  title: string;
-  pageCount: number;
-  chunkCount: number;
-  processingTimeMs: number;
-}
-
-/**
- * Parameters for uploading a manual
- */
-export interface UploadManualParams {
-  /** The game system ID this manual belongs to */
-  gameSystemId: string;
-  /** The PDF file to upload */
-  file: File;
-  /** Optional title (extracted from PDF if not provided) */
-  title?: string;
-  /** Type of RAG source */
-  sourceType?: RagSourceType;
-  /** Optional version identifier */
-  version?: string;
-}
-
-/**
- * Result of generating missing embeddings
- */
-export interface GenerateMissingEmbeddingsResult {
-  totalProcessed: number;
-  successCount: number;
-  failureCount: number;
-  errors: string[];
-}
-
-/**
- * Parameters for generating missing embeddings
- */
-export interface GenerateMissingEmbeddingsParams {
-  /** Number of documents to process per batch (default: 10) */
-  batchSize?: number;
-  /** Maximum total documents to process (default: 100) */
-  maxDocuments?: number;
-  /** Optional game system ID to filter documents */
-  gameSystemId?: string;
-}
-
-/**
- * Result of document availability check
- */
-export interface DocumentAvailabilityResult {
-  /** Whether documents are available for RAG search */
-  hasDocuments: boolean;
-  /** The game system ID that was checked */
-  gameSystemId: string;
-}
+import type {
+  SemanticSearchParams,
+  SemanticSearchResult,
+  ManualDto,
+  ManualSummaryDto,
+  UploadManualParams,
+  UploadManualResult,
+  DocumentAvailabilityResult,
+} from '@core/types';
 
 export const documentService = {
   /**
    * Perform semantic search across documents.
    * Uses vector similarity to find relevant content.
-   * 
-   * @param params - Search parameters
-   * @returns Search results with optional AI-generated answer
+   * Backend endpoint: POST /api/documents/search
+   *
+   * @param params - Search parameters (query, filters, RAG options).
+   * @returns Search results with optional AI-generated answer.
    */
   async semanticSearch(params: SemanticSearchParams): Promise<SemanticSearchResult> {
-    const response = await httpClient.post<SemanticSearchResult>('/documents/search', {
+    return httpClient.post<SemanticSearchResult>('/documents/search', {
       query: params.query,
       limit: params.limit ?? 5,
       threshold: params.threshold ?? 0.7,
@@ -171,16 +38,15 @@ export const documentService = {
       systemPrompt: params.systemPrompt,
       masterId: params.masterId,
     });
-
-    return response;
   },
 
   /**
-   * Get a manual by ID
-   * 
-   * @param gameSystemId - The game system ID
-   * @param manualId - The manual document ID
-   * @returns The manual document details
+   * Get a single manual by ID.
+   * Backend endpoint: GET /api/documents/game-systems/{gameSystemId}/manuals/{manualId}
+   *
+   * @param gameSystemId - The game system the manual belongs to.
+   * @param manualId - The manual document ID.
+   * @returns Full manual details including page count.
    */
   async getManual(gameSystemId: string, manualId: string): Promise<ManualDto> {
     return httpClient.get<ManualDto>(`/documents/game-systems/${gameSystemId}/manuals/${manualId}`);
@@ -188,10 +54,10 @@ export const documentService = {
 
   /**
    * Get all manuals for a game system.
-   * Used to check if a game system has documents available for RAG search.
-   * 
-   * @param gameSystemId - The game system ID
-   * @returns List of manuals with chunk counts
+   * Backend endpoint: GET /api/documents/game-systems/{gameSystemId}/manuals
+   *
+   * @param gameSystemId - The game system ID.
+   * @returns Summary list of manuals with chunk counts.
    */
   async getManualsByGameSystem(gameSystemId: string): Promise<ManualSummaryDto[]> {
     return httpClient.get<ManualSummaryDto[]>(`/documents/game-systems/${gameSystemId}/manuals`);
@@ -200,14 +66,15 @@ export const documentService = {
   /**
    * Upload a PDF manual for RAG processing.
    * The PDF will be chunked and indexed for semantic search.
-   * 
-   * @param params - Upload parameters including file and metadata
-   * @returns Result containing manual ID and processing statistics
+   * Backend endpoint: POST /api/documents/game-systems/{gameSystemId}/manuals
+   *
+   * @param params - Upload parameters including the PDF file and metadata.
+   * @returns Result containing manual ID and processing statistics.
    */
   async uploadManual(params: UploadManualParams): Promise<UploadManualResult> {
     const formData = new FormData();
     formData.append('File', params.file);
-    
+
     if (params.title) {
       formData.append('Title', params.title);
     }
@@ -218,51 +85,30 @@ export const documentService = {
       formData.append('Version', params.version);
     }
 
-    // Use fetch directly for multipart/form-data
-    const token = tokenService.getAccessToken();
-    const response = await fetch(`/api/documents/game-systems/${params.gameSystemId}/manuals`, {
-      method: 'POST',
-      headers: {
-        ...(token ? { 'Authorization': `Bearer ${token}` } : {}),
-      },
-      body: formData,
-    });
-
-    if (!response.ok) {
-      const errorText = await response.text();
-      throw new Error(errorText || `Upload failed with status ${response.status}`);
-    }
-
-    return response.json();
-  },
-
-  /**
-   * Generate embeddings for documents that don't have them.
-   * Admin operation to backfill embeddings after migration or manual imports.
-   * 
-   * @param params - Parameters for batch processing
-   * @returns Result with success/failure counts
-   */
-  async generateMissingEmbeddings(params: GenerateMissingEmbeddingsParams = {}): Promise<GenerateMissingEmbeddingsResult> {
-    return httpClient.post<GenerateMissingEmbeddingsResult>('/documents/embeddings/generate', {
-      batchSize: params.batchSize ?? 10,
-      maxDocuments: params.maxDocuments ?? 100,
-      gameSystemId: params.gameSystemId,
-    });
+    return httpClient.postForm<UploadManualResult>(
+      `/documents/game-systems/${params.gameSystemId}/manuals`,
+      formData,
+    );
   },
 
   /**
    * Check if a game system has documents available for RAG search.
-   * Accessible by all authenticated users (including Players).
-   * Players see Admin-shared documents only, unless masterId is provided.
-   * Masters see Admin-shared documents + their own documents.
-   * 
-   * @param gameSystemId - The game system ID to check
-   * @param masterId - Optional Master ID to include their documents (for Players in a campaign)
-   * @returns Document availability status
+   * Accessible by all authenticated users:
+   * - Players see Admin-shared documents only (unless masterId is provided).
+   * - Masters see Admin-shared + their own documents.
+   * Backend endpoint: GET /api/documents/game-systems/{gameSystemId}/available
+   *
+   * @param gameSystemId - The game system ID to check.
+   * @param masterId - Optional Master ID to include their documents (for Players in a campaign).
+   * @returns Document availability status.
    */
-  async checkDocumentAvailability(gameSystemId: string, masterId?: string): Promise<DocumentAvailabilityResult> {
-    const params = masterId ? `?masterId=${masterId}` : '';
-    return httpClient.get<DocumentAvailabilityResult>(`/documents/game-systems/${gameSystemId}/available${params}`);
+  async checkDocumentAvailability(
+    gameSystemId: string,
+    masterId?: string,
+  ): Promise<DocumentAvailabilityResult> {
+    const query = masterId ? `?masterId=${masterId}` : '';
+    return httpClient.get<DocumentAvailabilityResult>(
+      `/documents/game-systems/${gameSystemId}/available${query}`,
+    );
   },
 };

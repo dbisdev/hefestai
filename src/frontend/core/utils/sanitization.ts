@@ -4,6 +4,8 @@
  * Single Responsibility: Only output sanitization logic
  */
 
+import { logger } from './logger';
+
 /**
  * HTML entity encoding map
  */
@@ -43,13 +45,13 @@ export function sanitizeUrl(url: string): string {
     
     // Check for javascript: protocol and other dangerous schemes
     if (!allowedProtocols.some(p => parsed.protocol === p)) {
-      console.warn('Blocked potentially dangerous URL:', url);
+      logger.warn('Blocked potentially dangerous URL:', url);
       return '';
     }
     
     // For data URLs, only allow images
     if (parsed.protocol === 'data:' && !url.startsWith('data:image/')) {
-      console.warn('Blocked non-image data URL');
+      logger.warn('Blocked non-image data URL');
       return '';
     }
     

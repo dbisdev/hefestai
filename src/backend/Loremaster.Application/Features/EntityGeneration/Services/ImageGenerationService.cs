@@ -69,9 +69,12 @@ public class ImageGenerationService : IImageGenerationService
             if (!styleContext.Any())
                 return string.Empty;
 
+            // Limit to 3 chunks × 200 chars each (≤ 600 chars) to keep the total assembled
+            // prompt well under the Genkit Zod validation limit of 2,000 characters.
+            // BasePrompt (~174) + description (~520) + style (~620) ≈ 1,314 max.
             var contextText = string.Join(" ",
-                styleContext.Take(5).Select(c =>
-                    c.Content?.Substring(0, Math.Min(400, c.Content.Length)) ?? string.Empty));
+                styleContext.Take(3).Select(c =>
+                    c.Content?.Substring(0, Math.Min(200, c.Content.Length)) ?? string.Empty));
 
             return $" Art style based on: {contextText}";
         }

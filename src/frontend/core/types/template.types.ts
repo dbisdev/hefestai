@@ -8,25 +8,25 @@
  * Template status enum matching backend TemplateStatus
  */
 export enum TemplateStatus {
-  Draft = 0,
-  PendingReview = 1,
-  Confirmed = 2,
-  Rejected = 3,
+  Draft = 'Draft',
+  PendingReview = 'PendingReview',
+  Confirmed = 'Confirmed',
+  Rejected = 'Rejected',
 }
 
 /**
  * Field type enum matching backend FieldType
  */
 export enum FieldType {
-  Text = 0,
-  TextArea = 1,
-  Number = 2,
-  Boolean = 3,
-  Select = 4,
-  MultiSelect = 5,
-  Date = 6,
-  Url = 7,
-  Json = 8,
+  Text = 'Text',
+  TextArea = 'TextArea',
+  Number = 'Number',
+  Boolean = 'Boolean',
+  Select = 'Select',
+  MultiSelect = 'MultiSelect',
+  Date = 'Date',
+  Url = 'Url',
+  Json = 'Json',
 }
 
 /**
@@ -155,16 +155,16 @@ export interface ConfirmTemplateResult {
 }
 
 /**
- * Request to confirm a template
+ * Input payload to confirm a template
  */
-export interface ConfirmTemplateRequest {
+export interface ConfirmTemplateInput {
   notes?: string;
 }
 
 /**
- * Request to create a template manually
+ * Input payload to create a template manually
  */
-export interface CreateTemplateRequest {
+export interface CreateTemplateInput {
   entityTypeName: string;
   displayName: string;
   description?: string;
@@ -183,9 +183,9 @@ export interface CreateTemplateResult {
 }
 
 /**
- * Request to update a template
+ * Input payload to update a template
  */
-export interface UpdateTemplateRequest {
+export interface UpdateTemplateInput {
   displayName: string;
   entityTypeName?: string;
   description?: string;

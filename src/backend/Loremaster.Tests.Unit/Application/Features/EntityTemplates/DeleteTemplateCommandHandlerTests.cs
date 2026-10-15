@@ -1,6 +1,7 @@
 using Loremaster.Application.Common.Interfaces;
 using Loremaster.Application.Features.EntityTemplates.Commands.DeleteTemplate;
 using Loremaster.Domain.Entities;
+using Loremaster.Domain.Exceptions;
 using Loremaster.Domain.ValueObjects;
 using Microsoft.Extensions.Logging;
 
@@ -13,6 +14,7 @@ namespace Loremaster.Tests.Unit.Application.Features.EntityTemplates;
 public class DeleteTemplateCommandHandlerTests
 {
     private readonly Mock<IEntityTemplateRepository> _templateRepositoryMock;
+    private readonly Mock<IGameSystemAuthorizationService> _authorizationServiceMock;
     private readonly Mock<ILoreEntityRepository> _entityRepositoryMock;
     private readonly Mock<IUnitOfWork> _unitOfWorkMock;
     private readonly Mock<ILogger<DeleteTemplateCommandHandler>> _loggerMock;
@@ -26,12 +28,14 @@ public class DeleteTemplateCommandHandlerTests
     public DeleteTemplateCommandHandlerTests()
     {
         _templateRepositoryMock = new Mock<IEntityTemplateRepository>();
+        _authorizationServiceMock = new Mock<IGameSystemAuthorizationService>();
         _entityRepositoryMock = new Mock<ILoreEntityRepository>();
         _unitOfWorkMock = new Mock<IUnitOfWork>();
         _loggerMock = new Mock<ILogger<DeleteTemplateCommandHandler>>();
 
         _handler = new DeleteTemplateCommandHandler(
             _templateRepositoryMock.Object,
+            _authorizationServiceMock.Object,
             _entityRepositoryMock.Object,
             _unitOfWorkMock.Object,
             _loggerMock.Object);
@@ -46,9 +50,11 @@ public class DeleteTemplateCommandHandlerTests
         var template = CreateTemplate("character", _ownerId);
         SetupTemplate(template);
         SetupEntityCount(0);
+        SetupAuthorization();
 
         var command = new DeleteTemplateCommand(
             TemplateId: _templateId,
+            GameSystemId: _gameSystemId,
             OwnerId: _ownerId);
 
         // Act
@@ -76,9 +82,11 @@ public class DeleteTemplateCommandHandlerTests
         var template = CreateTemplate("vehicle", _ownerId);
         SetupTemplate(template);
         SetupEntityCount(5); // 5 entities using this template
+        SetupAuthorization();
 
         var command = new DeleteTemplateCommand(
             TemplateId: _templateId,
+            GameSystemId: _gameSystemId,
             OwnerId: _ownerId,
             ForceDelete: true);
 
@@ -102,9 +110,11 @@ public class DeleteTemplateCommandHandlerTests
         var template = CreateTemplate("item", _ownerId);
         SetupTemplate(template);
         SetupEntityCount(0);
+        SetupAuthorization();
 
         var command = new DeleteTemplateCommand(
             TemplateId: _templateId,
+            GameSystemId: _gameSystemId,
             OwnerId: _ownerId,
             ForceDelete: true);
 
@@ -121,7 +131,7 @@ public class DeleteTemplateCommandHandlerTests
     #region Authorization Failures
 
     [Fact]
-    public async Task Handle_WhenTemplateNotFound_ShouldThrowArgumentException()
+    public async Task Handle_WhenTemplateNotFound_ShouldThrowNotFoundException()
     {
         // Arrange
         _templateRepositoryMock
@@ -130,14 +140,15 @@ public class DeleteTemplateCommandHandlerTests
 
         var command = new DeleteTemplateCommand(
             TemplateId: _templateId,
+            GameSystemId: _gameSystemId,
             OwnerId: _ownerId);
 
         // Act
         var act = () => _handler.Handle(command, CancellationToken.None);
 
         // Assert
-        await act.Should().ThrowAsync<ArgumentException>()
-            .WithMessage($"*Template with ID {_templateId} not found*");
+        await act.Should().ThrowAsync<NotFoundException>()
+            .WithMessage($"*EntityTemplate*{_templateId}*");
 
         _templateRepositoryMock.Verify(
             x => x.Delete(It.IsAny<EntityTemplate>()),
@@ -145,22 +156,32 @@ public class DeleteTemplateCommandHandlerTests
     }
 
     [Fact]
-    public async Task Handle_WhenNotOwner_ShouldThrowUnauthorizedAccessException()
+    public async Task Handle_WhenNotOwner_ShouldThrowForbiddenAccessException()
     {
         // Arrange
         var template = CreateTemplate("character", _otherUserId); // Owned by another user
         SetupTemplate(template);
 
+        // Authorization service throws ForbiddenAccessException for non-owners
+        _authorizationServiceMock
+            .Setup(x => x.RequireOwnerOrAdminAsync(
+                _gameSystemId,
+                _ownerId,
+                false,
+                It.IsAny<string>(),
+                It.IsAny<CancellationToken>()))
+            .ThrowsAsync(new ForbiddenAccessException("You do not have permission to delete templates in this game system."));
+
         var command = new DeleteTemplateCommand(
             TemplateId: _templateId,
+            GameSystemId: _gameSystemId,
             OwnerId: _ownerId); // Different user trying to delete
 
         // Act
         var act = () => _handler.Handle(command, CancellationToken.None);
 
         // Assert
-        await act.Should().ThrowAsync<UnauthorizedAccessException>()
-            .WithMessage("*do not have permission*delete*template*");
+        await act.Should().ThrowAsync<ForbiddenAccessException>();
 
         _templateRepositoryMock.Verify(
             x => x.Delete(It.IsAny<EntityTemplate>()),
@@ -178,9 +199,11 @@ public class DeleteTemplateCommandHandlerTests
         var template = CreateTemplate("npc", _ownerId);
         SetupTemplate(template);
         SetupEntityCount(3); // 3 entities using this template
+        SetupAuthorization();
 
         var command = new DeleteTemplateCommand(
             TemplateId: _templateId,
+            GameSystemId: _gameSystemId,
             OwnerId: _ownerId,
             ForceDelete: false);
 
@@ -203,9 +226,11 @@ public class DeleteTemplateCommandHandlerTests
         var template = CreateTemplate("location", _ownerId);
         SetupTemplate(template);
         SetupEntityCount(1); // 1 entity using this template
+        SetupAuthorization();
 
         var command = new DeleteTemplateCommand(
             TemplateId: _templateId,
+            GameSystemId: _gameSystemId,
             OwnerId: _ownerId,
             ForceDelete: false);
 
@@ -227,9 +252,11 @@ public class DeleteTemplateCommandHandlerTests
         var template = CreateTemplate("faction", _ownerId);
         SetupTemplate(template);
         SetupEntityCount(entityCount);
+        SetupAuthorization();
 
         var command = new DeleteTemplateCommand(
             TemplateId: _templateId,
+            GameSystemId: _gameSystemId,
             OwnerId: _ownerId,
             ForceDelete: true);
 
@@ -270,6 +297,22 @@ public class DeleteTemplateCommandHandlerTests
         _templateRepositoryMock
             .Setup(x => x.GetByIdAsync(_templateId, It.IsAny<CancellationToken>()))
             .ReturnsAsync(template);
+    }
+
+    /// <summary>
+    /// Sets up the authorization service to pass successfully (simulate owner/admin).
+    /// </summary>
+    private void SetupAuthorization()
+    {
+        var gameSystem = GameSystem.Create("test", "Test System", _ownerId, "Pub", "Desc");
+        _authorizationServiceMock
+            .Setup(x => x.RequireOwnerOrAdminAsync(
+                It.IsAny<Guid>(),
+                It.IsAny<Guid>(),
+                It.IsAny<bool>(),
+                It.IsAny<string>(),
+                It.IsAny<CancellationToken>()))
+            .ReturnsAsync(gameSystem);
     }
 
     /// <summary>

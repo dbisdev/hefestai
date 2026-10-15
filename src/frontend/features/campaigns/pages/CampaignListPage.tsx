@@ -19,6 +19,9 @@ import { useAuth, useCampaign } from '@core/context';
 import { gameSystemService, campaignService } from '@core/services/api';
 import { useTerminalLog } from '@core/hooks/useTerminalLog';
 import { useConfirmDialog } from '@core/hooks';
+import { extractErrorMessage } from '@core/utils/error';
+import { logger } from '@core/utils';
+import { TERMINAL_LOG_LARGE } from '@core/config/constants';
 import type { Campaign, CampaignDetail, GameSystem, UpdateCampaignInput, CampaignMember } from '@core/types';
 import { CampaignRole } from '@core/types';
 
@@ -65,7 +68,7 @@ export const CampaignListPage: React.FC = () => {
   const { isOpen: isConfirmOpen, config: confirmConfig, confirm, handleConfirm, handleCancel } = useConfirmDialog();
   
   const { logs, addLog } = useTerminalLog({
-    maxLogs: 10,
+    maxLogs: TERMINAL_LOG_LARGE,
     initialLogs: [
       '> Campaign registry system online...',
       '> [SUCCESS] Connection established.',
@@ -84,7 +87,7 @@ export const CampaignListPage: React.FC = () => {
         setGameSystems(systems);
         addLog(`[SUCCESS] ${systems.length} sistema(s) de juego indexado(s).`);
       } catch (err) {
-        console.error('Failed to load game systems:', err);
+        logger.error('Failed to load game systems:', err);
         addLog('WARNING: No se pudieron cargar sistemas de juego.');
       } finally {
         setIsLoadingGameSystems(false);
@@ -101,28 +104,27 @@ export const CampaignListPage: React.FC = () => {
     const loadAllCampaignMembers = async () => {
       if (campaigns.length === 0) return;
 
-      try {
-        const membersMap: Record<string, CampaignMember[]> = {};
-        
-        // Fetch members for all campaigns in parallel
-        const results = await Promise.allSettled(
-          campaigns.map(async (campaign) => {
-            const members = await campaignService.getMembers(campaign.id);
-            return { campaignId: campaign.id, members };
-          })
-        );
+      const membersMap: Record<string, CampaignMember[]> = {};
 
-        results.forEach((result) => {
-          if (result.status === 'fulfilled') {
-            membersMap[result.value.campaignId] = result.value.members;
-          }
-        });
+      // Fetch members for all campaigns in parallel; individual failures are logged but do not block
+      const results = await Promise.allSettled(
+        campaigns.map(async (campaign) => {
+          const members = await campaignService.getMembers(campaign.id);
+          return { campaignId: campaign.id, members };
+        })
+      );
 
-        setCampaignMembers(membersMap);
-        addLog(`[SUCCESS] Miembros de campañas cargados.`);
-      } catch (err) {
-        console.error('Failed to load campaign members:', err);
-      }
+      results.forEach((result, index) => {
+        if (result.status === 'fulfilled') {
+          membersMap[result.value.campaignId] = result.value.members;
+        } else {
+          const campaignId = campaigns[index]?.id ?? 'unknown';
+          logger.warn(`Failed to load members for campaign ${campaignId}:`, result.reason);
+        }
+      });
+
+      setCampaignMembers(membersMap);
+      addLog(`[SUCCESS] Miembros de campañas cargados.`);
     };
 
     loadAllCampaignMembers();
@@ -169,7 +171,7 @@ export const CampaignListPage: React.FC = () => {
       setShowEditForm(true);
       addLog(`[SUCCESS] Detalles cargados`);
     } catch (error: unknown) {
-      const message = error instanceof Error ? error.message : 'ERROR AL CARGAR DETALLES';
+      const message = extractErrorMessage(error, 'ERROR AL CARGAR DETALLES');
       addLog(`ERROR: ${message}`);
     }
   };
@@ -186,7 +188,7 @@ export const CampaignListPage: React.FC = () => {
       addLog(`[SUCCESS] Campaña creada: ${campaign.name.toUpperCase()}`);
       setShowCreateModal(false);
     } catch (error: unknown) {
-      const message = error instanceof Error ? error.message : 'ERROR AL CREAR CAMPAÑA';
+      const message = extractErrorMessage(error, 'ERROR AL CREAR CAMPAÑA');
       addLog(`ERROR_CRITICO: ${message}`);
       throw error;
     } finally {
@@ -215,7 +217,7 @@ export const CampaignListPage: React.FC = () => {
       
       setShowEditForm(false);
     } catch (error: unknown) {
-      const message = error instanceof Error ? error.message : 'ERROR AL ACTUALIZAR CAMPAÑA';
+      const message = extractErrorMessage(error, 'ERROR AL ACTUALIZAR CAMPAÑA');
       addLog(`ERROR_CRITICO: ${message}`);
       throw error;
     } finally {
@@ -240,7 +242,7 @@ export const CampaignListPage: React.FC = () => {
       setSelectedCampaign(prev => prev ? { ...prev, isActive: newStatus } : null);
       addLog(`[SUCCESS] Campaña ${newStatus ? 'ACTIVADA' : 'DESACTIVADA'}`);
     } catch (error: unknown) {
-      const message = error instanceof Error ? error.message : 'ERROR AL CAMBIAR ESTADO';
+      const message = extractErrorMessage(error, 'ERROR AL CAMBIAR ESTADO');
       addLog(`ERROR: ${message}`);
     } finally {
       setIsTogglingStatus(false);
@@ -274,7 +276,7 @@ export const CampaignListPage: React.FC = () => {
       setSelectedCampaign(prev => prev ? { ...prev, joinCode: newCode } : null);
       addLog(`[SUCCESS] Nuevo código: ${newCode}`);
     } catch (error: unknown) {
-      const message = error instanceof Error ? error.message : 'ERROR AL REGENERAR CÓDIGO';
+      const message = extractErrorMessage(error, 'ERROR AL REGENERAR CÓDIGO');
       addLog(`ERROR: ${message}`);
     } finally {
       setIsRegeneratingCode(false);
@@ -311,7 +313,7 @@ export const CampaignListPage: React.FC = () => {
       setShowEditForm(false);
       setSelectedCampaign(null);
     } catch (error: unknown) {
-      const message = error instanceof Error ? error.message : 'ERROR AL ELIMINAR CAMPAÑA';
+      const message = extractErrorMessage(error, 'ERROR AL ELIMINAR CAMPAÑA');
       addLog(`ERROR: ${message}`);
     } finally {
       setIsDeletingCampaign(false);
@@ -344,7 +346,7 @@ export const CampaignListPage: React.FC = () => {
       addLog('[SUCCESS] Campaña activada.');
       navigate('/gallery');
     } catch (err) {
-      const message = err instanceof Error ? err.message : 'Error al activar';
+      const message = extractErrorMessage(err, 'Error al activar');
       addLog(`ERROR: ${message}`);
     } finally {
       setOperationInProgress(null);
@@ -383,7 +385,11 @@ export const CampaignListPage: React.FC = () => {
     addLog(isMaster ? 'ELIMINANDO CAMPAÑA...' : 'ABANDONANDO CAMPAÑA...');
     
     try {
-      await leaveCampaign(campaign.id);
+      if (isMaster) {
+        await deleteCampaign(campaign.id);
+      } else {
+        await leaveCampaign(campaign.id);
+      }
       addLog(`[SUCCESS] ${isMaster ? 'Campaña eliminada' : 'Has abandonado la campaña'}.`);
       
       // Clear selection if the deleted campaign was selected
@@ -392,7 +398,7 @@ export const CampaignListPage: React.FC = () => {
         setShowEditForm(false);
       }
     } catch (err) {
-      const message = err instanceof Error ? err.message : 'Error en operación';
+      const message = extractErrorMessage(err, 'Error en operación');
       addLog(`ERROR: ${message}`);
     } finally {
       setOperationInProgress(null);
@@ -417,7 +423,7 @@ export const CampaignListPage: React.FC = () => {
         setSelectedCampaign(prev => prev ? { ...prev, isActive: newStatus } : null);
       }
     } catch (error: unknown) {
-      const message = error instanceof Error ? error.message : 'ERROR AL CAMBIAR ESTADO';
+      const message = extractErrorMessage(error, 'ERROR AL CAMBIAR ESTADO');
       addLog(`ERROR: ${message}`);
     }
   };
@@ -525,7 +531,7 @@ export const CampaignListPage: React.FC = () => {
                 {/* Players see a "Join Campaign" button instead */}
                 {!isMaster && (
                   <Button 
-                    onClick={() => navigate('/campaigns/invitations')}
+                    onClick={() => navigate('/invitations')}
                     variant="secondary"
                     size="sm"
                   >
@@ -833,7 +839,7 @@ export const CampaignListPage: React.FC = () => {
             <span className="material-icons text-sm">terminal</span>
             System Log
           </div>
-          <TerminalLog logs={logs} maxLogs={10} className="h-24 md:h-32" />
+          <TerminalLog logs={logs} maxLogs={TERMINAL_LOG_LARGE} className="h-24 md:h-32" />
           
 
 

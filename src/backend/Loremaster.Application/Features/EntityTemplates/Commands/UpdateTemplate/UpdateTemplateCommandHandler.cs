@@ -1,6 +1,8 @@
 using Loremaster.Application.Common.Interfaces;
 using Loremaster.Domain.Constants;
+using Loremaster.Domain.Entities;
 using Loremaster.Domain.Enums;
+using Loremaster.Domain.Exceptions;
 using Loremaster.Domain.ValueObjects;
 using MediatR;
 using Microsoft.Extensions.Logging;
@@ -14,18 +16,18 @@ namespace Loremaster.Application.Features.EntityTemplates.Commands.UpdateTemplat
 public class UpdateTemplateCommandHandler : IRequestHandler<UpdateTemplateCommand, UpdateTemplateResult>
 {
     private readonly IEntityTemplateRepository _templateRepository;
-    private readonly IGameSystemRepository _gameSystemRepository;
+    private readonly IGameSystemAuthorizationService _authorizationService;
     private readonly IUnitOfWork _unitOfWork;
     private readonly ILogger<UpdateTemplateCommandHandler> _logger;
 
     public UpdateTemplateCommandHandler(
         IEntityTemplateRepository templateRepository,
-        IGameSystemRepository gameSystemRepository,
+        IGameSystemAuthorizationService authorizationService,
         IUnitOfWork unitOfWork,
         ILogger<UpdateTemplateCommandHandler> logger)
     {
         _templateRepository = templateRepository;
-        _gameSystemRepository = gameSystemRepository;
+        _authorizationService = authorizationService;
         _unitOfWork = unitOfWork;
         _logger = logger;
     }
@@ -43,24 +45,17 @@ public class UpdateTemplateCommandHandler : IRequestHandler<UpdateTemplateComman
 
         if (template == null)
         {
-            throw new ArgumentException($"Template with ID {request.TemplateId} not found");
+            throw new NotFoundException(nameof(EntityTemplate), request.TemplateId);
         }
 
-        var gameSystem = await _gameSystemRepository.GetByIdAsync(
-            request.GameSystemId, cancellationToken);
-        
-        if (gameSystem == null)
-        {
-            throw new ArgumentException($"Game system with ID {request.GameSystemId} not found");
-        }
-
-        var isSystemOwner = gameSystem.OwnerId == request.OwnerId;
-        if (!request.IsAdmin && !isSystemOwner)
-        {
-            throw new UnauthorizedAccessException(
-                "You do not have permission to update templates in this game system. " +
-                "Only the system owner or an Admin can update templates.");
-        }
+        // Delegates ownership check to the shared authorization service.
+        // Admins may update any template; non-admins must be the system owner.
+        await _authorizationService.RequireOwnerOrAdminAsync(
+            request.GameSystemId,
+            request.OwnerId,
+            request.IsAdmin,
+            action: "update templates",
+            cancellationToken);
 
         if (!string.IsNullOrWhiteSpace(request.EntityTypeName))
         {

@@ -15,6 +15,8 @@
  */
 
 import React, { useState, useRef, useCallback } from 'react';
+import { IMAGE_MAX_FILE_SIZE, IMAGE_MAX_UPLOAD_WIDTH, IMAGE_COMPRESSION_QUALITY, IMAGE_ACCEPTED_FORMATS } from '@core/config/constants';
+import { logger } from '@core/utils';
 
 /** Available image source modes */
 export type ImageSourceMode = 'none' | 'generate' | 'upload';
@@ -68,10 +70,8 @@ const IMAGE_SOURCE_OPTIONS: ImageSourceOption[] = [
   }
 ];
 
-const DEFAULT_MAX_FILE_SIZE = 5 * 1024 * 1024; // 5MB
-const DEFAULT_ACCEPTED_FORMATS = ['image/png', 'image/jpeg', 'image/webp'];
-const MAX_UPLOAD_WIDTH = 500;
-const COMPRESSION_QUALITY = 0.8;
+const DEFAULT_MAX_FILE_SIZE = IMAGE_MAX_FILE_SIZE;
+const DEFAULT_ACCEPTED_FORMATS = IMAGE_ACCEPTED_FORMATS;
 
 /**
  * ImageSourceSelector Component
@@ -144,9 +144,9 @@ export const ImageSourceSelector: React.FC<ImageSourceSelectorProps> = ({
         let height = img.height;
 
         // Resize if wider than max width while maintaining aspect ratio
-        if (width > MAX_UPLOAD_WIDTH) {
-          height = Math.round((height * MAX_UPLOAD_WIDTH) / width);
-          width = MAX_UPLOAD_WIDTH;
+        if (width > IMAGE_MAX_UPLOAD_WIDTH) {
+          height = Math.round((height * IMAGE_MAX_UPLOAD_WIDTH) / width);
+          width = IMAGE_MAX_UPLOAD_WIDTH;
         }
 
         canvas.width = width;
@@ -161,7 +161,7 @@ export const ImageSourceSelector: React.FC<ImageSourceSelectorProps> = ({
         ctx.drawImage(img, 0, 0, width, height);
 
         // Convert to WebP
-        const dataUrl = canvas.toDataURL('image/webp', COMPRESSION_QUALITY);
+        const dataUrl = canvas.toDataURL('image/webp', IMAGE_COMPRESSION_QUALITY);
         const base64 = dataUrl.split(',')[1];
         resolve(base64);
       };
@@ -191,7 +191,7 @@ export const ImageSourceSelector: React.FC<ImageSourceSelectorProps> = ({
       onImageUpload?.(webpBase64);
     } catch (err) {
       setError('Error al procesar la imagen');
-      console.error('File processing error:', err);
+      logger.error('File processing error:', err);
     }
   }, [validateFile, onImageUpload]);
 

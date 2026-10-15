@@ -9,15 +9,18 @@ public class SemanticSearchQueryHandler : IRequestHandler<SemanticSearchQuery, S
 {
     private readonly IDocumentRepository _documentRepository;
     private readonly IEmbeddingService _embeddingService;
+    private readonly IRagGenerationService _ragGeneration;
     private readonly ILogger<SemanticSearchQueryHandler> _logger;
 
     public SemanticSearchQueryHandler(
         IDocumentRepository documentRepository,
         IEmbeddingService embeddingService,
+        IRagGenerationService ragGeneration,
         ILogger<SemanticSearchQueryHandler> logger)
     {
         _documentRepository = documentRepository;
         _embeddingService = embeddingService;
+        _ragGeneration = ragGeneration;
         _logger = logger;
     }
 
@@ -66,7 +69,7 @@ public class SemanticSearchQueryHandler : IRequestHandler<SemanticSearchQuery, S
             try
             {
                 var context = documentResults.Select(d => d.Document.Content).ToList();
-                var ragResult = await _embeddingService.GenerateWithContextAsync(
+                var ragResult = await _ragGeneration.GenerateWithContextAsync(
                     request.Query,
                     context,
                     request.SystemPrompt,

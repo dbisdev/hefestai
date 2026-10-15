@@ -1,15 +1,18 @@
 /**
  * useGameSystems Hook
  * Single Responsibility: Game system form state and CRUD operations
- * Note: List state is managed by useList hook (SRP)
+ * Uses useAsyncOperation for each mutation to avoid repeating
+ * the loading/error/try-catch/finally scaffold (DRY principle).
+ * Note: List state is managed by useList hook (SRP).
  */
 
 import { useState, useCallback } from 'react';
 import { gameSystemService } from '@core/services/api';
-import type { 
-  GameSystem, 
-  CreateGameSystemRequest, 
-  UpdateGameSystemRequest 
+import { useAsyncOperation } from '@core/hooks/useAsyncOperation';
+import type {
+  GameSystem,
+  CreateGameSystemInput,
+  UpdateGameSystemInput,
 } from '@core/types';
 
 type FormMode = 'create' | 'edit' | null;
@@ -24,17 +27,19 @@ interface UseGameSystemsReturn {
   openCreateForm: () => void;
   openEditForm: (system: GameSystem) => void;
   closeForm: () => void;
-  create: (data: CreateGameSystemRequest) => Promise<GameSystem | null>;
-  update: (id: string, data: UpdateGameSystemRequest) => Promise<GameSystem | null>;
+  create: (data: CreateGameSystemInput) => Promise<GameSystem | null>;
+  update: (id: string, data: UpdateGameSystemInput) => Promise<GameSystem | null>;
   toggleStatus: (id: string, isActive: boolean) => Promise<boolean>;
 }
 
 export function useGameSystems(): UseGameSystemsReturn {
   const [selectedSystem, setSelectedSystem] = useState<GameSystem | null>(null);
   const [formMode, setFormMode] = useState<FormMode>(null);
-  const [isCreating, setIsCreating] = useState(false);
-  const [isUpdating, setIsUpdating] = useState(false);
-  const [error, setError] = useState<string | null>(null);
+
+  const createOp = useAsyncOperation();
+  const updateOp = useAsyncOperation();
+
+  // ── Form helpers ─────────────────────────────────────────────────────────
 
   const selectSystem = useCallback((system: GameSystem | null) => {
     setSelectedSystem(system);
@@ -51,70 +56,67 @@ export function useGameSystems(): UseGameSystemsReturn {
     setFormMode('edit');
   }, []);
 
-  const closeForm = useCallback(() => {
-    setFormMode(null);
-  }, []);
+  const closeForm = useCallback(() => setFormMode(null), []);
 
-  const create = useCallback(async (data: CreateGameSystemRequest): Promise<GameSystem | null> => {
-    setIsCreating(true);
-    setError(null);
+  // ── Mutations ─────────────────────────────────────────────────────────────
 
-    try {
-      const newSystem = await gameSystemService.create(data);
-      setFormMode(null);
+  /**
+   * Creates a new game system and closes the form on success.
+   */
+  const create = useCallback(
+    async (data: CreateGameSystemInput): Promise<GameSystem | null> => {
+      const newSystem = await createOp.run(
+        () => gameSystemService.create(data),
+        'Error creating game system',
+      );
+      if (newSystem) setFormMode(null);
       return newSystem;
-    } catch (err) {
-      const message = err instanceof Error ? err.message : 'Error creating game system';
-      setError(message);
-      return null;
-    } finally {
-      setIsCreating(false);
-    }
-  }, []);
+    },
+    [createOp],
+  );
 
-  const update = useCallback(async (id: string, data: UpdateGameSystemRequest): Promise<GameSystem | null> => {
-    setIsUpdating(true);
-    setError(null);
-
-    try {
-      const updatedSystem = await gameSystemService.update(id, data);
-      setSelectedSystem(updatedSystem);
-      setFormMode(null);
+  /**
+   * Updates an existing game system, refreshes selected state and closes form on success.
+   */
+  const update = useCallback(
+    async (id: string, data: UpdateGameSystemInput): Promise<GameSystem | null> => {
+      const updatedSystem = await updateOp.run(
+        () => gameSystemService.update(id, data),
+        'Error updating game system',
+      );
+      if (updatedSystem) {
+        setSelectedSystem(updatedSystem);
+        setFormMode(null);
+      }
       return updatedSystem;
-    } catch (err) {
-      const message = err instanceof Error ? err.message : 'Error updating game system';
-      setError(message);
-      return null;
-    } finally {
-      setIsUpdating(false);
-    }
-  }, []);
+    },
+    [updateOp],
+  );
 
-  const toggleStatus = useCallback(async (id: string, isActive: boolean): Promise<boolean> => {
-    setIsUpdating(true);
-    setError(null);
-
-    try {
-      const updatedSystem = await gameSystemService.updateStatus(id, { isActive });
-      if (selectedSystem?.id === id) {
+  /**
+   * Toggles the active/inactive status of a game system.
+   * Also refreshes the selected system state if it is the one being toggled.
+   */
+  const toggleStatus = useCallback(
+    async (id: string, isActive: boolean): Promise<boolean> => {
+      const updatedSystem = await updateOp.run(
+        () => gameSystemService.updateStatus(id, { isActive }),
+        'Error updating status',
+      );
+      if (updatedSystem && selectedSystem?.id === id) {
         setSelectedSystem(updatedSystem);
       }
-      return true;
-    } catch (err) {
-      const message = err instanceof Error ? err.message : 'Error updating status';
-      setError(message);
-      return false;
-    } finally {
-      setIsUpdating(false);
-    }
-  }, [selectedSystem]);
+      return updatedSystem !== null;
+    },
+    [updateOp, selectedSystem],
+  );
 
   return {
     selectedSystem,
-    isCreating,
-    isUpdating,
+    isCreating: createOp.isLoading,
+    isUpdating: updateOp.isLoading,
     formMode,
-    error,
+    error: createOp.error ?? updateOp.error,
     selectSystem,
     openCreateForm,
     openEditForm,

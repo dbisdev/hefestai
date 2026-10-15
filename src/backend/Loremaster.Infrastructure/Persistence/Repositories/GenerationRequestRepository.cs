@@ -80,6 +80,15 @@ public class GenerationRequestRepository : IGenerationRequestRepository
         await _context.GenerationRequests.AddAsync(request, cancellationToken);
     }
 
+    /// <summary>
+    /// Adds a <see cref="GenerationResult"/> record to the database.
+    /// Results are persisted together with their parent <see cref="GenerationRequest"/> via the UnitOfWork.
+    /// </summary>
+    public async Task AddResultAsync(GenerationResult result, CancellationToken cancellationToken = default)
+    {
+        await _context.GenerationResults.AddAsync(result, cancellationToken);
+    }
+
     public void Update(GenerationRequest request)
     {
         _context.GenerationRequests.Update(request);

@@ -14,8 +14,11 @@
 
 import React, { useState, useRef, useEffect, useCallback, KeyboardEvent } from 'react';
 import { documentService, gameSystemService } from '@core/services/api';
-import type { DocumentSearchResult, SemanticSearchResult } from '@core/services/api';
+import type { DocumentSearchResult, SemanticSearchResult } from '@core/types';
 import type { GameSystem } from '@core/types';
+import type { Campaign } from '@core/types/campaign.types';
+import { extractErrorMessage } from '@core/utils/error';
+import { logger } from '@core/utils';
 
 /**
  * Game system with document availability info
@@ -31,8 +34,14 @@ interface RuleQueryProps {
   gameSystemId?: string;
   /** Optional game system name for display (unused, kept for compatibility) */
   gameSystemName?: string;
-  /** Optional campaign owner (Master) ID - used for Players to see Master's documents */
+  /** Optional campaign owner (Master) ID - fallback masterId when no campaign matches the selected system */
   campaignOwnerId?: string;
+  /**
+   * Full list of campaigns the current user belongs to.
+   * Used by Players to resolve the correct masterId for each game system:
+   * each system may belong to a different campaign (and thus a different Master).
+   */
+  campaigns?: Campaign[];
 }
 
 /**
@@ -42,9 +51,27 @@ interface RuleQueryProps {
  * Results include relevant document excerpts and optionally an AI-generated answer.
  * Shows a GameSystem selector with only systems that have documents loaded.
  */
-const RuleQuery: React.FC<RuleQueryProps> = ({ onClose, gameSystemId: propGameSystemId, campaignOwnerId }) => {
+const RuleQuery: React.FC<RuleQueryProps> = ({ onClose, gameSystemId: propGameSystemId, campaignOwnerId, campaigns = [] }) => {
   // Normalize empty string to undefined for consistent falsy checks
   const initialGameSystemId = propGameSystemId || undefined;
+
+  /**
+   * Resolve the masterId to use for document visibility for a given game system.
+   *
+   * Strategy for Players:
+   *   1. Find the first campaign whose gameSystemId matches the selected system.
+   *   2. Return that campaign's ownerId (the Master) so the Player can see the
+   *      Master's documents for that specific system.
+   *   3. Fall back to `campaignOwnerId` (active campaign's Master) if no
+   *      campaign explicitly uses this system.
+   *
+   * For Masters/Admins the prop is unused — the backend already uses the
+   * caller's own identity for document filtering.
+   */
+  const getMasterIdForSystem = useCallback((systemId: string): string | undefined => {
+    const match = campaigns.find(c => c.gameSystemId === systemId);
+    return match?.ownerId ?? campaignOwnerId;
+  }, [campaigns, campaignOwnerId]);
   
   // State
   const [query, setQuery] = useState('');
@@ -101,7 +128,8 @@ const RuleQuery: React.FC<RuleQueryProps> = ({ onClose, gameSystemId: propGameSy
    * Load all game systems and check document availability on mount.
    * Uses the Player-accessible /available endpoint that returns Admin-shared docs for Players,
    * and Admin + own docs for Masters.
-   * When campaignOwnerId is provided, also includes documents from the campaign's Master.
+   * For each system, resolves the correct masterId from the matching campaign so Players
+   * can see documents from all their Masters, not just the active campaign's Master.
    * Pre-selects the campaign's game system if available, otherwise first with documents.
    */
   useEffect(() => {
@@ -111,12 +139,14 @@ const RuleQuery: React.FC<RuleQueryProps> = ({ onClose, gameSystemId: propGameSy
         // Load all game systems
         const systems = await gameSystemService.getAll();
         
-        // Check document availability for each system in parallel
-        // Pass campaignOwnerId so Players can see their Master's documents
+        // Check document availability for each system in parallel.
+        // Resolve the masterId per-system so Players with multiple campaigns
+        // see the correct Master's documents for each system.
         const systemsWithAvailability = await Promise.all(
           systems.map(async (system): Promise<GameSystemWithDocs> => {
             try {
-              const availability = await documentService.checkDocumentAvailability(system.id, campaignOwnerId);
+              const masterId = getMasterIdForSystem(system.id);
+              const availability = await documentService.checkDocumentAvailability(system.id, masterId);
               return { ...system, hasDocuments: availability.hasDocuments };
             } catch {
               return { ...system, hasDocuments: false };
@@ -137,14 +167,14 @@ const RuleQuery: React.FC<RuleQueryProps> = ({ onClose, gameSystemId: propGameSy
           }
         }
       } catch (err) {
-        console.error('Failed to load game systems:', err);
+        logger.error('Failed to load game systems:', err);
       } finally {
         setIsLoadingGameSystems(false);
       }
     };
     
     loadGameSystemsWithDocs();
-  }, [initialGameSystemId, campaignOwnerId]);
+  }, [initialGameSystemId, getMasterIdForSystem]);
 
   /**
    * Perform semantic search
@@ -176,7 +206,9 @@ const RuleQuery: React.FC<RuleQueryProps> = ({ onClose, gameSystemId: propGameSy
         generateAnswer,
         limit: resultLimit,
         threshold,
-        masterId: campaignOwnerId, // Include campaign Master's documents for Players
+        // Resolve the masterId for the selected system so Players always search
+        // the correct Master's documents, regardless of the active campaign.
+        masterId: getMasterIdForSystem(selectedGameSystemId),
       });
 
       setResults(searchResult);
@@ -188,7 +220,7 @@ const RuleQuery: React.FC<RuleQueryProps> = ({ onClose, gameSystemId: propGameSy
           : 'No results found'
       );
     } catch (err) {
-      const message = err instanceof Error ? err.message : 'Search failed';
+      const message = extractErrorMessage(err, 'Search failed');
       setError(message);
       announce('Search failed');
     } finally {
@@ -323,7 +355,7 @@ const RuleQuery: React.FC<RuleQueryProps> = ({ onClose, gameSystemId: propGameSy
             <button
               type="submit"
               disabled={isLoading || !query.trim() || !hasDocuments || isLoadingGameSystems}
-              className="border border-primary px-3 py-2 text-xs uppercase hover:bg-primary hover:text-black transition-colors text-primary font-bold disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
+              className="cursor-pointer border border-primary px-3 py-2 text-xs uppercase hover:bg-primary hover:text-black transition-colors text-primary font-bold disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
               aria-label="Buscar"
             >
               {isLoading ? (
@@ -336,7 +368,7 @@ const RuleQuery: React.FC<RuleQueryProps> = ({ onClose, gameSystemId: propGameSy
             <button
               type="button"
               onClick={() => setShowSettings(!showSettings)}
-              className={`border px-3 py-2 transition-colors ${
+              className={`cursor-pointer border px-3 py-2 transition-colors ${
                 showSettings
                   ? 'bg-primary text-black border-primary'
                   : 'border-primary/40 text-primary hover:border-primary'

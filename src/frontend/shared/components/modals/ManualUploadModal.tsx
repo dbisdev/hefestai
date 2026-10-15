@@ -10,7 +10,10 @@
  */
 
 import React, { useState, useRef, useEffect, useCallback } from 'react';
-import { documentService, UploadManualResult, RagSourceType } from '@core/services/api';
+import { documentService } from '@core/services/api';
+import type { UploadManualResult, RagSourceType } from '@core/types';
+import { extractErrorMessage } from '@core/utils/error';
+import { PDF_MAX_FILE_SIZE } from '@core/config/constants';
 
 interface ManualUploadModalProps {
   /** Callback to close the modal */
@@ -81,8 +84,9 @@ export const ManualUploadModal: React.FC<ManualUploadModalProps> = ({
         setError('Solo se permiten archivos PDF');
         return;
       }
-      if (file.size > 50 * 1024 * 1024) { // 50MB limit
-        setError('El archivo no puede superar 50MB');
+      if (file.size > PDF_MAX_FILE_SIZE) {
+        const maxMB = PDF_MAX_FILE_SIZE / (1024 * 1024);
+        setError(`El archivo no puede superar ${maxMB}MB`);
         return;
       }
       setSelectedFile(file);
@@ -153,7 +157,7 @@ export const ManualUploadModal: React.FC<ManualUploadModalProps> = ({
       }
     } catch (err) {
       setUploadProgress(0);
-      setError(err instanceof Error ? err.message : 'Error al subir el manual');
+      setError(extractErrorMessage(err, 'Error al subir el manual'));
     } finally {
       setIsUploading(false);
     }
@@ -285,7 +289,7 @@ return (
                   <p className="text-sm text-primary/60">
                     Arrastra un PDF aquí o <span className="text-primary underline">haz clic para seleccionar</span>
                   </p>
-                  <p className="text-xs text-primary/40">Máximo 50MB</p>
+                  <p className="text-xs text-primary/40">Máximo {PDF_MAX_FILE_SIZE / (1024 * 1024)}MB</p>
                 </div>
               )}
             </div>

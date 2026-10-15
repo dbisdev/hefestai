@@ -26,10 +26,12 @@ public class GetMyCampaignsQueryHandler : IRequestHandler<GetMyCampaignsQuery, I
 
     /// <summary>
     /// Handles the get my campaigns query.
+    /// Fetches all campaigns and all memberships for the user in exactly 2 queries,
+    /// then joins them in memory — avoiding the previous N+1 pattern.
     /// </summary>
     /// <param name="request">The query (no parameters).</param>
     /// <param name="cancellationToken">Cancellation token.</param>
-    /// <returns>List of campaigns the user is a member of.</returns>
+    /// <returns>List of campaigns the user is a member of, with their role in each.</returns>
     /// <exception cref="ForbiddenAccessException">Thrown when user is not authenticated.</exception>
     public async Task<IEnumerable<CampaignDto>> Handle(GetMyCampaignsQuery request, CancellationToken cancellationToken)
     {
@@ -40,16 +42,14 @@ public class GetMyCampaignsQueryHandler : IRequestHandler<GetMyCampaignsQuery, I
 
         var userId = _currentUserService.UserId.Value;
 
+        // Two queries total — one for campaigns, one for all memberships.
         var campaigns = await _campaignRepository.GetByUserIdAsync(userId, cancellationToken);
+        var memberships = await _campaignMemberRepository.GetByUserIdAsync(userId, cancellationToken);
 
-        var dtos = new List<CampaignDto>();
-        foreach (var campaign in campaigns)
-        {
-            var membership = await _campaignMemberRepository
-                .GetByCampaignAndUserAsync(campaign.Id, userId, cancellationToken);
-            dtos.Add(CampaignDto.FromEntity(campaign, membership?.Role));
-        }
+        // Build a lookup so the in-memory join is O(1) per campaign.
+        var roleMap = memberships.ToDictionary(m => m.CampaignId, m => m.Role);
 
-        return dtos;
+        return campaigns.Select(c =>
+            CampaignDto.FromEntity(c, roleMap.TryGetValue(c.Id, out var role) ? role : null));
     }
 }

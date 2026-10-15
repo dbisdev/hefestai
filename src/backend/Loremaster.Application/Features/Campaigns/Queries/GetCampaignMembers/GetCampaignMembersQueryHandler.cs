@@ -2,7 +2,6 @@ using Loremaster.Application.Common.Interfaces;
 using Loremaster.Application.Features.Campaigns.DTOs;
 using Loremaster.Domain.Exceptions;
 using MediatR;
-using Microsoft.EntityFrameworkCore;
 
 namespace Loremaster.Application.Features.Campaigns.Queries.GetCampaignMembers;
 
@@ -12,18 +11,15 @@ namespace Loremaster.Application.Features.Campaigns.Queries.GetCampaignMembers;
 /// </summary>
 public class GetCampaignMembersQueryHandler : IRequestHandler<GetCampaignMembersQuery, IEnumerable<CampaignMemberDto>>
 {
-    private readonly IApplicationDbContext _dbContext;
     private readonly ICampaignRepository _campaignRepository;
     private readonly ICampaignMemberRepository _campaignMemberRepository;
     private readonly ICurrentUserService _currentUserService;
 
     public GetCampaignMembersQueryHandler(
-        IApplicationDbContext dbContext,
         ICampaignRepository campaignRepository,
         ICampaignMemberRepository campaignMemberRepository,
         ICurrentUserService currentUserService)
     {
-        _dbContext = dbContext;
         _campaignRepository = campaignRepository;
         _campaignMemberRepository = campaignMemberRepository;
         _currentUserService = currentUserService;
@@ -61,11 +57,8 @@ public class GetCampaignMembersQueryHandler : IRequestHandler<GetCampaignMembers
             throw new ForbiddenAccessException("You are not a member of this campaign");
         }
 
-        // Get members with user information
-        var members = await _dbContext.CampaignMembers
-            .Include(cm => cm.User)
-            .Where(cm => cm.CampaignId == request.CampaignId)
-            .ToListAsync(cancellationToken);
+        // Get members with user information (repository already includes User navigation property)
+        var members = await _campaignMemberRepository.GetByCampaignIdAsync(request.CampaignId, cancellationToken);
 
         return members.Select(CampaignMemberDto.FromEntity);
     }

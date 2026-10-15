@@ -1,35 +1,24 @@
-using System.Net.Http.Json;
-using System.Text.Json;
-using System.Text.Json.Serialization;
 using Loremaster.Application.Common.Interfaces;
+using Loremaster.Application.Common.Models;
 using Microsoft.Extensions.Logging;
 
 namespace Loremaster.Infrastructure.Services;
 
 /// <summary>
-/// HTTP client for embedding operations via Genkit microservice
+/// HTTP client for embedding and RAG generation operations via Genkit microservice.
+/// Implements both <see cref="IEmbeddingService"/> (vector embeddings) and
+/// <see cref="IRagGenerationService"/> (context-grounded answer generation) because
+/// both operations share the same HTTP transport and the Genkit endpoint set.
+/// Inherits shared HTTP transport and auth logic from <see cref="GenkitClientBase"/>.
 /// </summary>
-public class GenkitEmbeddingService : IEmbeddingService
+public class GenkitEmbeddingService : GenkitClientBase, IEmbeddingService, IRagGenerationService
 {
-    private readonly HttpClient _httpClient;
-    private readonly IServiceTokenGenerator _tokenGenerator;
-    private readonly ILogger<GenkitEmbeddingService> _logger;
-    private readonly JsonSerializerOptions _jsonOptions;
-
     public GenkitEmbeddingService(
         HttpClient httpClient,
         IServiceTokenGenerator tokenGenerator,
         ILogger<GenkitEmbeddingService> logger)
+        : base(httpClient, tokenGenerator, logger)
     {
-        _httpClient = httpClient;
-        _tokenGenerator = tokenGenerator;
-        _logger = logger;
-
-        _jsonOptions = new JsonSerializerOptions
-        {
-            PropertyNamingPolicy = JsonNamingPolicy.CamelCase,
-            DefaultIgnoreCondition = JsonIgnoreCondition.WhenWritingNull,
-        };
     }
 
     public async Task<EmbeddingsResult> GetEmbeddingsAsync(
@@ -62,7 +51,7 @@ public class GenkitEmbeddingService : IEmbeddingService
             throw new ArgumentException("Text cannot be empty", nameof(text));
 
         var result = await GetEmbeddingsAsync(new[] { text }, cancellationToken);
-        _logger.LogInformation(
+        Logger.LogInformation(
             "GetEmbeddingAsync returned embedding with {Dimensions} dimensions from model {Model}",
             result.Embeddings[0].Length, result.Model);
         return result.Embeddings[0];
@@ -94,44 +83,7 @@ public class GenkitEmbeddingService : IEmbeddingService
 
         return new RagGenerateResult(
             response.Answer,
-            response.Usage != null 
-                ? new TokenUsage(response.Usage.PromptTokens, response.Usage.CompletionTokens, response.Usage.TotalTokens)
-                : null);
-    }
-
-    private async Task<TResponse> SendRequestAsync<TRequest, TResponse>(
-        string endpoint,
-        TRequest request,
-        CancellationToken cancellationToken)
-    {
-        var token = _tokenGenerator.GenerateServiceToken(ServiceScopes.GenkitExecute);
-
-        using var httpRequest = new HttpRequestMessage(HttpMethod.Post, endpoint);
-        httpRequest.Headers.Authorization = new System.Net.Http.Headers.AuthenticationHeaderValue("Bearer", token);
-        httpRequest.Content = JsonContent.Create(request, options: _jsonOptions);
-
-        _logger.LogDebug("Sending embedding request to Genkit: {Endpoint}", endpoint);
-
-        var response = await _httpClient.SendAsync(httpRequest, cancellationToken);
-
-        if (!response.IsSuccessStatusCode)
-        {
-            var errorContent = await response.Content.ReadAsStringAsync(cancellationToken);
-            _logger.LogError("Genkit embedding request failed: {StatusCode} - {Content}",
-                response.StatusCode, errorContent);
-
-            throw new HttpRequestException(
-                $"Genkit request failed with status {response.StatusCode}: {errorContent}");
-        }
-
-        var result = await response.Content.ReadFromJsonAsync<TResponse>(_jsonOptions, cancellationToken);
-
-        if (result == null)
-        {
-            throw new InvalidOperationException("Failed to deserialize Genkit response");
-        }
-
-        return result;
+            MapTokenUsage(response.Usage));
     }
 
     // Internal DTOs for Genkit Embedding API
@@ -161,12 +113,5 @@ public class GenkitEmbeddingService : IEmbeddingService
     {
         public string Answer { get; init; } = null!;
         public TokenUsageDto? Usage { get; init; }
-    }
-
-    private record TokenUsageDto
-    {
-        public int PromptTokens { get; init; }
-        public int CompletionTokens { get; init; }
-        public int TotalTokens { get; init; }
     }
 }

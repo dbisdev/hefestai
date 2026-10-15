@@ -1,23 +1,22 @@
+using Loremaster.Application.Common.Models;
+
 namespace Loremaster.Application.Common.Interfaces;
 
 /// <summary>
-/// Interface for AI service operations via Genkit microservice
+/// Interface for AI service operations via Genkit microservice.
+/// Result types and shared enums live in <see cref="Loremaster.Application.Common.Models"/>.
 /// </summary>
 public interface IAiService
 {
-    /// <summary>
-    /// Generate text content from a prompt
-    /// </summary>
+    /// <summary>Generate text content from a prompt.</summary>
     Task<GenerateTextResult> GenerateTextAsync(
-        string prompt, 
+        string prompt,
         string? systemPrompt = null,
         float temperature = 0.7f,
         int maxTokens = 2048,
         CancellationToken cancellationToken = default);
 
-    /// <summary>
-    /// Generate structured JSON content from a prompt
-    /// </summary>
+    /// <summary>Generate structured JSON content from a prompt.</summary>
     Task<GenerateJsonResult> GenerateJsonAsync(
         string prompt,
         string? systemPrompt = null,
@@ -26,13 +25,13 @@ public interface IAiService
         CancellationToken cancellationToken = default);
 
     /// <summary>
-    /// Generate an image from a prompt
+    /// Generate an image from a prompt.
     /// </summary>
-    /// <param name="prompt">The image generation prompt</param>
-    /// <param name="style">Optional style preset (realistic, artistic, anime, fantasy, sketch)</param>
-    /// <param name="aspectRatio">Aspect ratio (1:1, 16:9, 9:16, 4:3, 3:4)</param>
-    /// <param name="negativePrompt">Optional negative prompt to specify what to avoid</param>
-    /// <param name="cancellationToken">Cancellation token</param>
+    /// <param name="prompt">The image generation prompt.</param>
+    /// <param name="style">Optional style preset (realistic, artistic, anime, fantasy, sketch).</param>
+    /// <param name="aspectRatio">Aspect ratio (1:1, 16:9, 9:16, 4:3, 3:4).</param>
+    /// <param name="negativePrompt">Optional negative prompt to specify what to avoid.</param>
+    /// <param name="cancellationToken">Cancellation token.</param>
     Task<GenerateImageResult> GenerateImageAsync(
         string prompt,
         string? style = null,
@@ -40,9 +39,7 @@ public interface IAiService
         string? negativePrompt = null,
         CancellationToken cancellationToken = default);
 
-    /// <summary>
-    /// Summarize text content
-    /// </summary>
+    /// <summary>Summarize text content.</summary>
     Task<SummarizeResult> SummarizeAsync(
         string text,
         SummarizeStyle style = SummarizeStyle.Concise,
@@ -50,9 +47,7 @@ public interface IAiService
         string language = "en",
         CancellationToken cancellationToken = default);
 
-    /// <summary>
-    /// Chat with multi-turn conversation support
-    /// </summary>
+    /// <summary>Chat with multi-turn conversation support.</summary>
     Task<ChatResult> ChatAsync(
         IEnumerable<ChatMessage> messages,
         string? context = null,
@@ -60,56 +55,6 @@ public interface IAiService
         int maxTokens = 2048,
         CancellationToken cancellationToken = default);
 
-    /// <summary>
-    /// Check if the AI service is healthy
-    /// </summary>
+    /// <summary>Check if the AI service is healthy.</summary>
     Task<bool> IsHealthyAsync(CancellationToken cancellationToken = default);
-}
-
-// DTOs for AI Service
-public record GenerateTextResult(
-    string Text,
-    TokenUsage? Usage = null);
-
-public record GenerateJsonResult(
-    string Json,
-    TokenUsage? Usage = null);
-
-public record GenerateImageResult(
-    string? ImageBase64,
-    string? ImageUrl,
-    bool Success);
-
-public record SummarizeResult(
-    string Summary,
-    int OriginalLength,
-    int SummaryLength,
-    double CompressionRatio,
-    TokenUsage? Usage = null);
-
-public record ChatResult(
-    string Message,
-    TokenUsage? Usage = null);
-
-public record ChatMessage(
-    ChatRole Role,
-    string Content);
-
-public record TokenUsage(
-    int PromptTokens,
-    int CompletionTokens,
-    int TotalTokens);
-
-public enum ChatRole
-{
-    User,
-    Assistant,
-    System
-}
-
-public enum SummarizeStyle
-{
-    Concise,
-    Detailed,
-    BulletPoints
 }

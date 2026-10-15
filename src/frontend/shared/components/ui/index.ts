@@ -30,3 +30,9 @@ export { TerminalLog } from './TerminalLog';
 export { EmptyState } from './EmptyState';
 
 export { ConfirmDialog } from './ConfirmDialog';
+
+export { GeneratorPortrait } from './GeneratorPortrait';
+export type { GeneratorPortraitProps } from './GeneratorPortrait';
+
+export { GeneratorActionButtons } from './GeneratorActionButtons';
+export type { GeneratorActionButtonsProps } from './GeneratorActionButtons';

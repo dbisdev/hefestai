@@ -11,7 +11,9 @@ export { MasterHubPage } from './pages/MasterHubPage';
 export { useGalleryEntities, useEntityActions, useGalleryCategories } from './hooks';
 
 // Components
-export { CategorySidebar, EntityCard, EntityGrid, CampaignSelector, TemplateLinks } from './components';
+export { CategorySidebar, CampaignSelector, TemplateLinks } from './components';
+export { GalleryEntityCard, AddNewEntityCard, EntityDetailPanel, GallerySidebar } from './components';
+export { CampaignSelectorPopup, InviteCodePopup, PdfImportDialog } from './components';
 
 // Constants
 export { 

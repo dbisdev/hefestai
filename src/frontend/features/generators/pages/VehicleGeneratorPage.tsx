@@ -4,14 +4,22 @@
  * Uses useEntityGeneration hook for generation orchestration
  */
 
-import React, { useState, useCallback, useEffect } from 'react';
+import React, { useState, useCallback } from 'react';
 import { TerminalLayout } from '@shared/components/layout';
-import { Button, ImageSourceSelector, TerminalLog, EditableField, EditableStatsPanel } from '@shared/components/ui';
+import {
+  ImageSourceSelector,
+  TerminalLog,
+  EditableField,
+  EditableStatsPanel,
+  GeneratorPortrait,
+  GeneratorActionButtons,
+} from '@shared/components/ui';
 import { aiService, entityService, entityTemplateService } from '@core/services/api';
 import { useCampaign } from '@core/context';
 import { parseJsonResponse } from '@core/utils';
-import { useEntityGeneration } from '@core/hooks';
+import { useEntityGeneration, useGeneratorForm, type SaveEntityParams } from '@core/hooks';
 import type { VehicleData } from '@core/types';
+import { TERMINAL_LOG_COMPACT } from '@core/config/constants';
 
 const VEHICLE_PLACEHOLDER_IMAGE = "https://images.unsplash.com/photo-1702499903230-867455db1752?q=80&w=400&auto=format&fit=crop";
 
@@ -59,16 +67,9 @@ export const VehicleGeneratorPage: React.FC<VehicleGeneratorPageProps> = ({ onBa
     };
   }, [activeCampaign?.gameSystemId]);
 
-  const saveVehicle = useCallback(async (params: {
-    name: string;
-    description?: string;
-    imageUrl?: string;
-    attributes: Record<string, unknown>;
-    metadata?: Record<string, unknown>;
-    generationRequestId?: string;
-  }) => {
+  const saveVehicle = useCallback(async (params: SaveEntityParams) => {
     if (!activeCampaignId) return;
-    
+
     await entityService.create(activeCampaignId, {
       entityType: 'vehicle',
       name: params.name,
@@ -112,7 +113,7 @@ export const VehicleGeneratorPage: React.FC<VehicleGeneratorPageProps> = ({ onBa
     entityType: 'vehicle',
     placeholderImage: VEHICLE_PLACEHOLDER_IMAGE,
     initialLogs: ['> Awaiting construction parameters...'],
-    maxLogs: 6,
+    maxLogs: TERMINAL_LOG_COMPACT,
     generateFn: generateVehicle,
     saveFn: saveVehicle,
     getFieldDefinitions,
@@ -121,9 +122,13 @@ export const VehicleGeneratorPage: React.FC<VehicleGeneratorPageProps> = ({ onBa
     }
   });
 
-  useEffect(() => {
-    loadFieldDefinitions(activeCampaign?.gameSystemId);
-  }, [activeCampaign?.gameSystemId, loadFieldDefinitions]);
+  const { handleNameChange, handleDescriptionChange, handleStatsChange } =
+    useGeneratorForm<VehicleData>({
+      editableData,
+      setEditableData,
+      loadFieldDefinitions,
+      gameSystemId: activeCampaign?.gameSystemId,
+    });
 
   const handleGenerate = () => generate(form);
 
@@ -136,24 +141,6 @@ export const VehicleGeneratorPage: React.FC<VehicleGeneratorPageProps> = ({ onBa
     });
   };
 
-  const handleStatsChange = (newStats: Record<string, unknown>) => {
-    if (editableData) {
-      setEditableData({ ...editableData, stats: newStats });
-    }
-  };
-
-  const handleNameChange = (value: string | number) => {
-    if (editableData) {
-      setEditableData({ ...editableData, name: String(value) });
-    }
-  };
-
-  const handleDescriptionChange = (value: string | number) => {
-    if (editableData) {
-      setEditableData({ ...editableData, description: String(value) });
-    }
-  };
-
   return (
     <TerminalLayout
       title="SYNTH_VEHICULO"
@@ -163,6 +150,7 @@ export const VehicleGeneratorPage: React.FC<VehicleGeneratorPageProps> = ({ onBa
       hideCampaignSelector={false}
     >
       <div className="flex flex-col md:flex-row gap-8 md:h-full font-mono">
+        {/* Left panel — form controls */}
         <div className="flex-1 flex flex-col gap-6 overflow-y-auto">
           <div className="space-y-4">
             <div>
@@ -199,57 +187,29 @@ export const VehicleGeneratorPage: React.FC<VehicleGeneratorPageProps> = ({ onBa
             />
           </div>
 
-          <div className="mt-auto flex gap-4">
-            <Button
-              onClick={handleGenerate}
-              disabled={isGenerating}
-              variant="secondary"
-              fullWidth
-              size="lg"
-              isLoading={isGenerating}
-            >
-              {isGenerating ? 'ENSAMBLANDO...' : 'ENSAMBLAR'}
-            </Button>
-            <Button
-              onClick={handleSave}
-              disabled={!editableData || isSaving || !activeCampaignId}
-              variant="primary"
-              fullWidth
-              size="lg"
-              isLoading={isSaving}
-            >
-              GUARDAR
-            </Button>
-          </div>
+          <GeneratorActionButtons
+            onGenerate={handleGenerate}
+            onSave={handleSave}
+            isGenerating={isGenerating}
+            isSaving={isSaving}
+            hasData={!!editableData}
+            hasCampaign={!!activeCampaignId}
+            generateLabel={isGenerating ? 'ENSAMBLANDO...' : 'ENSAMBLAR'}
+          />
         </div>
 
+        {/* Right panel — preview */}
         <div className="flex-1 flex flex-col gap-4">
           <div className="flex-1 overflow-y-auto flex flex-col gap-4">
-            <div className="relative h-64 md:h-[500px] border border-primary/30 bg-black clip-tech-br">
-              <img
-                src={image}
-                className={`w-full h-full object-cover object-[center_25%] transition-all duration-1000 ${isGenerating ? 'opacity-10 scale-110 blur-sm' : 'opacity-60 scale-100'} grayscale`}
-                alt="Vehicle Preview"
-              />
-              {isGenerating && (
-                <div className="absolute inset-0 flex flex-col items-center justify-center bg-black/40 z-20">
-                  <div className="w-1/2 h-1 bg-primary/20 relative overflow-hidden mb-2">
-                    <div className="absolute inset-0 bg-primary animate-[scan_2s_linear_infinite]"></div>
-                  </div>
-                  <span className="text-primary text-[10px] animate-pulse">ENSAMBLANDO_VEHICULO...</span>
-                </div>
-              )}
-              <div className="absolute inset-0 flex flex-col justify-end p-4 bg-gradient-to-t from-black to-transparent">
-                <EditableField
-                  value={editableData?.name || ''}
-                  label="Nombre"
-                  variant="primary"
-                  onChange={handleNameChange}
-                  className="font-bold text-lg"
-                  disabled={!editableData}
-                />
-              </div>
-            </div>
+            <GeneratorPortrait
+              src={image}
+              alt="Vehicle Preview"
+              name={editableData?.name || ''}
+              isGenerating={isGenerating}
+              hasData={!!editableData}
+              onNameChange={handleNameChange}
+              generatingLabel="ENSAMBLANDO_VEHICULO..."
+            />
 
             {editableData?.description && (
               <div className="bg-surface-dark/50 border border-primary/20 p-3">
@@ -277,7 +237,7 @@ export const VehicleGeneratorPage: React.FC<VehicleGeneratorPageProps> = ({ onBa
             />
           </div>
 
-          <TerminalLog logs={logs} maxLogs={6} className="h-20 shrink-0" />
+          <TerminalLog logs={logs} maxLogs={TERMINAL_LOG_COMPACT} className="h-20 shrink-0" />
         </div>
       </div>
     </TerminalLayout>

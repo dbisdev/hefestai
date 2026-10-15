@@ -2,6 +2,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import * as THREE from 'three';
 import * as CANNON from 'cannon-es';
+import { logger } from '@core/utils';
 
 interface DiceRoll {
   id: string;
@@ -105,12 +106,12 @@ const DiceRoller: React.FC<DiceRollerProps> = ({ onClose }) => {
     const handleContextLost = (event: Event) => {
       event.preventDefault();
       isContextLostRef.current = true;
-      console.warn('WebGL context lost');
+      logger.warn('WebGL context lost');
     };
 
     const handleContextRestored = () => {
       isContextLostRef.current = false;
-      console.log('WebGL context restored');
+      logger.log('WebGL context restored');
       // Reinitialize if needed
     };
 

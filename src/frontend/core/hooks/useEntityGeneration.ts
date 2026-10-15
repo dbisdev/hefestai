@@ -6,12 +6,15 @@
  * - OCP: Open for extension via callbacks
  */
 
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useCallback } from 'react';
 import { useTerminalLog } from './useTerminalLog';
+import { extractErrorMessage } from '@core/utils/error';
+import { logger } from '@core/utils';
 import type {
   UseEntityGenerationConfig,
   UseEntityGenerationReturn,
   GenerationResult,
+  SaveEntityParams,
 } from './useEntityGeneration.types';
 import type { ImageSourceMode } from '@shared/components/ui';
 
@@ -33,6 +36,7 @@ export function useEntityGeneration<T>(
 
   const [isGenerating, setIsGenerating] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
+  const [error, setError] = useState<string | null>(null);
   const [generatedData, setGeneratedData] = useState<T | null>(null);
   const [editableData, setEditableData] = useState<T | null>(null);
   const [image, setImage] = useState<string>(placeholderImage);
@@ -60,7 +64,7 @@ export function useEntityGeneration<T>(
         const fields = await getFieldDefinitions(gameSystemId);
         setFieldDefinitions(fields);
       } catch (error) {
-        console.error('Failed to fetch template fields:', error);
+        logger.error('Failed to fetch template fields:', error);
         setFieldDefinitions([]);
       }
     },
@@ -81,6 +85,7 @@ export function useEntityGeneration<T>(
         setGeneratedData(result.data);
         setEditableData(result.data);
         setGenerationRequestId(result.generationRequestId);
+        setError(null);
         addLog('DATA RECEIVED.');
 
         if (imageMode === 'upload' && uploadedImageData) {
@@ -105,11 +110,11 @@ export function useEntityGeneration<T>(
 
         addLog('GENERATION SUCCESSFUL.');
         onGenerationSuccess?.(result.data);
-      } catch (error) {
-        const message = error instanceof Error ? error.message : 'GENERATION FAILED';
+      } catch (err) {
+        const message = extractErrorMessage(err, 'GENERATION FAILED');
+        setError(message);
         addLog(`CRITICAL_ERROR: ${message}`);
-        console.error(error);
-        onGenerationError?.(error instanceof Error ? error : new Error(message));
+        onGenerationError?.(err instanceof Error ? err : new Error(message));
       } finally {
         setIsGenerating(false);
       }
@@ -126,7 +131,7 @@ export function useEntityGeneration<T>(
   );
 
   const save = useCallback(
-    async (campaignId: string, saveParams: UseEntityGenerationReturn<T> extends { save: (a: string, b: infer P) => unknown } ? P : never): Promise<boolean> => {
+    async (campaignId: string, saveParams: SaveEntityParams): Promise<boolean> => {
       if (!campaignId) {
         addLog('ERROR: NO CAMPAIGN SELECTED');
         return false;
@@ -136,28 +141,21 @@ export function useEntityGeneration<T>(
       addLog('WRITING TO STORAGE...');
 
       try {
-        const params = saveParams as {
-          name: string;
-          description?: string;
-          imageUrl?: string;
-          attributes: Record<string, unknown>;
-          metadata?: Record<string, unknown>;
-          generationRequestId?: string;
-        };
-        
         await saveFn({
-          ...params,
-          imageUrl: image !== placeholderImage ? image : params.imageUrl,
+          ...saveParams,
+          imageUrl: image !== placeholderImage ? image : saveParams.imageUrl,
           generationRequestId,
         });
         
         addLog('SUCCESS: DATA COMMITTED.');
+        setError(null);
         onSaveSuccess?.();
         return true;
-      } catch (error) {
-        const message = error instanceof Error ? error.message : 'STORAGE REFUSED';
+      } catch (err) {
+        const message = extractErrorMessage(err, 'STORAGE REFUSED');
+        setError(message);
         addLog(`DB_WRITE_ERROR: ${message}`);
-        onSaveError?.(error instanceof Error ? error : new Error(message));
+        onSaveError?.(err instanceof Error ? err : new Error(message));
         return false;
       } finally {
         setIsSaving(false);
@@ -169,6 +167,7 @@ export function useEntityGeneration<T>(
   const reset = useCallback(() => {
     setGeneratedData(null);
     setEditableData(null);
+    setError(null);
     setImage(placeholderImage);
     setGenerationRequestId(undefined);
     setImageMode('generate');
@@ -179,6 +178,7 @@ export function useEntityGeneration<T>(
   return {
     isGenerating,
     isSaving,
+    error,
     generatedData,
     editableData,
     image,
@@ -190,7 +190,7 @@ export function useEntityGeneration<T>(
     addLog,
     clearLogs,
     generate,
-    save: save as UseEntityGenerationReturn<T>['save'],
+    save,
     loadFieldDefinitions: fetchFieldDefinitions,
     setEditableData,
     setImageMode,

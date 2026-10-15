@@ -41,6 +41,16 @@ public class UserRepository : IUserRepository
             .FirstOrDefaultAsync(u => u.InvitationCode == normalizedCode && u.DeletedAt == null && u.IsActive, cancellationToken);
     }
 
+    /// <summary>
+    /// Finds a non-deleted user by their current refresh token value.
+    /// Used during token refresh to validate and rotate the refresh token.
+    /// </summary>
+    public async Task<User?> GetByRefreshTokenAsync(string refreshToken, CancellationToken cancellationToken = default)
+    {
+        return await _context.Users
+            .FirstOrDefaultAsync(u => u.RefreshToken == refreshToken && u.DeletedAt == null, cancellationToken);
+    }
+
     public async Task<IEnumerable<User>> GetByRoleAsync(UserRole role, CancellationToken cancellationToken = default)
     {
         return await _context.Users
@@ -97,12 +107,6 @@ public class UserRepository : IUserRepository
     public async Task AddAsync(User user, CancellationToken cancellationToken = default)
     {
         await _context.Users.AddAsync(user, cancellationToken);
-    }
-
-    public async Task UpdateAsync(User user, CancellationToken cancellationToken = default)
-    {
-        _context.Users.Update(user);
-        await Task.CompletedTask; // Satisfy async signature - actual save happens via UnitOfWork
     }
 
     public void Update(User user)

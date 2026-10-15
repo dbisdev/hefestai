@@ -4,8 +4,9 @@
  * OWASP A02: Cryptographic Failures - Proper token handling
  */
 
-import { TOKEN_KEY, REFRESH_TOKEN_KEY, USER_KEY } from '@core/config/constants';
+import { TOKEN_KEY, REFRESH_TOKEN_KEY, USER_KEY, TOKEN_EXPIRY_BUFFER_MS } from '@core/config/constants';
 import type { User } from '@core/types';
+import { logger } from '@core/utils';
 
 /**
  * Token storage service
@@ -22,7 +23,7 @@ class TokenService {
       return localStorage.getItem(TOKEN_KEY);
     } catch {
       // Handle cases where localStorage is not available
-      console.warn('localStorage not available');
+      logger.warn('localStorage not available');
       return null;
     }
   }
@@ -34,7 +35,7 @@ class TokenService {
     try {
       return localStorage.getItem(REFRESH_TOKEN_KEY);
     } catch {
-      console.warn('localStorage not available');
+      logger.warn('localStorage not available');
       return null;
     }
   }
@@ -47,7 +48,7 @@ class TokenService {
       localStorage.setItem(TOKEN_KEY, accessToken);
       localStorage.setItem(REFRESH_TOKEN_KEY, refreshToken);
     } catch (error) {
-      console.error('Failed to store tokens:', error);
+      logger.error('Failed to store tokens:', error);
     }
   }
 
@@ -60,7 +61,7 @@ class TokenService {
       localStorage.removeItem(REFRESH_TOKEN_KEY);
       localStorage.removeItem(USER_KEY);
     } catch (error) {
-      console.error('Failed to clear tokens:', error);
+      logger.error('Failed to clear tokens:', error);
     }
   }
 
@@ -78,7 +79,7 @@ class TokenService {
     try {
       localStorage.setItem(USER_KEY, JSON.stringify(user));
     } catch (error) {
-      console.error('Failed to store user:', error);
+      logger.error('Failed to store user:', error);
     }
   }
 
@@ -124,8 +125,8 @@ class TokenService {
     const expiration = this.getTokenExpiration(token);
     if (!expiration) return true;
 
-    // Consider expired if less than 30 seconds remaining
-    return expiration.getTime() < Date.now() + 30000;
+    // Consider expired if less than the configured buffer remaining
+    return expiration.getTime() < Date.now() + TOKEN_EXPIRY_BUFFER_MS;
   }
 }
 

@@ -5,7 +5,6 @@ using Loremaster.Domain.Entities;
 using Loremaster.Domain.Enums;
 using Loremaster.Domain.Exceptions;
 using MediatR;
-using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
 
 namespace Loremaster.Application.Features.Campaigns.Commands.CreateCampaign;
@@ -15,7 +14,7 @@ namespace Loremaster.Application.Features.Campaigns.Commands.CreateCampaign;
 /// </summary>
 public class CreateCampaignCommandHandler : IRequestHandler<CreateCampaignCommand, CampaignDetailDto>
 {
-    private readonly IApplicationDbContext _dbContext;
+    private readonly IGameSystemRepository _gameSystemRepository;
     private readonly ICampaignRepository _campaignRepository;
     private readonly ICampaignMemberRepository _campaignMemberRepository;
     private readonly ICurrentUserService _currentUserService;
@@ -23,14 +22,14 @@ public class CreateCampaignCommandHandler : IRequestHandler<CreateCampaignComman
     private readonly ILogger<CreateCampaignCommandHandler> _logger;
 
     public CreateCampaignCommandHandler(
-        IApplicationDbContext dbContext,
+        IGameSystemRepository gameSystemRepository,
         ICampaignRepository campaignRepository,
         ICampaignMemberRepository campaignMemberRepository,
         ICurrentUserService currentUserService,
         IUnitOfWork unitOfWork,
         ILogger<CreateCampaignCommandHandler> logger)
     {
-        _dbContext = dbContext;
+        _gameSystemRepository = gameSystemRepository;
         _campaignRepository = campaignRepository;
         _campaignMemberRepository = campaignMemberRepository;
         _currentUserService = currentUserService;
@@ -56,8 +55,7 @@ public class CreateCampaignCommandHandler : IRequestHandler<CreateCampaignComman
         var userId = _currentUserService.UserId.Value;
 
         // Validate game system exists
-        var gameSystemExists = await _dbContext.GameSystems
-            .AnyAsync(gs => gs.Id == request.GameSystemId, cancellationToken);
+        var gameSystemExists = await _gameSystemRepository.ExistsByIdAsync(request.GameSystemId, cancellationToken);
         
         if (!gameSystemExists)
         {

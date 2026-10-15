@@ -1,58 +1,34 @@
 import { ai, geminiImageModel } from '../../config/index.js';
-import { buildEnhancedPrompt } from '../../common/index.js';
-import type { ImageGenerateRequest, ImageGenerateResponse } from './generate-image.schema.js';
+import { buildEnhancedPrompt, extractImageFromResponse } from '../../common/index.js';
+import { logger } from '../../logger.js';
+import { ImageGenerateRequestSchema, ImageGenerateResponseSchema, type ImageGenerateRequest, type ImageGenerateResponse } from './generate-image.schema.js';
 
 export const imageGenerateFlow = ai.defineFlow(
   {
     name: 'imageGenerate',
-    inputSchema: null as any,
-    outputSchema: null as any,
+    inputSchema: ImageGenerateRequestSchema,
+    outputSchema: ImageGenerateResponseSchema,
   },
   async (input: ImageGenerateRequest): Promise<ImageGenerateResponse> => {
     const enhancedPrompt = buildEnhancedPrompt(input);
     const fullPrompt = `Generate an image: ${enhancedPrompt}`;
-    console.log('Full prompt for image generation:', fullPrompt);
+    logger.debug({ fullPrompt }, 'Full prompt for image generation');
     try {
       const response = await ai.generate({
         model: geminiImageModel,
         prompt: fullPrompt,
       });
 
-      if (response.media?.contentType?.startsWith('image/') && response.media?.url) {
-        const base64Data = response.media.url.includes('base64,')
-          ? response.media.url.split('base64,')[1]
-          : response.media.url;
-
+      const extracted = extractImageFromResponse(response);
+      if (extracted) {
         return {
           image: {
-            base64: base64Data,
-            mimeType: response.media.contentType,
+            base64: extracted.base64,
+            mimeType: extracted.mimeType,
           },
           success: true,
           usedPrompt: enhancedPrompt,
         };
-      }
-
-      if (response.message?.content) {
-        for (const part of response.message.content) {
-          if ('media' in part && part.media && 'url' in part.media) {
-            const mediaPart = part.media as { url: string; contentType?: string };
-            if (mediaPart.contentType?.startsWith('image/') && mediaPart.url) {
-              const base64Data = mediaPart.url.includes('base64,')
-                ? mediaPart.url.split('base64,')[1]
-                : mediaPart.url;
-
-              return {
-                image: {
-                  base64: base64Data,
-                  mimeType: mediaPart.contentType,
-                },
-                success: true,
-                usedPrompt: enhancedPrompt,
-              };
-            }
-          }
-        }
       }
 
       return {

@@ -8,9 +8,9 @@ import { httpClient } from './client';
 import type {
   AdminUser,
   AdminCampaign,
-  CreateUserRequest,
-  UpdateUserRequest,
-  AdminUpdateCampaignRequest,
+  CreateUserInput,
+  UpdateUserInput,
+  AdminUpdateCampaignInput,
 } from '@core/types';
 
 /**
@@ -42,7 +42,7 @@ export const adminUserService = {
    * Backend endpoint: POST /api/admin/users
    * @param request - User creation data
    */
-  async create(request: CreateUserRequest): Promise<AdminUser> {
+  async create(request: CreateUserInput): Promise<AdminUser> {
     return httpClient.post<AdminUser>('/admin/users', request);
   },
 
@@ -52,7 +52,7 @@ export const adminUserService = {
    * @param id - User ID
    * @param request - User update data
    */
-  async update(id: string, request: UpdateUserRequest): Promise<AdminUser> {
+  async update(id: string, request: UpdateUserInput): Promise<AdminUser> {
     return httpClient.put<AdminUser>(`/admin/users/${id}`, request);
   },
 
@@ -96,7 +96,7 @@ export const adminCampaignService = {
    * @param id - Campaign ID
    * @param request - Campaign update data
    */
-  async update(id: string, request: AdminUpdateCampaignRequest): Promise<AdminCampaign> {
+  async update(id: string, request: AdminUpdateCampaignInput): Promise<AdminCampaign> {
     return httpClient.put<AdminCampaign>(`/admin/campaigns/${id}`, request);
   },
 

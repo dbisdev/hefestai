@@ -1,5 +1,6 @@
 using Loremaster.Application.Common.Interfaces;
 using Loremaster.Domain.Entities;
+using Loremaster.Domain.Exceptions;
 using MediatR;
 using Microsoft.Extensions.Logging;
 
@@ -12,20 +13,20 @@ namespace Loremaster.Application.Features.EntityTemplates.Commands.DeleteTemplat
 public class DeleteTemplateCommandHandler : IRequestHandler<DeleteTemplateCommand, DeleteTemplateResult>
 {
     private readonly IEntityTemplateRepository _templateRepository;
-    private readonly IGameSystemRepository _gameSystemRepository;
+    private readonly IGameSystemAuthorizationService _authorizationService;
     private readonly ILoreEntityRepository _entityRepository;
     private readonly IUnitOfWork _unitOfWork;
     private readonly ILogger<DeleteTemplateCommandHandler> _logger;
 
     public DeleteTemplateCommandHandler(
         IEntityTemplateRepository templateRepository,
-        IGameSystemRepository gameSystemRepository,
+        IGameSystemAuthorizationService authorizationService,
         ILoreEntityRepository entityRepository,
         IUnitOfWork unitOfWork,
         ILogger<DeleteTemplateCommandHandler> logger)
     {
         _templateRepository = templateRepository;
-        _gameSystemRepository = gameSystemRepository;
+        _authorizationService = authorizationService;
         _entityRepository = entityRepository;
         _unitOfWork = unitOfWork;
         _logger = logger;
@@ -37,7 +38,7 @@ public class DeleteTemplateCommandHandler : IRequestHandler<DeleteTemplateComman
     /// <param name="request">The delete template request.</param>
     /// <param name="cancellationToken">Cancellation token.</param>
     /// <returns>The result containing deletion details.</returns>
-    /// <exception cref="ArgumentException">Thrown when template not found.</exception>
+    /// <exception cref="ArgumentException">Thrown when template or game system not found.</exception>
     /// <exception cref="UnauthorizedAccessException">Thrown when user doesn't own the template.</exception>
     /// <exception cref="InvalidOperationException">Thrown when template is in use and force is not enabled.</exception>
     public async Task<DeleteTemplateResult> Handle(
@@ -53,26 +54,17 @@ public class DeleteTemplateCommandHandler : IRequestHandler<DeleteTemplateComman
         
         if (template == null)
         {
-            throw new ArgumentException($"Template with ID {request.TemplateId} not found");
+            throw new NotFoundException(nameof(EntityTemplate), request.TemplateId);
         }
 
-        // Verify game system ownership
-        var gameSystem = await _gameSystemRepository.GetByIdAsync(
-            request.GameSystemId, cancellationToken);
-        
-        if (gameSystem == null)
-        {
-            throw new ArgumentException($"Game system with ID {request.GameSystemId} not found");
-        }
-
-        // Check if user is Admin or owner of the game system
-        var isSystemOwner = gameSystem.OwnerId == request.OwnerId;
-        if (!isSystemOwner)
-        {
-            throw new UnauthorizedAccessException(
-                "You do not have permission to delete templates in this game system. " +
-                "Only the system owner can delete templates.");
-        }
+        // Delegates ownership check to the shared authorization service.
+        // Delete is owner-only (no IsAdmin bypass on this command).
+        await _authorizationService.RequireOwnerOrAdminAsync(
+            request.GameSystemId,
+            request.OwnerId,
+            isAdmin: false,
+            action: "delete templates",
+            cancellationToken);
 
         // Check if any entities are using this template
         var affectedEntityCount = await _entityRepository.CountByEntityTypeAsync(

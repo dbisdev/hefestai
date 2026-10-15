@@ -4,7 +4,10 @@
  * Single Responsibility: Only input validation logic
  */
 
-import { MAX_INPUT_LENGTH } from '../config/constants';
+import { MAX_INPUT_LENGTH, PASSWORD_MIN_LENGTH } from '../config/constants';
+
+/** Minimum character length for a display name */
+const DISPLAY_NAME_MIN_LENGTH = 2;
 
 export interface ValidationResult {
   isValid: boolean;
@@ -56,8 +59,8 @@ export function validatePassword(password: string): ValidationResult {
     return { isValid: false, errors };
   }
 
-  if (password.length < 8) {
-    errors.push('La contraseña debe tener al menos 8 caracteres');
+  if (password.length < PASSWORD_MIN_LENGTH) {
+    errors.push(`La contraseña debe tener al menos ${PASSWORD_MIN_LENGTH} caracteres`);
   }
 
   if (password.length > MAX_INPUT_LENGTH.password) {
@@ -93,8 +96,8 @@ export function validateDisplayName(name: string): ValidationResult {
     return { isValid: false, errors };
   }
 
-  if (name.length < 2) {
-    errors.push('El nombre debe tener al menos 2 caracteres');
+  if (name.length < DISPLAY_NAME_MIN_LENGTH) {
+    errors.push(`El nombre debe tener al menos ${DISPLAY_NAME_MIN_LENGTH} caracteres`);
   }
 
   if (name.length > MAX_INPUT_LENGTH.displayName) {

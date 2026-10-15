@@ -1,12 +1,18 @@
 import { ai, geminiModel } from '../../config/index.js';
 import { mapUsage, stripMarkdownCodeFences } from '../../common/index.js';
-import type { ChatRequest, ChatResponse, ChatMessage } from './chat.schema.js';
+import {
+  ChatRequestSchema,
+  ChatResponseSchema,
+  type ChatRequest,
+  type ChatResponse,
+  type ChatMessage,
+} from './chat.schema.js';
 
 export const chatFlow = ai.defineFlow(
   {
     name: 'chat',
-    inputSchema: null as any,
-    outputSchema: null as any,
+    inputSchema: ChatRequestSchema,
+    outputSchema: ChatResponseSchema,
   },
   async (input: ChatRequest): Promise<ChatResponse> => {
     const messages = input.messages.map((msg: ChatMessage) => ({

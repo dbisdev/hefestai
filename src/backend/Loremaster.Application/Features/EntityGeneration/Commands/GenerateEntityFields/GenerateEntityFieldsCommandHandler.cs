@@ -24,7 +24,6 @@ public class GenerateEntityFieldsCommandHandler
     private readonly IEntityTemplateRepository _entityTemplateRepository;
     private readonly IEntityGenerationService _entityGenerationService;
     private readonly IGenerationRequestRepository _generationRequestRepository;
-    private readonly IApplicationDbContext _dbContext;
     private readonly ICurrentUserService _currentUserService;
     private readonly IUnitOfWork _unitOfWork;
     private readonly ILogger<GenerateEntityFieldsCommandHandler> _logger;
@@ -40,7 +39,6 @@ public class GenerateEntityFieldsCommandHandler
         IEntityTemplateRepository entityTemplateRepository,
         IEntityGenerationService entityGenerationService,
         IGenerationRequestRepository generationRequestRepository,
-        IApplicationDbContext dbContext,
         ICurrentUserService currentUserService,
         IUnitOfWork unitOfWork,
         ILogger<GenerateEntityFieldsCommandHandler> logger)
@@ -50,7 +48,6 @@ public class GenerateEntityFieldsCommandHandler
         _entityTemplateRepository = entityTemplateRepository;
         _entityGenerationService = entityGenerationService;
         _generationRequestRepository = generationRequestRepository;
-        _dbContext = dbContext;
         _currentUserService = currentUserService;
         _unitOfWork = unitOfWork;
         _logger = logger;
@@ -363,8 +360,8 @@ public class GenerateEntityFieldsCommandHandler
         try
         {
             await _generationRequestRepository.AddAsync(request, cancellationToken);
-            // Add GenerationResult directly to DbContext
-            await _dbContext.GenerationResults.AddAsync(result, cancellationToken);
+            // Add GenerationResult through the repository
+            await _generationRequestRepository.AddResultAsync(result, cancellationToken);
             await _unitOfWork.SaveChangesAsync(cancellationToken);
             
             _logger.LogDebug(

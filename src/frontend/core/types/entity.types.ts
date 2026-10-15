@@ -66,8 +66,8 @@ export interface LoreEntity {
   visibility: VisibilityLevel;
   isTemplate: boolean;
   imageUrl?: string;
-  attributes?: Record<string, unknown>;
-  metadata?: Record<string, unknown>;
+  attributes?: DynamicStats;
+  metadata?: EntityMetadata;
   createdAt: string;
   updatedAt?: string;
 }
@@ -84,8 +84,8 @@ export interface CreateLoreEntityInput {
   visibility?: VisibilityLevel;
   isTemplate?: boolean;
   imageUrl?: string;
-  attributes?: Record<string, unknown>;
-  metadata?: Record<string, unknown>;
+  attributes?: DynamicStats;
+  metadata?: EntityMetadata;
   /**
    * Optional ID of the generation request that created this entity's content.
    * Links the saved entity to its AI generation history for traceability.
@@ -102,8 +102,8 @@ export interface UpdateLoreEntityInput {
   description?: string;
   visibility?: VisibilityLevel;
   imageUrl?: string;
-  attributes?: Record<string, unknown>;
-  metadata?: Record<string, unknown>;
+  attributes?: DynamicStats;
+  metadata?: EntityMetadata;
 }
 
 /**
@@ -131,9 +131,24 @@ export interface TransferOwnershipInput {
 /**
  * Dynamic stats object from AI generation.
  * Stats vary by game system, so we use a flexible Record type.
- * Values can be numbers, strings, or nested objects (like SKILLS).
+ * Values are numbers, strings, or nested skill/ability objects (e.g. SKILLS: { Firearms: 5 }).
  */
-export type DynamicStats = Record<string, unknown>;
+export type DynamicStats = Record<string, number | string | Record<string, number | string>>;
+
+/**
+ * Metadata attached to AI-generated entities.
+ * Tracks audit information about the generation process.
+ */
+export interface EntityMetadata {
+  /** ISO timestamp of when the entity was generated */
+  generatedAt?: string;
+  /** Identifier of the generator/model used */
+  generator?: string;
+  /** Parameters passed to the generator (species, role, morphology, etc.) */
+  generationParams?: Record<string, string>;
+  /** Allow extra fields from future generators without breaking */
+  [key: string]: string | Record<string, string> | undefined;
+}
 
 /**
  * Character data structure
@@ -310,8 +325,7 @@ export interface EncounterData {
 }
 
 // ============================================
-// Legacy aliases for backwards compatibility
-// TODO: Remove after migration is complete
+// Legacy aliases kept for backwards compatibility
 // ============================================
 
 /** @deprecated Use LoreEntity instead */

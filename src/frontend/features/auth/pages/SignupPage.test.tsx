@@ -275,7 +275,17 @@ describe('SignupPage', () => {
 
     it('shows loading state during submission', async () => {
       const user = userEvent.setup();
-      mockRegister.mockImplementation(() => new Promise(() => {}));
+      // When register is called, update the auth mock to reflect isLoading: true,
+      // because SignupPage reads loading state from AuthContext (not local state).
+      mockRegister.mockImplementation(() => {
+        mockUseAuth.mockReturnValue({
+          register: mockRegister,
+          error: null,
+          isLoading: true,
+          clearError: mockClearError,
+        });
+        return new Promise(() => {}); // never resolves — keeps loading state
+      });
 
       renderComponent();
 
@@ -300,7 +310,17 @@ describe('SignupPage', () => {
   describe('Error Handling', () => {
     it('displays registration error', async () => {
       const user = userEvent.setup();
-      mockRegister.mockRejectedValue(new Error('Email already exists'));
+      // SignupPage catches register() rejections silently and relies on AuthContext.error
+      // for display. Simulate the context updating its error after the rejection.
+      mockRegister.mockImplementation(async () => {
+        mockUseAuth.mockReturnValue({
+          register: mockRegister,
+          error: 'Email already exists',
+          isLoading: false,
+          clearError: mockClearError,
+        });
+        throw new Error('Email already exists');
+      });
 
       renderComponent();
 

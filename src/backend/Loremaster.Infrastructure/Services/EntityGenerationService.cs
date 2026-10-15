@@ -1,5 +1,6 @@
 using System.Text.Json;
 using Loremaster.Application.Common.Interfaces;
+using Loremaster.Application.Common.Models;
 using Loremaster.Domain.Entities;
 using Loremaster.Domain.Enums;
 using Loremaster.Domain.ValueObjects;
@@ -15,6 +16,7 @@ public class EntityGenerationService : IEntityGenerationService
 {
     private readonly IRagContextProvider _ragContextProvider;
     private readonly IEmbeddingService _embeddingService;
+    private readonly IRagGenerationService _ragGeneration;
     private readonly IAiService _aiService;
     private readonly ILogger<EntityGenerationService> _logger;
 
@@ -31,11 +33,13 @@ public class EntityGenerationService : IEntityGenerationService
     public EntityGenerationService(
         IRagContextProvider ragContextProvider,
         IEmbeddingService embeddingService,
+        IRagGenerationService ragGeneration,
         IAiService aiService,
         ILogger<EntityGenerationService> logger)
     {
         _ragContextProvider = ragContextProvider ?? throw new ArgumentNullException(nameof(ragContextProvider));
         _embeddingService = embeddingService ?? throw new ArgumentNullException(nameof(embeddingService));
+        _ragGeneration = ragGeneration ?? throw new ArgumentNullException(nameof(ragGeneration));
         _aiService = aiService ?? throw new ArgumentNullException(nameof(aiService));
         _logger = logger ?? throw new ArgumentNullException(nameof(logger));
     }
@@ -82,7 +86,7 @@ public class EntityGenerationService : IEntityGenerationService
             {
                 // Use RAG generation with context
                 var contextStrings = ragChunks.Select(c => c.Content).ToList();
-                var ragResult = await _embeddingService.GenerateWithContextAsync(
+                var ragResult = await _ragGeneration.GenerateWithContextAsync(
                     userPrompt,
                     contextStrings,
                     systemPrompt,

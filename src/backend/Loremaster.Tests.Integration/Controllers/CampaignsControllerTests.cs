@@ -82,7 +82,7 @@ public class CampaignsControllerTests : IClassFixture<CustomWebApplicationFactor
         var response = await client.PostAsJsonAsync("/api/campaigns", request);
         response.EnsureSuccessStatusCode();
         
-        return (await response.Content.ReadFromJsonAsync<CampaignDetailResponse>())!;
+        return (await response.Content.ReadFromJsonAsync<CampaignDetailResponse>(TestJsonOptions.Default))!;
     }
 
     #endregion
@@ -108,7 +108,7 @@ public class CampaignsControllerTests : IClassFixture<CustomWebApplicationFactor
         // Assert
         response.StatusCode.Should().Be(HttpStatusCode.Created);
         
-        var content = await response.Content.ReadFromJsonAsync<CampaignDetailResponse>();
+        var content = await response.Content.ReadFromJsonAsync<CampaignDetailResponse>(TestJsonOptions.Default);
         content.Should().NotBeNull();
         content!.Name.Should().Be(request.Name);
         content.Description.Should().Be(request.Description);
@@ -205,7 +205,7 @@ public class CampaignsControllerTests : IClassFixture<CustomWebApplicationFactor
         // Assert
         response.StatusCode.Should().Be(HttpStatusCode.OK);
         
-        var content = await response.Content.ReadFromJsonAsync<List<CampaignResponse>>();
+        var content = await response.Content.ReadFromJsonAsync<List<CampaignResponse>>(TestJsonOptions.Default);
         content.Should().NotBeNull();
         content.Should().HaveCount(2);
         content!.All(c => c.UserRole == CampaignRole.Master).Should().BeTrue();
@@ -240,7 +240,7 @@ public class CampaignsControllerTests : IClassFixture<CustomWebApplicationFactor
         // Assert
         response.StatusCode.Should().Be(HttpStatusCode.OK);
         
-        var content = await response.Content.ReadFromJsonAsync<CampaignDetailResponse>();
+        var content = await response.Content.ReadFromJsonAsync<CampaignDetailResponse>(TestJsonOptions.Default);
         content.Should().NotBeNull();
         content!.Id.Should().Be(campaign.Id);
         content.Name.Should().Be("Get By Id Campaign");
@@ -307,7 +307,7 @@ public class CampaignsControllerTests : IClassFixture<CustomWebApplicationFactor
         // Assert
         response.StatusCode.Should().Be(HttpStatusCode.OK);
         
-        var content = await response.Content.ReadFromJsonAsync<CampaignDetailResponse>();
+        var content = await response.Content.ReadFromJsonAsync<CampaignDetailResponse>(TestJsonOptions.Default);
         content!.Name.Should().Be("Updated Name");
         content.Description.Should().Be("Updated Description");
     }
@@ -403,7 +403,7 @@ public class CampaignsControllerTests : IClassFixture<CustomWebApplicationFactor
         // Assert
         response.StatusCode.Should().Be(HttpStatusCode.OK);
         
-        var content = await response.Content.ReadFromJsonAsync<CampaignResponse>();
+        var content = await response.Content.ReadFromJsonAsync<CampaignResponse>(TestJsonOptions.Default);
         content.Should().NotBeNull();
         content!.Id.Should().Be(campaign.Id);
         content.UserRole.Should().Be(CampaignRole.Player);
@@ -530,7 +530,7 @@ public class CampaignsControllerTests : IClassFixture<CustomWebApplicationFactor
         // Assert
         response.StatusCode.Should().Be(HttpStatusCode.OK);
         
-        var content = await response.Content.ReadFromJsonAsync<List<CampaignMemberResponse>>();
+        var content = await response.Content.ReadFromJsonAsync<List<CampaignMemberResponse>>(TestJsonOptions.Default);
         content.Should().NotBeNull();
         content.Should().HaveCount(2);
         content!.Count(m => m.Role == CampaignRole.Master).Should().Be(1);
@@ -576,7 +576,7 @@ public class CampaignsControllerTests : IClassFixture<CustomWebApplicationFactor
 
         // Get members to find player's member ID
         var membersResponse = await masterClient.GetAsync($"/api/campaigns/{campaign.Id}/members");
-        var members = await membersResponse.Content.ReadFromJsonAsync<List<CampaignMemberResponse>>();
+        var members = await membersResponse.Content.ReadFromJsonAsync<List<CampaignMemberResponse>>(TestJsonOptions.Default);
         var playerMember = members!.First(m => m.Role == CampaignRole.Player);
 
         // Act - Promote player to Master
@@ -587,7 +587,7 @@ public class CampaignsControllerTests : IClassFixture<CustomWebApplicationFactor
         // Assert
         response.StatusCode.Should().Be(HttpStatusCode.OK);
         
-        var content = await response.Content.ReadFromJsonAsync<CampaignMemberResponse>();
+        var content = await response.Content.ReadFromJsonAsync<CampaignMemberResponse>(TestJsonOptions.Default);
         content!.Role.Should().Be(CampaignRole.Master);
     }
 
@@ -612,7 +612,7 @@ public class CampaignsControllerTests : IClassFixture<CustomWebApplicationFactor
 
         // Get Player2's member ID
         var membersResponse = await masterClient.GetAsync($"/api/campaigns/{campaign.Id}/members");
-        var members = await membersResponse.Content.ReadFromJsonAsync<List<CampaignMemberResponse>>();
+        var members = await membersResponse.Content.ReadFromJsonAsync<List<CampaignMemberResponse>>(TestJsonOptions.Default);
         
         // Promote Player1 to Master first
         var player1Member = members!.First(m => m.DisplayName!.Contains("player1"));
@@ -622,7 +622,7 @@ public class CampaignsControllerTests : IClassFixture<CustomWebApplicationFactor
 
         // Get updated members list
         membersResponse = await masterClient.GetAsync($"/api/campaigns/{campaign.Id}/members");
-        members = await membersResponse.Content.ReadFromJsonAsync<List<CampaignMemberResponse>>();
+        members = await membersResponse.Content.ReadFromJsonAsync<List<CampaignMemberResponse>>(TestJsonOptions.Default);
         var player2Member = members!.First(m => m.DisplayName!.Contains("player2"));
 
         // Act - Player1 (not owner) tries to change Player2's role
@@ -654,7 +654,7 @@ public class CampaignsControllerTests : IClassFixture<CustomWebApplicationFactor
 
         // Get player's member ID
         var membersResponse = await masterClient.GetAsync($"/api/campaigns/{campaign.Id}/members");
-        var members = await membersResponse.Content.ReadFromJsonAsync<List<CampaignMemberResponse>>();
+        var members = await membersResponse.Content.ReadFromJsonAsync<List<CampaignMemberResponse>>(TestJsonOptions.Default);
         var playerMember = members!.First(m => m.Role == CampaignRole.Player);
 
         // Act - Master removes player
@@ -666,7 +666,7 @@ public class CampaignsControllerTests : IClassFixture<CustomWebApplicationFactor
 
         // Verify player is removed
         membersResponse = await masterClient.GetAsync($"/api/campaigns/{campaign.Id}/members");
-        members = await membersResponse.Content.ReadFromJsonAsync<List<CampaignMemberResponse>>();
+        members = await membersResponse.Content.ReadFromJsonAsync<List<CampaignMemberResponse>>(TestJsonOptions.Default);
         members.Should().HaveCount(1);
     }
 
@@ -691,7 +691,7 @@ public class CampaignsControllerTests : IClassFixture<CustomWebApplicationFactor
 
         // Get Player2's member ID
         var membersResponse = await masterClient.GetAsync($"/api/campaigns/{campaign.Id}/members");
-        var members = await membersResponse.Content.ReadFromJsonAsync<List<CampaignMemberResponse>>();
+        var members = await membersResponse.Content.ReadFromJsonAsync<List<CampaignMemberResponse>>(TestJsonOptions.Default);
         var player2Member = members!.First(m => m.DisplayName!.Contains("player2"));
 
         // Act - Player1 tries to remove Player2
@@ -721,7 +721,7 @@ public class CampaignsControllerTests : IClassFixture<CustomWebApplicationFactor
         // Assert
         response.StatusCode.Should().Be(HttpStatusCode.OK);
         
-        var content = await response.Content.ReadFromJsonAsync<JoinCodeResponse>();
+        var content = await response.Content.ReadFromJsonAsync<JoinCodeResponse>(TestJsonOptions.Default);
         content.Should().NotBeNull();
         content!.JoinCode.Should().NotBeNullOrEmpty();
         content.JoinCode.Should().HaveLength(8);
@@ -768,7 +768,7 @@ public class CampaignsControllerTests : IClassFixture<CustomWebApplicationFactor
         // Assert
         deactivateResponse.StatusCode.Should().Be(HttpStatusCode.OK);
         
-        var content = await deactivateResponse.Content.ReadFromJsonAsync<CampaignResponse>();
+        var content = await deactivateResponse.Content.ReadFromJsonAsync<CampaignResponse>(TestJsonOptions.Default);
         content!.IsActive.Should().BeFalse();
 
         // Act - Reactivate
@@ -779,7 +779,7 @@ public class CampaignsControllerTests : IClassFixture<CustomWebApplicationFactor
         // Assert
         activateResponse.StatusCode.Should().Be(HttpStatusCode.OK);
         
-        content = await activateResponse.Content.ReadFromJsonAsync<CampaignResponse>();
+        content = await activateResponse.Content.ReadFromJsonAsync<CampaignResponse>(TestJsonOptions.Default);
         content!.IsActive.Should().BeTrue();
     }
 
@@ -829,7 +829,7 @@ public class CampaignsControllerTests : IClassFixture<CustomWebApplicationFactor
         // Assert
         response.StatusCode.Should().Be(HttpStatusCode.OK);
         
-        var content = await response.Content.ReadFromJsonAsync<CampaignDetailResponse>();
+        var content = await response.Content.ReadFromJsonAsync<CampaignDetailResponse>(TestJsonOptions.Default);
         content!.JoinCode.Should().BeNull(); // Player should not see join code
         content.UserRole.Should().Be(CampaignRole.Player);
     }

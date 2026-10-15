@@ -13,5 +13,6 @@ public interface IGenerationRequestRepository
     Task<IEnumerable<GenerationRequest>> GetPendingAsync(int limit = 10, CancellationToken cancellationToken = default);
     Task<IEnumerable<GenerationRequest>> GetRecentByUserAsync(Guid userId, int limit = 20, CancellationToken cancellationToken = default);
     Task AddAsync(GenerationRequest request, CancellationToken cancellationToken = default);
+    Task AddResultAsync(GenerationResult result, CancellationToken cancellationToken = default);
     void Update(GenerationRequest request);
 }

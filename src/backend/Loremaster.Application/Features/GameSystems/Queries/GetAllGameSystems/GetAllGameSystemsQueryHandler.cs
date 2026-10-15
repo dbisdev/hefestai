@@ -5,7 +5,8 @@ using MediatR;
 namespace Loremaster.Application.Features.GameSystems.Queries.GetAllGameSystems;
 
 /// <summary>
-/// Handler for GetAllGameSystemsQuery. Returns all active game systems.
+/// Handler for GetAllGameSystemsQuery.
+/// Returns active game systems filtered by the caller's role and ownership.
 /// </summary>
 public class GetAllGameSystemsQueryHandler : IRequestHandler<GetAllGameSystemsQuery, IEnumerable<GameSystemDto>>
 {
@@ -17,16 +18,21 @@ public class GetAllGameSystemsQueryHandler : IRequestHandler<GetAllGameSystemsQu
     }
 
     /// <summary>
-    /// Handles the get all game systems query.
+    /// Handles the get-all-game-systems query applying ownership-based visibility rules.
     /// </summary>
-    /// <param name="request">The query.</param>
+    /// <param name="request">The query carrying caller identity and role flags.</param>
     /// <param name="cancellationToken">Cancellation token.</param>
-    /// <returns>Collection of active game systems as DTOs.</returns>
+    /// <returns>Active game systems the caller is allowed to see.</returns>
     public async Task<IEnumerable<GameSystemDto>> Handle(
-        GetAllGameSystemsQuery request, 
+        GetAllGameSystemsQuery request,
         CancellationToken cancellationToken)
     {
-        var gameSystems = await _gameSystemRepository.GetActiveAsync(cancellationToken);
+        var gameSystems = await _gameSystemRepository.GetActiveForUserAsync(
+            request.UserId,
+            request.IncludeAll,
+            request.IsPlayer,
+            cancellationToken);
+
         return gameSystems.Select(GameSystemDto.FromEntity);
     }
 }

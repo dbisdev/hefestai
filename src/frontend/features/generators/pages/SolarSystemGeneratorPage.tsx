@@ -9,9 +9,10 @@ import { TerminalLayout } from '@shared/components/layout';
 import { Button, ImageSourceSelector } from '@shared/components/ui';
 import { aiService, entityService } from '@core/services/api';
 import { useCampaign } from '@core/context';
-import { parseJsonResponse } from '@core/utils';
-import { useEntityGeneration } from '@core/hooks';
+import { parseJsonResponse, logger } from '@core/utils';
+import { useEntityGeneration, type SaveEntityParams } from '@core/hooks';
 import type { SystemData, PlanetData } from '@core/types';
+import { TERMINAL_LOG_COMPACT } from '@core/config/constants';
 
 const SYSTEM_PLACEHOLDER_IMAGE = "https://images.unsplash.com/photo-1464802686167-b939a6910659?q=80&w=400&auto=format&fit=crop";
 
@@ -44,7 +45,7 @@ export const SolarSystemGeneratorPage: React.FC<SolarSystemGeneratorPageProps> =
     });
 
     const data = parseJsonResponse<SystemData>(result.systemJson);
-    console.log('[SolarSystemGenerator] Parsed system data:', data);
+    logger.log('[SolarSystemGenerator] Parsed system data:', data);
     return {
       data,
       imageBase64: result.imageBase64,
@@ -53,14 +54,7 @@ export const SolarSystemGeneratorPage: React.FC<SolarSystemGeneratorPageProps> =
     };
   }, [activeCampaign?.gameSystemId]);
 
-  const saveSolarSystem = useCallback(async (params: {
-    name: string;
-    description?: string;
-    imageUrl?: string;
-    attributes: Record<string, unknown>;
-    metadata?: Record<string, unknown>;
-    generationRequestId?: string;
-  }) => {
+  const saveSolarSystem = useCallback(async (params: SaveEntityParams) => {
     if (!activeCampaignId) return;
     
     const spectralClass = params.attributes?.spectralClass as string | undefined;
@@ -100,7 +94,7 @@ export const SolarSystemGeneratorPage: React.FC<SolarSystemGeneratorPageProps> =
     entityType: 'solar_system',
     placeholderImage: SYSTEM_PLACEHOLDER_IMAGE,
     initialLogs: [],
-    maxLogs: 6,
+    maxLogs: TERMINAL_LOG_COMPACT,
     generateFn: generateSolarSystem,
     saveFn: saveSolarSystem,
     onSaveSuccess: () => {

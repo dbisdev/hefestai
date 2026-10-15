@@ -7,7 +7,8 @@
 
 import { useState, useCallback } from 'react';
 import { CharacterSheetPdfService } from '@core/services/pdf';
-import type { LoreEntity, FieldDefinition } from '@core/types';
+import { extractErrorMessage } from '@core/utils/error';
+import type { LoreEntity, FieldDefinition, EntityCategory } from '@core/types';
 
 /**
  * PDF operation state
@@ -35,14 +36,9 @@ interface ExportOptions {
 
 /**
  * Import result data
+ * Subset of LoreEntity fields extracted from a PDF export
  */
-interface ImportResult {
-  name: string;
-  description?: string;
-  entityType: string;
-  attributes: Record<string, unknown>;
-  metadata?: Record<string, unknown>;
-}
+type ImportResult = Pick<LoreEntity, 'name' | 'description' | 'entityType' | 'attributes' | 'metadata'>;
 
 /**
  * Hook return type
@@ -106,7 +102,7 @@ export function useCharacterSheetPdf(): UseCharacterSheetPdfReturn {
       
       setState(prev => ({ ...prev, isExporting: false, lastResult: 'export' }));
     } catch (error) {
-      const message = error instanceof Error ? error.message : 'Error al exportar PDF';
+      const message = extractErrorMessage(error, 'Error al exportar PDF');
       setState(prev => ({ ...prev, isExporting: false, error: message }));
       throw error;
     }
@@ -135,12 +131,12 @@ export function useCharacterSheetPdf(): UseCharacterSheetPdfReturn {
       return {
         name: data.entity.name,
         description: data.entity.description,
-        entityType: data.entity.entityType,
+        entityType: data.entity.entityType as EntityCategory,
         attributes: data.entity.attributes,
         metadata: data.entity.metadata,
       };
     } catch (error) {
-      const message = error instanceof Error ? error.message : 'Error al importar PDF';
+      const message = extractErrorMessage(error, 'Error al importar PDF');
       setState(prev => ({ ...prev, isImporting: false, error: message }));
       return null;
     }

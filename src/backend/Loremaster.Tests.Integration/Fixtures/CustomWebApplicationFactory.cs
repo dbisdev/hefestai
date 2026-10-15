@@ -1,4 +1,6 @@
 using System.Net.Http.Json;
+using System.Text.Json;
+using System.Text.Json.Serialization;
 using Loremaster.Application.Common.Interfaces;
 using Loremaster.Infrastructure.Persistence;
 using Microsoft.AspNetCore.Hosting;
@@ -140,13 +142,13 @@ public class AuthenticatedHttpClientFactory
                 throw new Exception($"Failed to register or login.\nRegister error: {errorContent}\nLogin error: {loginError}");
             }
             
-            var loginResult = await loginResponse.Content.ReadFromJsonAsync<AuthResponse>();
+            var loginResult = await loginResponse.Content.ReadFromJsonAsync<AuthResponse>(TestJsonOptions.Default);
             client.DefaultRequestHeaders.Authorization = 
                 new System.Net.Http.Headers.AuthenticationHeaderValue("Bearer", loginResult!.AccessToken);
             return (client, loginResult.AccessToken, loginResult.UserId.ToString());
         }
 
-        var result = await registerResponse.Content.ReadFromJsonAsync<AuthResponse>();
+        var result = await registerResponse.Content.ReadFromJsonAsync<AuthResponse>(TestJsonOptions.Default);
         client.DefaultRequestHeaders.Authorization = 
             new System.Net.Http.Headers.AuthenticationHeaderValue("Bearer", result!.AccessToken);
         
@@ -174,7 +176,7 @@ public class AuthenticatedHttpClientFactory
         var registerResponse = await client.PostAsJsonAsync("/api/auth/register", registerRequest);
         registerResponse.EnsureSuccessStatusCode();
         
-        var registerResult = await registerResponse.Content.ReadFromJsonAsync<AuthResponse>();
+        var registerResult = await registerResponse.Content.ReadFromJsonAsync<AuthResponse>(TestJsonOptions.Default);
         var masterToken = registerResult!.AccessToken;
         
         // Set authorization for campaign creation
@@ -188,7 +190,7 @@ public class AuthenticatedHttpClientFactory
             Description = "A test game system"
         });
         gameSystemResponse.EnsureSuccessStatusCode();
-        var gameSystem = await gameSystemResponse.Content.ReadFromJsonAsync<GameSystemResponse>();
+        var gameSystem = await gameSystemResponse.Content.ReadFromJsonAsync<GameSystemResponse>(TestJsonOptions.Default);
         
         // Create a campaign
         var campaignResponse = await client.PostAsJsonAsync("/api/campaigns", new
@@ -198,7 +200,7 @@ public class AuthenticatedHttpClientFactory
             GameSystemId = gameSystem!.Id
         });
         campaignResponse.EnsureSuccessStatusCode();
-        var campaign = await campaignResponse.Content.ReadFromJsonAsync<CampaignResponse>();
+        var campaign = await campaignResponse.Content.ReadFromJsonAsync<CampaignResponse>(TestJsonOptions.Default);
         
         // Clear authorization
         client.DefaultRequestHeaders.Authorization = null;
@@ -209,4 +211,20 @@ public class AuthenticatedHttpClientFactory
     private record AuthResponse(Guid UserId, string Email, string AccessToken, string RefreshToken);
     private record CampaignResponse(Guid Id, string Name, string JoinCode);
     private record GameSystemResponse(Guid Id, string Name);
+}
+
+/// <summary>
+/// Shared JSON serializer options for integration tests.
+/// Must match the API's serialization settings (JsonStringEnumConverter, camelCase).
+/// </summary>
+public static class TestJsonOptions
+{
+    /// <summary>
+    /// Default options with JsonStringEnumConverter and camelCase naming — mirrors the API's Program.cs setup.
+    /// Use this with ReadFromJsonAsync&lt;T&gt;(TestJsonOptions.Default) to correctly deserialize enum fields.
+    /// </summary>
+    public static readonly JsonSerializerOptions Default = new(JsonSerializerDefaults.Web)
+    {
+        Converters = { new JsonStringEnumConverter() }
+    };
 }

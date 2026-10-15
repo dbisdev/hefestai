@@ -67,7 +67,8 @@ describe('useApi Hook', () => {
         await result.current.execute();
       });
       
-      expect(result.current.error).toBe('An error occurred');
+      // extractErrorMessage returns non-empty strings as-is (they are valid messages)
+      expect(result.current.error).toBe('string error');
     });
 
     it('passes parameters to API function', async () => {

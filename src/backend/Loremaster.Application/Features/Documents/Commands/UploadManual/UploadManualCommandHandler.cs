@@ -1,5 +1,6 @@
 using Loremaster.Application.Common.Interfaces;
 using Loremaster.Domain.Entities;
+using Loremaster.Domain.Exceptions;
 using MediatR;
 using Microsoft.Extensions.Logging;
 
@@ -17,6 +18,7 @@ public class UploadManualCommandHandler : IRequestHandler<UploadManualCommand, U
     private readonly IGameSystemRepository _gameSystemRepository;
     private readonly IEmbeddingService _embeddingService;
     private readonly IUnitOfWork _unitOfWork;
+    private readonly IDateTimeProvider _dateTimeProvider;
     private readonly ILogger<UploadManualCommandHandler> _logger;
 
     public UploadManualCommandHandler(
@@ -26,6 +28,7 @@ public class UploadManualCommandHandler : IRequestHandler<UploadManualCommand, U
         IGameSystemRepository gameSystemRepository,
         IEmbeddingService embeddingService,
         IUnitOfWork unitOfWork,
+        IDateTimeProvider dateTimeProvider,
         ILogger<UploadManualCommandHandler> logger)
     {
         _pdfParsingService = pdfParsingService;
@@ -34,6 +37,7 @@ public class UploadManualCommandHandler : IRequestHandler<UploadManualCommand, U
         _gameSystemRepository = gameSystemRepository;
         _embeddingService = embeddingService;
         _unitOfWork = unitOfWork;
+        _dateTimeProvider = dateTimeProvider;
         _logger = logger;
     }
 
@@ -47,7 +51,7 @@ public class UploadManualCommandHandler : IRequestHandler<UploadManualCommand, U
         var gameSystem = await _gameSystemRepository.GetByIdAsync(request.GameSystemId, cancellationToken);
         if (gameSystem == null)
         {
-            throw new ArgumentException($"Game system with ID {request.GameSystemId} not found");
+            throw new NotFoundException(nameof(GameSystem), request.GameSystemId);
         }
 
         // Parse PDF
@@ -74,7 +78,7 @@ public class UploadManualCommandHandler : IRequestHandler<UploadManualCommand, U
             content: parseResult.Content,
             ownerId: request.OwnerId,
             source: $"PDF Upload - {request.Version ?? "v1.0"}",
-            metadata: CreateMetadata(parseResult, request),
+            metadata: CreateMetadata(parseResult, request, _dateTimeProvider),
             gameSystemId: request.GameSystemId,
             sourceType: request.SourceType);
 
@@ -159,14 +163,18 @@ public class UploadManualCommandHandler : IRequestHandler<UploadManualCommand, U
 
     /// <summary>
     /// Creates JSON metadata for the document.
+    /// Uses <see cref="IDateTimeProvider"/> to ensure testable, deterministic timestamps.
     /// </summary>
-    private static string CreateMetadata(PdfParseResult parseResult, UploadManualCommand request)
+    private static string CreateMetadata(
+        PdfParseResult parseResult,
+        UploadManualCommand request,
+        IDateTimeProvider dateTimeProvider)
     {
         var metadata = new Dictionary<string, object>
         {
             ["pageCount"] = parseResult.PageCount,
             ["sourceType"] = request.SourceType.ToString(),
-            ["uploadedAt"] = DateTime.UtcNow.ToString("O")
+            ["uploadedAt"] = dateTimeProvider.UtcNow.ToString("O")
         };
 
         if (!string.IsNullOrEmpty(parseResult.Author))

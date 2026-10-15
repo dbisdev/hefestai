@@ -5,6 +5,7 @@
 
 import { httpClient } from './client';
 import { tokenService } from '@core/services/storage/token.service';
+import { toApiRoleFormat, fromApiRoleFormat } from '@core/utils/role';
 import type { 
   User, 
   UserRole,
@@ -15,7 +16,9 @@ import type {
 } from '@core/types';
 
 /**
- * Map API response to User object
+ * Map API response to User object.
+ * Uses `fromApiRoleFormat` to normalise the backend role string (e.g.
+ * 'Master', 'master', 'MASTER') to the canonical frontend `UserRole`.
  */
 function mapUserFromResponse(data: AuthResponse | CurrentUserResponse): User {
   const id = 'userId' in data ? data.userId : data.id;
@@ -23,7 +26,7 @@ function mapUserFromResponse(data: AuthResponse | CurrentUserResponse): User {
     id,
     username: data.displayName || data.email,
     email: data.email,
-    role: data.role.toUpperCase() as UserRole,
+    role: fromApiRoleFormat(data.role),
   };
 }
 
@@ -51,7 +54,7 @@ export const authService = {
       email: credentials.email,
       password: credentials.password,
       displayName: credentials.displayName,
-      role: credentials.role.charAt(0) + credentials.role.slice(1).toLowerCase(), // MASTER -> Master
+      role: toApiRoleFormat(credentials.role), // 'MASTER' → 'Master'
       inviteCode: credentials.inviteCode,
     };
 

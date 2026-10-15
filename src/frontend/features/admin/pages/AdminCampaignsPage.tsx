@@ -6,13 +6,25 @@
  */
 
 import React, { useState, useEffect, useCallback } from 'react';
-import { useNavigate } from 'react-router-dom';
 import { AdminLayout } from '@shared/components/layout';
-import { Button, TerminalLog } from '@shared/components/ui';
-import { useAuth } from '@core/context';
+import { Button } from '@shared/components/ui';
 import { useTerminalLog } from '@core/hooks/useTerminalLog';
 import { adminCampaignService, adminUserService } from '@core/services/api';
-import type { AdminCampaign, AdminUpdateCampaignRequest, AdminUser } from '@core/types';
+import { extractErrorMessage } from '@core/utils/error';
+import { formatAdminDate } from '@core/utils/date';
+import { TERMINAL_LOG_DEFAULT } from '@core/config/constants';
+import type { AdminCampaign, AdminUpdateCampaignInput, AdminUser } from '@core/types';
+import {
+  AdminGuard,
+  AdminTerminalPanel,
+  AdminStatusBadge,
+  AdminStatusBadgeSm,
+  AdminStatCard,
+  AdminSearchBar,
+  AdminListHeader,
+  AdminEmptyState,
+  AdminFormActions,
+} from '../components';
 
 /**
  * Admin Campaigns Page Component
@@ -23,10 +35,8 @@ import type { AdminCampaign, AdminUpdateCampaignRequest, AdminUser } from '@core
  * - Delete (soft delete) campaigns
  */
 export const AdminCampaignsPage: React.FC = () => {
-  const navigate = useNavigate();
-  const { user: currentUser } = useAuth();
   const { logs, addLog } = useTerminalLog({
-    maxLogs: 12,
+    maxLogs: TERMINAL_LOG_DEFAULT,
     initialLogs: [
       '> Campaign management system online...',
       '> [SUCCESS] Admin protocols established.',
@@ -50,7 +60,7 @@ export const AdminCampaignsPage: React.FC = () => {
   const [showTransferForm, setShowTransferForm] = useState(false);
   
   // Form state for editing campaign
-  const [editForm, setEditForm] = useState<AdminUpdateCampaignRequest>({});
+  const [editForm, setEditForm] = useState<AdminUpdateCampaignInput>({});
   
   // Form state for ownership transfer
   const [transferOwnerId, setTransferOwnerId] = useState<string>('');
@@ -65,7 +75,7 @@ export const AdminCampaignsPage: React.FC = () => {
       setCampaigns(data);
       addLog(`[SUCCESS] ${data.length} campañas cargadas`);
     } catch (error: unknown) {
-      const message = error instanceof Error ? error.message : 'Error al cargar campañas';
+      const message = extractErrorMessage(error, 'Error al cargar campañas');
       addLog(`ERROR: ${message}`);
     } finally {
       setIsLoading(false);
@@ -81,7 +91,7 @@ export const AdminCampaignsPage: React.FC = () => {
       const data = await adminUserService.getAll(false); // Only active users
       setUsers(data);
     } catch (error: unknown) {
-      const message = error instanceof Error ? error.message : 'Error al cargar usuarios';
+      const message = extractErrorMessage(error, 'Error al cargar usuarios');
       addLog(`ERROR: ${message}`);
     } finally {
       setIsLoadingUsers(false);
@@ -148,7 +158,7 @@ export const AdminCampaignsPage: React.FC = () => {
     addLog(`ACTUALIZANDO ${selectedCampaign.name.toUpperCase()}...`);
 
     try {
-      const request: AdminUpdateCampaignRequest = {};
+      const request: AdminUpdateCampaignInput = {};
       
       // Only include changed fields
       if (editForm.name && editForm.name !== selectedCampaign.name) {
@@ -170,7 +180,7 @@ export const AdminCampaignsPage: React.FC = () => {
       setShowEditForm(false);
       setEditForm({});
     } catch (error: unknown) {
-      const message = error instanceof Error ? error.message : 'ERROR AL ACTUALIZAR';
+      const message = extractErrorMessage(error, 'ERROR AL ACTUALIZAR');
       addLog(`ERROR: ${message}`);
     } finally {
       setIsUpdating(false);
@@ -205,7 +215,7 @@ export const AdminCampaignsPage: React.FC = () => {
       setShowTransferForm(false);
       setTransferOwnerId('');
     } catch (error: unknown) {
-      const message = error instanceof Error ? error.message : 'ERROR AL TRANSFERIR';
+      const message = extractErrorMessage(error, 'ERROR AL TRANSFERIR');
       addLog(`ERROR: ${message}`);
     } finally {
       setIsUpdating(false);
@@ -228,7 +238,6 @@ export const AdminCampaignsPage: React.FC = () => {
       
       // Remove from list or mark as inactive
       if (includeInactive) {
-        // Refresh to get updated status
         await fetchCampaigns();
       } else {
         setCampaigns(prev => prev.filter(c => c.id !== campaign.id));
@@ -242,444 +251,363 @@ export const AdminCampaignsPage: React.FC = () => {
       
       addLog(`[SUCCESS] Campaña eliminada: ${campaign.name.toUpperCase()}`);
     } catch (error: unknown) {
-      const message = error instanceof Error ? error.message : 'ERROR AL ELIMINAR';
+      const message = extractErrorMessage(error, 'ERROR AL ELIMINAR');
       addLog(`ERROR: ${message}`);
     } finally {
       setIsDeleting(false);
     }
   };
 
-  /**
-   * Formats a date string for display.
-   */
-  const formatDate = (dateStr: string | null): string => {
-    if (!dateStr) return 'N/A';
-    return new Date(dateStr).toLocaleDateString('es-ES', {
-      day: '2-digit',
-      month: '2-digit',
-      year: 'numeric',
-    });
-  };
-
-  // Check if user is Admin
-  const isAdmin = currentUser?.role === 'ADMIN';
-  
-  if (!isAdmin) {
-    return (
-      <AdminLayout>
-        <div className="flex flex-col items-center justify-center h-full text-danger/60">
-          <span className="material-icons text-6xl mb-4">lock</span>
-          <p className="text-sm uppercase tracking-widest">Acceso restringido a Administradores</p>
-          <Button onClick={() => navigate(-1)} className="mt-4">VOLVER</Button>
-        </div>
-      </AdminLayout>
-    );
-  }
-
   return (
-    <AdminLayout>
-      <div className="flex flex-col lg:flex-row h-full gap-6">
-        {/* Left Column - Campaigns List */}
-        <div className="w-full lg:w-1/2 flex flex-col gap-4 overflow-hidden">
-          {/* Header & Actions */}
-          <div className="border border-primary/30 bg-black/60 p-4">
-            <div className="flex items-center justify-between mb-4">
-              <div>
-                <h1 className="text-xl font-display text-primary uppercase tracking-widest">
-                  Campañas
-                </h1>
-                <p className="text-primary/40 text-xs mt-1">
-                  {filteredCampaigns.length} de {campaigns.length} campañas
-                </p>
+    <AdminGuard>
+      <AdminLayout>
+        <div className="flex flex-col lg:flex-row h-full gap-6">
+          {/* Left Column - Campaigns List */}
+          <div className="w-full lg:w-1/2 flex flex-col gap-4 overflow-hidden">
+            {/* Header & Actions */}
+            <div className="border border-primary/30 bg-black/60 p-4">
+              <div className="flex items-center justify-between mb-4">
+                <div>
+                  <h1 className="text-xl font-display text-primary uppercase tracking-widest">
+                    Campañas
+                  </h1>
+                  <p className="text-primary/40 text-xs mt-1">
+                    {filteredCampaigns.length} de {campaigns.length} campañas
+                  </p>
+                </div>
               </div>
+              
+              <AdminSearchBar
+                searchTerm={searchTerm}
+                onSearch={setSearchTerm}
+                includeInactive={includeInactive}
+                onToggleInactive={setIncludeInactive}
+                placeholder="Buscar por nombre, dueño, sistema o código..."
+                inactiveLabel="Inactivas"
+              />
             </div>
-            
-            {/* Search & Filter */}
-            <div className="flex gap-2">
-              <div className="relative flex-1">
-                <span className="absolute left-3 top-1/2 -translate-y-1/2 material-icons text-primary/40 text-sm">search</span>
-                <input
-                  type="text"
-                  value={searchTerm}
-                  onChange={(e) => setSearchTerm(e.target.value)}
-                  placeholder="Buscar por nombre, dueño, sistema o código..."
-                  className="w-full bg-black/40 border border-primary/30 pl-10 pr-3 py-2 text-sm text-primary placeholder-primary/30 focus:border-primary focus:outline-none"
-                />
-              </div>
-              <label className="flex items-center gap-2 text-xs text-primary/60 whitespace-nowrap cursor-pointer">
-                <input
-                  type="checkbox"
-                  checked={includeInactive}
-                  onChange={(e) => setIncludeInactive(e.target.checked)}
-                  className="accent-primary"
-                />
-                Inactivas
-              </label>
-            </div>
-          </div>
 
-          {/* Campaigns List */}
-          <div className="border border-primary/30 bg-black/60 flex-1 flex flex-col overflow-hidden">
-            <div className="bg-primary/10 p-3 text-xs text-primary uppercase tracking-widest flex items-center justify-between">
-              <span className="flex items-center gap-2">
-                <span className="material-icons text-sm">public</span>
-                Lista de Campañas
-              </span>
-              <button 
-                onClick={fetchCampaigns}
-                disabled={isLoading}
-                className="material-icons text-sm text-primary/60 hover:text-primary transition-colors disabled:opacity-50"
-                title="Recargar"
-              >
-                refresh
-              </button>
-            </div>
-            
-            <div className="flex-1 overflow-y-auto p-2">
-              {isLoading ? (
-                <div className="flex items-center justify-center h-full text-primary/40">
-                  <span className="animate-pulse">CARGANDO CAMPAÑAS...</span>
-                </div>
-              ) : filteredCampaigns.length === 0 ? (
-                <div className="flex flex-col items-center justify-center h-full text-primary/40">
-                  <span className="material-icons text-4xl mb-2">public_off</span>
-                  <p className="text-sm uppercase">No se encontraron campañas</p>
-                </div>
-              ) : (
-                <div className="space-y-2">
-                  {filteredCampaigns.map((campaign) => (
-                    <div
-                      key={campaign.id}
-                      onClick={() => {
-                        setSelectedCampaign(campaign);
-                        setShowEditForm(false);
-                        setShowTransferForm(false);
-                      }}
-                      className={`border p-3 cursor-pointer transition-all ${
-                        selectedCampaign?.id === campaign.id
-                          ? 'border-cyan-500 bg-cyan-500/10'
-                          : 'border-primary/20 bg-black/40 hover:border-primary/40'
-                      }`}
-                    >
-                      <div className="flex items-start justify-between">
-                        <div className="flex-1 min-w-0">
-                          <div className="flex items-center gap-2 flex-wrap">
-                            <span className="text-primary font-bold text-sm truncate">
-                              {campaign.name}
-                            </span>
-                            {!campaign.isActive && (
-                              <span className="text-[10px] px-1.5 py-0.5 border border-gray-500/40 text-gray-400 bg-gray-500/10">
-                                INACTIVA
+            {/* Campaigns List */}
+            <div className="border border-primary/30 bg-black/60 flex-1 flex flex-col overflow-hidden">
+              <AdminListHeader
+                icon="public"
+                title="Lista de Campañas"
+                onRefresh={fetchCampaigns}
+                isLoading={isLoading}
+              />
+              
+              <div className="flex-1 overflow-y-auto p-2">
+                {isLoading ? (
+                  <div className="flex items-center justify-center h-full text-primary/40">
+                    <span className="animate-pulse">CARGANDO CAMPAÑAS...</span>
+                  </div>
+                ) : filteredCampaigns.length === 0 ? (
+                  <div className="flex flex-col items-center justify-center h-full text-primary/40">
+                    <span className="material-icons text-4xl mb-2">public_off</span>
+                    <p className="text-sm uppercase">No se encontraron campañas</p>
+                  </div>
+                ) : (
+                  <div className="space-y-2">
+                    {filteredCampaigns.map((campaign) => (
+                      <div
+                        key={campaign.id}
+                        onClick={() => {
+                          setSelectedCampaign(campaign);
+                          setShowEditForm(false);
+                          setShowTransferForm(false);
+                        }}
+                        className={`border p-3 cursor-pointer transition-all ${
+                          selectedCampaign?.id === campaign.id
+                            ? 'border-cyan-500 bg-cyan-500/10'
+                            : 'border-primary/20 bg-black/40 hover:border-primary/40'
+                        }`}
+                      >
+                        <div className="flex items-start justify-between">
+                          <div className="flex-1 min-w-0">
+                            <div className="flex items-center gap-2 flex-wrap">
+                              <span className="text-primary font-bold text-sm truncate">
+                                {campaign.name}
                               </span>
-                            )}
+                              {!campaign.isActive && (
+                                <AdminStatusBadgeSm isActive={false} inactiveLabel="INACTIVA" />
+                              )}
+                            </div>
+                            <div className="flex items-center gap-3 mt-1 text-xs text-primary/40">
+                              <span className="flex items-center gap-1">
+                                <span className="material-icons text-[10px]">person</span>
+                                {campaign.ownerName}
+                              </span>
+                              <span className="flex items-center gap-1">
+                                <span className="material-icons text-[10px]">sports_esports</span>
+                                {campaign.gameSystemName}
+                              </span>
+                            </div>
+                            <div className="flex items-center gap-3 mt-1 text-[10px] text-primary/30">
+                              <span>{campaign.memberCount} miembros</span>
+                              <span>{campaign.entityCount} entidades</span>
+                            </div>
                           </div>
-                          <div className="flex items-center gap-3 mt-1 text-xs text-primary/40">
-                            <span className="flex items-center gap-1">
-                              <span className="material-icons text-[10px]">person</span>
-                              {campaign.ownerName}
-                            </span>
-                            <span className="flex items-center gap-1">
-                              <span className="material-icons text-[10px]">sports_esports</span>
-                              {campaign.gameSystemName}
-                            </span>
+                          
+                          <div className="flex items-center gap-1 ml-2">
+                            <button
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                openEditForm(campaign);
+                              }}
+                              className="material-icons text-sm text-primary/40 hover:text-cyan-500 transition-colors p-1"
+                              title="Editar"
+                            >
+                              edit
+                            </button>
+                            <button
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                openTransferForm(campaign);
+                              }}
+                              className="material-icons text-sm text-primary/40 hover:text-yellow-500 transition-colors p-1"
+                              title="Transferir propiedad"
+                            >
+                              swap_horiz
+                            </button>
+                            <button
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                handleDelete(campaign);
+                              }}
+                              disabled={isDeleting}
+                              className="material-icons text-sm text-primary/40 hover:text-danger transition-colors p-1 disabled:opacity-30"
+                              title="Eliminar"
+                            >
+                              delete
+                            </button>
                           </div>
-                          <div className="flex items-center gap-3 mt-1 text-[10px] text-primary/30">
-                            <span>{campaign.memberCount} miembros</span>
-                            <span>{campaign.entityCount} entidades</span>
-                          </div>
-                        </div>
-                        
-                        <div className="flex items-center gap-1 ml-2">
-                          <button
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              openEditForm(campaign);
-                            }}
-                            className="material-icons text-sm text-primary/40 hover:text-cyan-500 transition-colors p-1"
-                            title="Editar"
-                          >
-                            edit
-                          </button>
-                          <button
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              openTransferForm(campaign);
-                            }}
-                            className="material-icons text-sm text-primary/40 hover:text-yellow-500 transition-colors p-1"
-                            title="Transferir propiedad"
-                          >
-                            swap_horiz
-                          </button>
-                          <button
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              handleDelete(campaign);
-                            }}
-                            disabled={isDeleting}
-                            className="material-icons text-sm text-primary/40 hover:text-danger transition-colors p-1 disabled:opacity-30"
-                            title="Eliminar"
-                          >
-                            delete
-                          </button>
                         </div>
                       </div>
-                    </div>
-                  ))}
-                </div>
-              )}
+                    ))}
+                  </div>
+                )}
+              </div>
             </div>
           </div>
-        </div>
 
-        {/* Right Column - Campaign Details / Edit Form / Transfer Form */}
-        <div className="flex-1 flex flex-col gap-4 overflow-hidden">
-          {showEditForm && selectedCampaign ? (
-            /* Edit Form */
-            <div className="border border-yellow-500/30 bg-black/60 p-6 flex-1">
-              <h2 className="text-sm text-yellow-500/60 uppercase tracking-widest mb-4 flex items-center gap-2">
-                <span className="material-icons text-xs">edit</span>
-                Editar Campaña
-              </h2>
-              
-              <div className="space-y-4">
-                {/* Name */}
-                <div>
-                  <label className="block text-xs text-primary/40 uppercase mb-1">Nombre</label>
-                  <input
-                    type="text"
-                    value={editForm.name || ''}
-                    onChange={(e) => setEditForm(prev => ({ ...prev, name: e.target.value }))}
-                    className="w-full bg-black/40 border border-primary/30 text-primary p-3 text-sm focus:border-yellow-500 focus:outline-none"
-                    disabled={isUpdating}
-                  />
-                </div>
-
-                {/* Description */}
-                <div>
-                  <label className="block text-xs text-primary/40 uppercase mb-1">Descripción</label>
-                  <textarea
-                    value={editForm.description || ''}
-                    onChange={(e) => setEditForm(prev => ({ ...prev, description: e.target.value }))}
-                    rows={3}
-                    className="w-full bg-black/40 border border-primary/30 text-primary p-3 text-sm focus:border-yellow-500 focus:outline-none resize-none"
-                    disabled={isUpdating}
-                  />
-                </div>
-
-                {/* Active */}
-                <label className="flex items-center gap-2 text-sm text-primary/60 cursor-pointer">
-                  <input
-                    type="checkbox"
-                    checked={editForm.isActive ?? selectedCampaign.isActive}
-                    onChange={(e) => setEditForm(prev => ({ ...prev, isActive: e.target.checked }))}
-                    className="accent-primary w-4 h-4"
-                    disabled={isUpdating}
-                  />
-                  Campaña Activa
-                </label>
-              </div>
-
-              {/* Action Buttons */}
-              <div className="mt-6 flex gap-2">
-                <Button 
-                  onClick={() => setShowEditForm(false)} 
-                  variant="secondary"
-                  className="flex-1"
-                >
-                  CANCELAR
-                </Button>
-                <Button 
-                  onClick={handleUpdate} 
-                  disabled={isUpdating}
-                  className="flex-1"
-                >
-                  {isUpdating ? 'GUARDANDO...' : 'GUARDAR CAMBIOS'}
-                </Button>
-              </div>
-            </div>
-          ) : showTransferForm && selectedCampaign ? (
-            /* Transfer Ownership Form */
-            <div className="border border-purple-500/30 bg-black/60 p-6 flex-1">
-              <h2 className="text-sm text-purple-500/60 uppercase tracking-widest mb-4 flex items-center gap-2">
-                <span className="material-icons text-xs">swap_horiz</span>
-                Transferir Propiedad
-              </h2>
-              
-              <div className="space-y-4">
-                {/* Current Owner */}
-                <div className="bg-black/40 border border-primary/20 p-3">
-                  <p className="text-[10px] text-primary/40 uppercase mb-1">Propietario Actual</p>
-                  <p className="text-sm text-primary">{selectedCampaign.ownerName}</p>
-                </div>
-
-                {/* New Owner Selection */}
-                <div>
-                  <label className="block text-xs text-primary/40 uppercase mb-1">Nuevo Propietario</label>
-                  {isLoadingUsers ? (
-                    <div className="text-primary/40 text-sm animate-pulse p-3">Cargando usuarios...</div>
-                  ) : (
-                    <select
-                      value={transferOwnerId}
-                      onChange={(e) => setTransferOwnerId(e.target.value)}
-                      className="w-full bg-black/40 border border-primary/30 text-primary p-3 text-sm focus:border-purple-500 focus:outline-none"
+          {/* Right Column - Campaign Details / Edit Form / Transfer Form */}
+          <div className="flex-1 flex flex-col gap-4 overflow-hidden">
+            {showEditForm && selectedCampaign ? (
+              /* Edit Form */
+              <div className="border border-yellow-500/30 bg-black/60 p-6 flex-1">
+                <h2 className="text-sm text-yellow-500/60 uppercase tracking-widest mb-4 flex items-center gap-2">
+                  <span className="material-icons text-xs">edit</span>
+                  Editar Campaña
+                </h2>
+                
+                <div className="space-y-4">
+                  {/* Name */}
+                  <div>
+                    <label className="block text-xs text-primary/40 uppercase mb-1">Nombre</label>
+                    <input
+                      type="text"
+                      value={editForm.name || ''}
+                      onChange={(e) => setEditForm(prev => ({ ...prev, name: e.target.value }))}
+                      className="w-full bg-black/40 border border-primary/30 text-primary p-3 text-sm focus:border-yellow-500 focus:outline-none"
                       disabled={isUpdating}
+                    />
+                  </div>
+
+                  {/* Description */}
+                  <div>
+                    <label className="block text-xs text-primary/40 uppercase mb-1">Descripción</label>
+                    <textarea
+                      value={editForm.description || ''}
+                      onChange={(e) => setEditForm(prev => ({ ...prev, description: e.target.value }))}
+                      rows={3}
+                      className="w-full bg-black/40 border border-primary/30 text-primary p-3 text-sm focus:border-yellow-500 focus:outline-none resize-none"
+                      disabled={isUpdating}
+                    />
+                  </div>
+
+                  {/* Active */}
+                  <label className="flex items-center gap-2 text-sm text-primary/60 cursor-pointer">
+                    <input
+                      type="checkbox"
+                      checked={editForm.isActive ?? selectedCampaign.isActive}
+                      onChange={(e) => setEditForm(prev => ({ ...prev, isActive: e.target.checked }))}
+                      className="accent-primary w-4 h-4"
+                      disabled={isUpdating}
+                    />
+                    Campaña Activa
+                  </label>
+                </div>
+
+                <AdminFormActions
+                  onCancel={() => setShowEditForm(false)}
+                  onSave={handleUpdate}
+                  isSaving={isUpdating}
+                />
+              </div>
+            ) : showTransferForm && selectedCampaign ? (
+              /* Transfer Ownership Form */
+              <div className="border border-purple-500/30 bg-black/60 p-6 flex-1">
+                <h2 className="text-sm text-purple-500/60 uppercase tracking-widest mb-4 flex items-center gap-2">
+                  <span className="material-icons text-xs">swap_horiz</span>
+                  Transferir Propiedad
+                </h2>
+                
+                <div className="space-y-4">
+                  {/* Current Owner */}
+                  <div className="bg-black/40 border border-primary/20 p-3">
+                    <p className="text-[10px] text-primary/40 uppercase mb-1">Propietario Actual</p>
+                    <p className="text-sm text-primary">{selectedCampaign.ownerName}</p>
+                  </div>
+
+                  {/* New Owner Selection */}
+                  <div>
+                    <label className="block text-xs text-primary/40 uppercase mb-1">Nuevo Propietario</label>
+                    {isLoadingUsers ? (
+                      <div className="text-primary/40 text-sm animate-pulse p-3">Cargando usuarios...</div>
+                    ) : (
+                      <select
+                        value={transferOwnerId}
+                        onChange={(e) => setTransferOwnerId(e.target.value)}
+                        className="w-full bg-black/40 border border-primary/30 text-primary p-3 text-sm focus:border-purple-500 focus:outline-none"
+                        disabled={isUpdating}
+                      >
+                        <option value="">Seleccionar usuario...</option>
+                        {users
+                          .filter(u => u.id !== selectedCampaign.ownerId)
+                          .map(user => (
+                            <option key={user.id} value={user.id}>
+                              {user.displayName || user.email} ({user.email})
+                            </option>
+                          ))
+                        }
+                      </select>
+                    )}
+                  </div>
+
+                  {/* Warning */}
+                  <div className="bg-yellow-500/10 border border-yellow-500/30 p-3 text-xs text-yellow-400">
+                    <span className="material-icons text-sm align-middle mr-1">warning</span>
+                    Esta acción transferirá todos los permisos de propietario al nuevo usuario.
+                  </div>
+                </div>
+
+                <div className="mt-6 flex gap-2">
+                  <Button
+                    onClick={() => setShowTransferForm(false)}
+                    variant="secondary"
+                    className="flex-1"
+                  >
+                    CANCELAR
+                  </Button>
+                  <Button
+                    onClick={handleTransfer}
+                    disabled={isUpdating || !transferOwnerId}
+                    className="flex-1 bg-purple-500/20 border-purple-500 text-purple-400 hover:bg-purple-500 hover:text-black"
+                  >
+                    {isUpdating ? 'TRANSFIRIENDO...' : 'TRANSFERIR'}
+                  </Button>
+                </div>
+              </div>
+            ) : selectedCampaign ? (
+              /* Campaign Details */
+              <div className="border border-primary/30 bg-black/60 flex-1 flex flex-col overflow-hidden">
+                <div className="bg-primary/10 p-4 text-xs text-primary uppercase tracking-widest flex items-center justify-between">
+                  <span className="flex items-center gap-2">
+                    <span className="material-icons text-sm">public</span>
+                    Detalles de la Campaña
+                  </span>
+                  <div className="flex gap-1">
+                    <button 
+                      onClick={() => openEditForm(selectedCampaign)}
+                      className="material-icons text-sm text-primary/60 hover:text-cyan-500 transition-colors"
+                      title="Editar"
                     >
-                      <option value="">Seleccionar usuario...</option>
-                      {users
-                        .filter(u => u.id !== selectedCampaign.ownerId)
-                        .map(user => (
-                          <option key={user.id} value={user.id}>
-                            {user.displayName || user.email} ({user.email})
-                          </option>
-                        ))
-                      }
-                    </select>
-                  )}
+                      edit
+                    </button>
+                    <button 
+                      onClick={() => openTransferForm(selectedCampaign)}
+                      className="material-icons text-sm text-primary/60 hover:text-purple-500 transition-colors"
+                      title="Transferir"
+                    >
+                      swap_horiz
+                    </button>
+                  </div>
                 </div>
+                
+                <div className="flex-1 p-6 overflow-y-auto space-y-4">
+                  {/* Name & Status */}
+                  <div className="pb-4 border-b border-primary/20">
+                    <div className="flex items-center gap-3">
+                      <h3 className="text-2xl text-primary font-bold">{selectedCampaign.name}</h3>
+                      <AdminStatusBadge
+                        isActive={selectedCampaign.isActive}
+                        activeLabel="ACTIVA"
+                        inactiveLabel="INACTIVA"
+                      />
+                    </div>
+                    {selectedCampaign.description && (
+                      <p className="text-sm text-primary/60 mt-2">{selectedCampaign.description}</p>
+                    )}
+                  </div>
 
-                {/* Warning */}
-                <div className="bg-yellow-500/10 border border-yellow-500/30 p-3 text-xs text-yellow-400">
-                  <span className="material-icons text-sm align-middle mr-1">warning</span>
-                  Esta acción transferirá todos los permisos de propietario al nuevo usuario.
-                </div>
-              </div>
+                  {/* Join Code */}
+                  <div className="bg-black/40 border border-cyan-500/20 p-3">
+                    <p className="text-[10px] text-cyan-500/60 uppercase mb-1">Código de Invitación</p>
+                    <p className="text-xl text-cyan-400 font-mono tracking-[0.3em]">{selectedCampaign.joinCode}</p>
+                  </div>
 
-              {/* Action Buttons */}
-              <div className="mt-6 flex gap-2">
-                <Button 
-                  onClick={() => setShowTransferForm(false)} 
-                  variant="secondary"
-                  className="flex-1"
-                >
-                  CANCELAR
-                </Button>
-                <Button 
-                  onClick={handleTransfer} 
-                  disabled={isUpdating || !transferOwnerId}
-                  className="flex-1 bg-purple-500/20 border-purple-500 text-purple-400 hover:bg-purple-500 hover:text-black"
-                >
-                  {isUpdating ? 'TRANSFIRIENDO...' : 'TRANSFERIR'}
-                </Button>
-              </div>
-            </div>
-          ) : selectedCampaign ? (
-            /* Campaign Details */
-            <div className="border border-primary/30 bg-black/60 flex-1 flex flex-col overflow-hidden">
-              <div className="bg-primary/10 p-4 text-xs text-primary uppercase tracking-widest flex items-center justify-between">
-                <span className="flex items-center gap-2">
-                  <span className="material-icons text-sm">public</span>
-                  Detalles de la Campaña
-                </span>
-                <div className="flex gap-1">
-                  <button 
-                    onClick={() => openEditForm(selectedCampaign)}
-                    className="material-icons text-sm text-primary/60 hover:text-cyan-500 transition-colors"
-                    title="Editar"
-                  >
-                    edit
-                  </button>
-                  <button 
-                    onClick={() => openTransferForm(selectedCampaign)}
-                    className="material-icons text-sm text-primary/60 hover:text-purple-500 transition-colors"
-                    title="Transferir"
-                  >
-                    swap_horiz
-                  </button>
-                </div>
-              </div>
-              
-              <div className="flex-1 p-6 overflow-y-auto space-y-4">
-                {/* Name & Status */}
-                <div className="pb-4 border-b border-primary/20">
-                  <div className="flex items-center gap-3">
-                    <h3 className="text-2xl text-primary font-bold">{selectedCampaign.name}</h3>
-                    <span className={`text-xs px-2 py-0.5 border ${
-                      selectedCampaign.isActive 
-                        ? 'border-green-500/40 text-green-400 bg-green-500/10' 
-                        : 'border-gray-500/40 text-gray-400 bg-gray-500/10'
-                    }`}>
-                      {selectedCampaign.isActive ? 'ACTIVA' : 'INACTIVA'}
-                    </span>
+                  {/* Stats Grid */}
+                  <div className="grid grid-cols-2 gap-3">
+                    <AdminStatCard label="Miembros" value={selectedCampaign.memberCount} />
+                    <AdminStatCard label="Entidades" value={selectedCampaign.entityCount} />
                   </div>
-                  {selectedCampaign.description && (
-                    <p className="text-sm text-primary/60 mt-2">{selectedCampaign.description}</p>
-                  )}
-                </div>
 
-                {/* Join Code */}
-                <div className="bg-black/40 border border-cyan-500/20 p-3">
-                  <p className="text-[10px] text-cyan-500/60 uppercase mb-1">Código de Invitación</p>
-                  <p className="text-xl text-cyan-400 font-mono tracking-[0.3em]">{selectedCampaign.joinCode}</p>
-                </div>
+                  {/* Owner & System */}
+                  <div className="space-y-2 text-sm">
+                    <div className="flex justify-between">
+                      <span className="text-primary/40">Propietario:</span>
+                      <span className="text-primary">{selectedCampaign.ownerName}</span>
+                    </div>
+                    <div className="flex justify-between">
+                      <span className="text-primary/40">Sistema:</span>
+                      <span className="text-primary">{selectedCampaign.gameSystemName}</span>
+                    </div>
+                    <div className="flex justify-between">
+                      <span className="text-primary/40">Creada:</span>
+                      <span className="text-primary">{formatAdminDate(selectedCampaign.createdAt)}</span>
+                    </div>
+                    <div className="flex justify-between">
+                      <span className="text-primary/40">Actualizada:</span>
+                      <span className="text-primary">{formatAdminDate(selectedCampaign.updatedAt)}</span>
+                    </div>
+                  </div>
 
-                {/* Stats Grid */}
-                <div className="grid grid-cols-2 gap-3">
-                  <div className="bg-black/40 border border-primary/20 p-3">
-                    <p className="text-[10px] text-primary/40 uppercase">Miembros</p>
-                    <p className="text-2xl text-primary font-bold">{selectedCampaign.memberCount}</p>
-                  </div>
-                  <div className="bg-black/40 border border-primary/20 p-3">
-                    <p className="text-[10px] text-primary/40 uppercase">Entidades</p>
-                    <p className="text-2xl text-primary font-bold">{selectedCampaign.entityCount}</p>
-                  </div>
-                </div>
-
-                {/* Owner & System */}
-                <div className="space-y-2 text-sm">
-                  <div className="flex justify-between">
-                    <span className="text-primary/40">Propietario:</span>
-                    <span className="text-primary">{selectedCampaign.ownerName}</span>
-                  </div>
-                  <div className="flex justify-between">
-                    <span className="text-primary/40">Sistema:</span>
-                    <span className="text-primary">{selectedCampaign.gameSystemName}</span>
-                  </div>
-                  <div className="flex justify-between">
-                    <span className="text-primary/40">Creada:</span>
-                    <span className="text-primary">{formatDate(selectedCampaign.createdAt)}</span>
-                  </div>
-                  <div className="flex justify-between">
-                    <span className="text-primary/40">Actualizada:</span>
-                    <span className="text-primary">{formatDate(selectedCampaign.updatedAt)}</span>
-                  </div>
-                </div>
-
-                {/* IDs */}
-                <div className="pt-4 border-t border-primary/20 space-y-2">
-                  <div>
-                    <p className="text-[10px] text-primary/30 uppercase">Campaign ID</p>
-                    <p className="text-xs text-primary/60 font-mono break-all">{selectedCampaign.id}</p>
-                  </div>
-                  <div>
-                    <p className="text-[10px] text-primary/30 uppercase">Owner ID</p>
-                    <p className="text-xs text-primary/60 font-mono break-all">{selectedCampaign.ownerId}</p>
-                  </div>
-                  <div>
-                    <p className="text-[10px] text-primary/30 uppercase">Game System ID</p>
-                    <p className="text-xs text-primary/60 font-mono break-all">{selectedCampaign.gameSystemId}</p>
+                  {/* IDs */}
+                  <div className="pt-4 border-t border-primary/20 space-y-2">
+                    <div>
+                      <p className="text-[10px] text-primary/30 uppercase">Campaign ID</p>
+                      <p className="text-xs text-primary/60 font-mono break-all">{selectedCampaign.id}</p>
+                    </div>
+                    <div>
+                      <p className="text-[10px] text-primary/30 uppercase">Owner ID</p>
+                      <p className="text-xs text-primary/60 font-mono break-all">{selectedCampaign.ownerId}</p>
+                    </div>
+                    <div>
+                      <p className="text-[10px] text-primary/30 uppercase">Game System ID</p>
+                      <p className="text-xs text-primary/60 font-mono break-all">{selectedCampaign.gameSystemId}</p>
+                    </div>
                   </div>
                 </div>
               </div>
-            </div>
-          ) : (
-            /* No Selection */
-            <div className="border border-primary/30 bg-black/60 flex-1 flex flex-col items-center justify-center text-primary/40">
-              <span className="material-icons text-6xl mb-4">public</span>
-              <p className="text-sm uppercase">Selecciona una campaña</p>
-              <p className="text-xs mt-1">para ver sus detalles</p>
-            </div>
-          )}
+            ) : (
+              /* No Selection */
+              <AdminEmptyState icon="public" message="Selecciona una campaña" />
+            )}
 
-          {/* Terminal Log */}
-          <div className="border border-primary/30 bg-black/80 h-48 flex flex-col">
-            <div className="bg-primary/20 p-2 text-xs text-primary uppercase tracking-widest flex items-center gap-2">
-              <span className="material-icons text-sm">terminal</span>
-              System Log
-            </div>
-            <TerminalLog logs={logs} maxLogs={12} className="flex-1" />
+            <AdminTerminalPanel logs={logs} />
           </div>
         </div>
-      </div>
-    </AdminLayout>
+      </AdminLayout>
+    </AdminGuard>
   );
 };

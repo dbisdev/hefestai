@@ -96,9 +96,9 @@ export interface AdminCampaign {
 }
 
 /**
- * Request to create a new user (Admin only).
+ * Input to create a new user (Admin only).
  */
-export interface CreateUserRequest {
+export interface CreateUserInput {
   /** User email address. */
   email: string;
   /** User password. */
@@ -112,10 +112,10 @@ export interface CreateUserRequest {
 }
 
 /**
- * Request to update a user (Admin only).
+ * Input to update a user (Admin only).
  * All fields are optional - only provided fields will be updated.
  */
-export interface UpdateUserRequest {
+export interface UpdateUserInput {
   /** New email (optional). */
   email?: string;
   /** New password (optional). */
@@ -129,10 +129,10 @@ export interface UpdateUserRequest {
 }
 
 /**
- * Request to update a campaign (Admin only).
+ * Input to update a campaign (Admin only).
  * All fields are optional - only provided fields will be updated.
  */
-export interface AdminUpdateCampaignRequest {
+export interface AdminUpdateCampaignInput {
   /** New campaign name (optional). */
   name?: string;
   /** New description (optional). */

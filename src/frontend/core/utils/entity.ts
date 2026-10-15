@@ -4,7 +4,7 @@
  * Used by EntityEditModal, EntityViewModal, and other components
  */
 
-import type { FieldDefinition } from '@core/types';
+import type { FieldDefinition, DynamicStats } from '@core/types';
 
 /**
  * Map of field identifier (name) to display name.
@@ -55,7 +55,7 @@ export const getDisplayLabel = (key: string, labelMap?: LabelMap): string => {
  * Checks if a value is a nested object (like SKILLS)
  * Used to determine how to render attribute values
  */
-export const isNestedObject = (value: unknown): value is Record<string, unknown> => {
+export const isNestedObject = (value: unknown): value is Record<string, number | string> => {
   return typeof value === 'object' && value !== null && !Array.isArray(value);
 };
 
@@ -63,14 +63,14 @@ export const isNestedObject = (value: unknown): value is Record<string, unknown>
  * Categorizes entity attributes by type for rendering
  * Returns separate arrays for numeric, string, and nested attributes
  */
-export const categorizeAttributes = (attributes: Record<string, unknown>): {
+export const categorizeAttributes = (attributes: DynamicStats): {
   numeric: [string, number][];
   string: [string, string][];
-  nested: [string, Record<string, unknown>][];
+  nested: [string, Record<string, number | string>][];
 } => {
   const numeric: [string, number][] = [];
   const string: [string, string][] = [];
-  const nested: [string, Record<string, unknown>][] = [];
+  const nested: [string, Record<string, number | string>][] = [];
 
   Object.entries(attributes).forEach(([key, value]) => {
     if (typeof value === 'number') {
@@ -89,7 +89,7 @@ export const categorizeAttributes = (attributes: Record<string, unknown>): {
  * Checks if entity has any attributes
  */
 export const hasEntityAttributes = (
-  attributes: Record<string, unknown> | undefined | null
+  attributes: DynamicStats | undefined | null
 ): boolean => {
   if (!attributes || Object.keys(attributes).length === 0) {
     return false;

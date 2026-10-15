@@ -76,7 +76,7 @@ public class LoginCommandHandlerTests
         result.RefreshToken.Should().Be("refresh_token");
 
         _userRepositoryMock.Verify(
-            x => x.UpdateAsync(user, It.IsAny<CancellationToken>()),
+            x => x.Update(user),
             Times.Once);
         _unitOfWorkMock.Verify(
             x => x.SaveChangesAsync(It.IsAny<CancellationToken>()),

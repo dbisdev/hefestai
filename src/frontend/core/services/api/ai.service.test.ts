@@ -10,6 +10,18 @@ vi.mock('./client', () => ({
   httpClient: {
     post: vi.fn(),
   },
+  // ApiRequestError is imported by ai.service.ts to construct error instances;
+  // the mock must export it so the service can call `new ApiRequestError(...)`.
+  ApiRequestError: class ApiRequestError extends Error {
+    status: number;
+    code?: string;
+    constructor(message: string, status: number, code?: string) {
+      super(message);
+      this.name = 'ApiRequestError';
+      this.status = status;
+      this.code = code;
+    }
+  },
 }));
 
 describe('AI Service', () => {

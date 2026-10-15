@@ -6,7 +6,7 @@ Actualmente, el proyecto está orientado principalmente al sistema de juego Alie
 
 Esto se debe a que determinados módulos, como el generador de Sistemas Solares, han sido diseñados específicamente conforme a las mecánicas y estructura de dicho sistema.
 
-Dado que algunos componentes pueden requerir desarrollo específico para cada reglamento, la evolución hacia un modelo completamente multisistema constituye una línea futura de trabajo que excede el alcance establecido para este Trabajo Fin de Máster.
+Dado que algunos componentes pueden requerir desarrollo específico para cada reglamento, la evolución hacia un modelo completamente multisistema constituye una línea futura de trabajo.
 
 ## Resumen de Arquitectura
 

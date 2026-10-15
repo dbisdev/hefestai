@@ -6,6 +6,7 @@
 
 import React, { useState, useEffect, useRef } from 'react';
 import type { GameSystem } from '@core/types';
+import { extractErrorMessage } from '@core/utils/error';
 
 interface CampaignCreateModalProps {
   gameSystems: GameSystem[];
@@ -68,7 +69,7 @@ export const CampaignCreateModal: React.FC<CampaignCreateModalProps> = ({
     try {
       await onCreate(name.trim(), description.trim() || undefined, gameSystemId);
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Error al crear la campaña');
+      setError(extractErrorMessage(err, 'Error al crear la campaña'));
     }
   };
 

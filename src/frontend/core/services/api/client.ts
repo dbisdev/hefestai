@@ -4,7 +4,7 @@
  * OWASP compliant: Handles auth tokens, validates responses
  */
 
-import { API_BASE, API_TIMEOUT } from '@core/config/constants';
+import { API_BASE, API_TIMEOUT, TOKEN_REFRESH_THRESHOLD_MS } from '@core/config/constants';
 import { tokenService } from '@core/services/storage/token.service';
 import type { RequestConfig, ApiError } from '@core/types';
 
@@ -75,9 +75,8 @@ function shouldRefreshToken(): boolean {
   const expiration = tokenService.getTokenExpiration(token);
   if (!expiration) return false;
   
-  // Refresh if token expires within 5 minutes
-  const threshold = 5 * 60 * 1000;
-  return expiration.getTime() - Date.now() < threshold;
+  // Refresh if token expires within the configured threshold
+  return expiration.getTime() - Date.now() < TOKEN_REFRESH_THRESHOLD_MS;
 }
 
 /**
@@ -85,16 +84,18 @@ function shouldRefreshToken(): boolean {
  */
 export async function apiRequest<T>(
   endpoint: string,
-  options: RequestConfig = {}
+  options: RequestConfig & { skipJsonContentType?: boolean } = {}
 ): Promise<T> {
-  const { skipAuth = false, timeout = API_TIMEOUT, ...fetchOptions } = options;
+  const { skipAuth = false, timeout = API_TIMEOUT, skipJsonContentType = false, ...fetchOptions } = options;
   
   const controller = new AbortController();
   const timeoutId = setTimeout(() => controller.abort(), timeout);
 
   try {
+    // Do not set Content-Type for multipart/form-data: the browser sets it automatically
+    // with the correct boundary when the body is a FormData instance.
     const headers: HeadersInit = {
-      'Content-Type': 'application/json',
+      ...(skipJsonContentType ? {} : { 'Content-Type': 'application/json' }),
       ...fetchOptions.headers,
     };
 
@@ -236,7 +237,6 @@ export async function apiRequest<T>(
 async function parseErrorResponse(response: Response): Promise<ApiError> {
   try {
     const data = await response.json();
-    console.log('parseErrorResponse data:', data);  // TEMPORAL
     return {
       message: data.message || data.title || data.error || `Request failed with status ${response.status}`,
       code: data.code,
@@ -281,4 +281,16 @@ export const httpClient = {
   
   delete: <T>(endpoint: string, options?: RequestConfig) => 
     apiRequest<T>(endpoint, { ...options, method: 'DELETE' }),
+
+  /**
+   * POST with multipart/form-data body (e.g. file uploads).
+   * Does NOT set Content-Type so the browser can inject the correct boundary automatically.
+   */
+  postForm: <T>(endpoint: string, formData: FormData, options?: RequestConfig) =>
+    apiRequest<T>(endpoint, {
+      ...options,
+      method: 'POST',
+      body: formData,
+      skipJsonContentType: true,
+    } as RequestConfig & { skipJsonContentType: boolean }),
 };

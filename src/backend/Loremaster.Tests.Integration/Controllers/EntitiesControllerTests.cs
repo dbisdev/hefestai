@@ -127,7 +127,7 @@ public class EntitiesControllerTests : IClassFixture<CustomWebApplicationFactory
         };
         var campaignResponse = await client.PostAsJsonAsync("/api/campaigns", campaignRequest);
         campaignResponse.EnsureSuccessStatusCode();
-        var campaign = await campaignResponse.Content.ReadFromJsonAsync<CampaignResponse>();
+        var campaign = await campaignResponse.Content.ReadFromJsonAsync<CampaignResponse>(TestJsonOptions.Default);
         
         return (client, campaign!.Id, userId, gameSystem.Id);
     }
@@ -154,7 +154,7 @@ public class EntitiesControllerTests : IClassFixture<CustomWebApplicationFactory
         var response = await client.PostAsJsonAsync($"/api/campaigns/{campaignId}/entities", request);
         response.EnsureSuccessStatusCode();
         
-        return (await response.Content.ReadFromJsonAsync<LoreEntityResponse>())!;
+        return (await response.Content.ReadFromJsonAsync<LoreEntityResponse>(TestJsonOptions.Default))!;
     }
 
     #endregion
@@ -181,7 +181,7 @@ public class EntitiesControllerTests : IClassFixture<CustomWebApplicationFactory
         // Assert
         response.StatusCode.Should().Be(HttpStatusCode.Created);
         
-        var content = await response.Content.ReadFromJsonAsync<LoreEntityResponse>();
+        var content = await response.Content.ReadFromJsonAsync<LoreEntityResponse>(TestJsonOptions.Default);
         content.Should().NotBeNull();
         content!.Name.Should().Be(request.Name);
         content.Description.Should().Be(request.Description);
@@ -201,7 +201,7 @@ public class EntitiesControllerTests : IClassFixture<CustomWebApplicationFactory
 
         // Get join code
         var campaignResponse = await masterClient.GetAsync($"/api/campaigns/{campaignId}");
-        var campaign = await campaignResponse.Content.ReadFromJsonAsync<CampaignDetailResponse>();
+        var campaign = await campaignResponse.Content.ReadFromJsonAsync<CampaignDetailResponse>(TestJsonOptions.Default);
 
         // Player joins
         var authFactory = new AuthenticatedHttpClientFactory(_factory);
@@ -222,7 +222,7 @@ public class EntitiesControllerTests : IClassFixture<CustomWebApplicationFactory
         // Assert
         response.StatusCode.Should().Be(HttpStatusCode.Created);
         
-        var content = await response.Content.ReadFromJsonAsync<LoreEntityResponse>();
+        var content = await response.Content.ReadFromJsonAsync<LoreEntityResponse>(TestJsonOptions.Default);
         content!.OwnershipType.Should().Be(OwnershipType.Player);
         content.OwnerId.ToString().Should().Be(playerId);
     }
@@ -309,7 +309,7 @@ public class EntitiesControllerTests : IClassFixture<CustomWebApplicationFactory
         // Assert
         response.StatusCode.Should().Be(HttpStatusCode.OK);
         
-        var content = await response.Content.ReadFromJsonAsync<GetEntitiesResponse>();
+        var content = await response.Content.ReadFromJsonAsync<GetEntitiesResponse>(TestJsonOptions.Default);
         content.Should().NotBeNull();
         content!.Items.Should().HaveCount(2);
     }
@@ -331,7 +331,7 @@ public class EntitiesControllerTests : IClassFixture<CustomWebApplicationFactory
         // Assert
         response.StatusCode.Should().Be(HttpStatusCode.OK);
         
-        var content = await response.Content.ReadFromJsonAsync<GetEntitiesResponse>();
+        var content = await response.Content.ReadFromJsonAsync<GetEntitiesResponse>(TestJsonOptions.Default);
         content!.Items.Should().HaveCount(2);
         content.Items.All(e => e.EntityType == "character").Should().BeTrue();
     }
@@ -373,7 +373,7 @@ public class EntitiesControllerTests : IClassFixture<CustomWebApplicationFactory
         // Assert
         response.StatusCode.Should().Be(HttpStatusCode.OK);
         
-        var content = await response.Content.ReadFromJsonAsync<LoreEntityResponse>();
+        var content = await response.Content.ReadFromJsonAsync<LoreEntityResponse>(TestJsonOptions.Default);
         content!.Id.Should().Be(entity.Id);
         content.Name.Should().Be("Specific Entity");
     }
@@ -439,7 +439,7 @@ public class EntitiesControllerTests : IClassFixture<CustomWebApplicationFactory
         // Assert
         response.StatusCode.Should().Be(HttpStatusCode.OK);
         
-        var content = await response.Content.ReadFromJsonAsync<LoreEntityResponse>();
+        var content = await response.Content.ReadFromJsonAsync<LoreEntityResponse>(TestJsonOptions.Default);
         content!.Name.Should().Be("Updated Name");
         content.Description.Should().Be("Updated Description");
     }
@@ -471,7 +471,7 @@ public class EntitiesControllerTests : IClassFixture<CustomWebApplicationFactory
         // Assert
         response.StatusCode.Should().Be(HttpStatusCode.OK);
         
-        var content = await response.Content.ReadFromJsonAsync<LoreEntityResponse>();
+        var content = await response.Content.ReadFromJsonAsync<LoreEntityResponse>(TestJsonOptions.Default);
         content!.Name.Should().Be("Master Updated");
         content.Description.Should().Be("Updated by master");
     }
@@ -484,7 +484,7 @@ public class EntitiesControllerTests : IClassFixture<CustomWebApplicationFactory
             $"master-forbid-player-{Guid.NewGuid()}@example.com");
 
         var campaignResponse = await masterClient.GetAsync($"/api/campaigns/{campaignId}");
-        var campaign = await campaignResponse.Content.ReadFromJsonAsync<CampaignDetailResponse>();
+        var campaign = await campaignResponse.Content.ReadFromJsonAsync<CampaignDetailResponse>(TestJsonOptions.Default);
 
         var authFactory = new AuthenticatedHttpClientFactory(_factory);
         var (playerClient, _, _) = await authFactory.CreateAuthenticatedClientAsync(
@@ -524,7 +524,7 @@ public class EntitiesControllerTests : IClassFixture<CustomWebApplicationFactory
         var entity = await CreateEntityAsync(masterClient, campaignId, name: "Master Entity");
 
         var campaignResponse = await masterClient.GetAsync($"/api/campaigns/{campaignId}");
-        var campaign = await campaignResponse.Content.ReadFromJsonAsync<CampaignDetailResponse>();
+        var campaign = await campaignResponse.Content.ReadFromJsonAsync<CampaignDetailResponse>(TestJsonOptions.Default);
 
         // Player joins and tries to update master's entity
         var authFactory = new AuthenticatedHttpClientFactory(_factory);
@@ -577,7 +577,7 @@ public class EntitiesControllerTests : IClassFixture<CustomWebApplicationFactory
         var entity = await CreateEntityAsync(masterClient, campaignId);
 
         var campaignResponse = await masterClient.GetAsync($"/api/campaigns/{campaignId}");
-        var campaign = await campaignResponse.Content.ReadFromJsonAsync<CampaignDetailResponse>();
+        var campaign = await campaignResponse.Content.ReadFromJsonAsync<CampaignDetailResponse>(TestJsonOptions.Default);
 
         // Player joins and tries to delete
         var authFactory = new AuthenticatedHttpClientFactory(_factory);
@@ -613,7 +613,7 @@ public class EntitiesControllerTests : IClassFixture<CustomWebApplicationFactory
         // Assert
         response.StatusCode.Should().Be(HttpStatusCode.OK);
         
-        var content = await response.Content.ReadFromJsonAsync<LoreEntityResponse>();
+        var content = await response.Content.ReadFromJsonAsync<LoreEntityResponse>(TestJsonOptions.Default);
         content!.Visibility.Should().Be(VisibilityLevel.Public);
     }
 
@@ -627,7 +627,7 @@ public class EntitiesControllerTests : IClassFixture<CustomWebApplicationFactory
         var entity = await CreateEntityAsync(masterClient, campaignId);
 
         var campaignResponse = await masterClient.GetAsync($"/api/campaigns/{campaignId}");
-        var campaign = await campaignResponse.Content.ReadFromJsonAsync<CampaignDetailResponse>();
+        var campaign = await campaignResponse.Content.ReadFromJsonAsync<CampaignDetailResponse>(TestJsonOptions.Default);
 
         // Player joins
         var authFactory = new AuthenticatedHttpClientFactory(_factory);
@@ -661,7 +661,7 @@ public class EntitiesControllerTests : IClassFixture<CustomWebApplicationFactory
             visibility: VisibilityLevel.Draft);
 
         var campaignResponse = await masterClient.GetAsync($"/api/campaigns/{campaignId}");
-        var campaign = await campaignResponse.Content.ReadFromJsonAsync<CampaignDetailResponse>();
+        var campaign = await campaignResponse.Content.ReadFromJsonAsync<CampaignDetailResponse>(TestJsonOptions.Default);
 
         // Player joins
         var authFactory = new AuthenticatedHttpClientFactory(_factory);
@@ -692,7 +692,7 @@ public class EntitiesControllerTests : IClassFixture<CustomWebApplicationFactory
 
         // Get join code
         var campaignResponse = await masterClient.GetAsync($"/api/campaigns/{campaignId}");
-        var campaign = await campaignResponse.Content.ReadFromJsonAsync<CampaignDetailResponse>();
+        var campaign = await campaignResponse.Content.ReadFromJsonAsync<CampaignDetailResponse>(TestJsonOptions.Default);
 
         // Player joins
         var authFactory = new AuthenticatedHttpClientFactory(_factory);
@@ -725,7 +725,7 @@ public class EntitiesControllerTests : IClassFixture<CustomWebApplicationFactory
         // Assert
         response.StatusCode.Should().Be(HttpStatusCode.OK);
         
-        var content = await response.Content.ReadFromJsonAsync<LoreEntityResponse>();
+        var content = await response.Content.ReadFromJsonAsync<LoreEntityResponse>(TestJsonOptions.Default);
         content!.OwnerId.Should().Be(playerUser.Id);
         content.OwnershipType.Should().Be(OwnershipType.Player);
     }
@@ -764,7 +764,7 @@ public class EntitiesControllerTests : IClassFixture<CustomWebApplicationFactory
         // Assert
         response.StatusCode.Should().Be(HttpStatusCode.OK);
         
-        var content = await response.Content.ReadFromJsonAsync<LoreEntityResponse>();
+        var content = await response.Content.ReadFromJsonAsync<LoreEntityResponse>(TestJsonOptions.Default);
         content!.OwnershipType.Should().Be(OwnershipType.Shared);
     }
 
@@ -778,7 +778,7 @@ public class EntitiesControllerTests : IClassFixture<CustomWebApplicationFactory
         var entity = await CreateEntityAsync(masterClient, campaignId);
 
         var campaignResponse = await masterClient.GetAsync($"/api/campaigns/{campaignId}");
-        var campaign = await campaignResponse.Content.ReadFromJsonAsync<CampaignDetailResponse>();
+        var campaign = await campaignResponse.Content.ReadFromJsonAsync<CampaignDetailResponse>(TestJsonOptions.Default);
 
         // Player joins
         var authFactory = new AuthenticatedHttpClientFactory(_factory);
@@ -886,7 +886,7 @@ public class EntitiesControllerTests : IClassFixture<CustomWebApplicationFactory
 
         // Get join code
         var campaignResponse = await masterClient.GetAsync($"/api/campaigns/{campaignId}");
-        var campaign = await campaignResponse.Content.ReadFromJsonAsync<CampaignDetailResponse>();
+        var campaign = await campaignResponse.Content.ReadFromJsonAsync<CampaignDetailResponse>(TestJsonOptions.Default);
 
         // First player joins and creates entity
         var authFactory = new AuthenticatedHttpClientFactory(_factory);
@@ -918,7 +918,7 @@ public class EntitiesControllerTests : IClassFixture<CustomWebApplicationFactory
         // Assert
         response.StatusCode.Should().Be(HttpStatusCode.OK);
         
-        var content = await response.Content.ReadFromJsonAsync<LoreEntityResponse>();
+        var content = await response.Content.ReadFromJsonAsync<LoreEntityResponse>(TestJsonOptions.Default);
         content!.OwnerId.Should().Be(player2User.Id);
         content.OwnershipType.Should().Be(OwnershipType.Player);
     }
@@ -951,7 +951,7 @@ public class EntitiesControllerTests : IClassFixture<CustomWebApplicationFactory
         // Assert
         response.StatusCode.Should().Be(HttpStatusCode.Created);
         
-        var content = await response.Content.ReadFromJsonAsync<LoreEntityResponse>();
+        var content = await response.Content.ReadFromJsonAsync<LoreEntityResponse>(TestJsonOptions.Default);
         content.Should().NotBeNull();
         content!.Name.Should().Be(request.Name);
         content.EntityType.Should().Be("character");
@@ -1012,7 +1012,7 @@ public class EntitiesControllerTests : IClassFixture<CustomWebApplicationFactory
         };
         var campaignResponse = await client.PostAsJsonAsync("/api/campaigns", campaignRequest);
         campaignResponse.EnsureSuccessStatusCode();
-        var campaign = await campaignResponse.Content.ReadFromJsonAsync<CampaignResponse>();
+        var campaign = await campaignResponse.Content.ReadFromJsonAsync<CampaignResponse>(TestJsonOptions.Default);
 
         // Try to create entity with non-normalized name "Player Character"
         var request = new
@@ -1028,7 +1028,7 @@ public class EntitiesControllerTests : IClassFixture<CustomWebApplicationFactory
         // Assert - Should succeed because the type name is normalized during validation
         response.StatusCode.Should().Be(HttpStatusCode.Created);
         
-        var content = await response.Content.ReadFromJsonAsync<LoreEntityResponse>();
+        var content = await response.Content.ReadFromJsonAsync<LoreEntityResponse>(TestJsonOptions.Default);
         content!.EntityType.Should().Be("player_character"); // Should be normalized
     }
 
@@ -1073,7 +1073,7 @@ public class EntitiesControllerTests : IClassFixture<CustomWebApplicationFactory
         };
         var campaignResponse = await client.PostAsJsonAsync("/api/campaigns", campaignRequest);
         campaignResponse.EnsureSuccessStatusCode();
-        var campaign = await campaignResponse.Content.ReadFromJsonAsync<CampaignResponse>();
+        var campaign = await campaignResponse.Content.ReadFromJsonAsync<CampaignResponse>(TestJsonOptions.Default);
 
         // Try to create entity with the draft template type
         var request = new
@@ -1121,7 +1121,7 @@ public class EntitiesControllerTests : IClassFixture<CustomWebApplicationFactory
         };
         var campaignResponse = await client2.PostAsJsonAsync("/api/campaigns", campaignRequest);
         campaignResponse.EnsureSuccessStatusCode();
-        var campaign = await campaignResponse.Content.ReadFromJsonAsync<CampaignResponse>();
+        var campaign = await campaignResponse.Content.ReadFromJsonAsync<CampaignResponse>(TestJsonOptions.Default);
 
         // User2 tries to create entity using User1's template type
         var request = new
@@ -1159,8 +1159,8 @@ public class EntitiesControllerTests : IClassFixture<CustomWebApplicationFactory
         characterResponse.StatusCode.Should().Be(HttpStatusCode.Created);
         locationResponse.StatusCode.Should().Be(HttpStatusCode.Created);
         
-        var character = await characterResponse.Content.ReadFromJsonAsync<LoreEntityResponse>();
-        var location = await locationResponse.Content.ReadFromJsonAsync<LoreEntityResponse>();
+        var character = await characterResponse.Content.ReadFromJsonAsync<LoreEntityResponse>(TestJsonOptions.Default);
+        var location = await locationResponse.Content.ReadFromJsonAsync<LoreEntityResponse>(TestJsonOptions.Default);
         
         character!.EntityType.Should().Be("character");
         location!.EntityType.Should().Be("location");

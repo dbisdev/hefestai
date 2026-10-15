@@ -7,12 +7,10 @@ using Loremaster.Application.Features.EntityTemplates.Commands.UpdateTemplate;
 using Loremaster.Application.Features.EntityTemplates.DTOs;
 using Loremaster.Application.Features.EntityTemplates.Queries.GetTemplateById;
 using Loremaster.Application.Features.EntityTemplates.Queries.GetTemplatesByGameSystem;
-using Loremaster.Application.Common.Interfaces;
 using Loremaster.Domain.Enums;
 using MediatR;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
-using System.Security.Claims;
 
 namespace Loremaster.Api.Controllers;
 
@@ -28,15 +26,13 @@ namespace Loremaster.Api.Controllers;
 [ApiController]
 [Route("api/game-systems/{gameSystemId:guid}/templates")]
 [Authorize] // Base authorization - must be authenticated
-public class EntityTemplatesController : ControllerBase
+public class EntityTemplatesController : ApiControllerBase
 {
     private readonly IMediator _mediator;
-    private readonly IGameSystemRepository _gameSystemRepository;
 
-    public EntityTemplatesController(IMediator mediator, IGameSystemRepository gameSystemRepository)
+    public EntityTemplatesController(IMediator mediator)
     {
         _mediator = mediator;
-        _gameSystemRepository = gameSystemRepository;
     }
 
     /// <summary>
@@ -129,27 +125,13 @@ public class EntityTemplatesController : ControllerBase
         var userId = GetCurrentUserId();
         var isAdmin = IsCurrentUserAdmin();
         
-        // Check if user owns the game system
-        var gameSystem = await _gameSystemRepository.GetByIdAsync(gameSystemId, cancellationToken);
-        var isSystemOwner = gameSystem?.OwnerId == userId;
-        
-        // Only Admin or system owner can extract templates
-        if (!isAdmin && !isSystemOwner)
-        {
-            return StatusCode(StatusCodes.Status403Forbidden, new { error = "Only the system owner or an Admin can extract templates" });
-        }
-        
-        // Use the system owner's ID for the templates (not the current user's ID)
-        // This ensures templates belong to the system, not the person who extracted them
-        var templateOwnerId = gameSystem!.OwnerId;
-        
+        // Ownership verification and templateOwnerId resolution are handled by the handler,
+        // keeping business rules in the Application layer.
         var command = new ExtractTemplatesFromManualCommand(
-            gameSystemId, 
-            templateOwnerId,  // Owner ID for templates (system owner)
-            userId,          // Current user ID for document search
+            gameSystemId,
+            userId,
             request?.SourceDocumentId,
-            isAdmin,
-            isSystemOwner);
+            isAdmin);
         
         try
         {
@@ -162,13 +144,11 @@ public class EntityTemplatesController : ControllerBase
             
             return Ok(result);
         }
-        catch (UnauthorizedAccessException ex)
-        {
-            return StatusCode(StatusCodes.Status403Forbidden, new { error = ex.Message });
-        }
         catch (ArgumentException ex)
         {
-            return NotFound(new { error = ex.Message });
+            // ArgumentException signals an invalid argument (e.g. game system not found by the provided ID),
+            // which is a bad request rather than a missing resource.
+            return BadRequest(new { error = ex.Message });
         }
     }
 
@@ -212,14 +192,6 @@ public class EntityTemplatesController : ControllerBase
             var result = await _mediator.Send(command, cancellationToken);
             return Ok(result);
         }
-        catch (ArgumentException ex)
-        {
-            return NotFound(ex.Message);
-        }
-        catch (UnauthorizedAccessException ex)
-        {
-            return StatusCode(StatusCodes.Status403Forbidden, new { error = ex.Message });
-        }
         catch (InvalidOperationException ex)
         {
             return BadRequest(new { error = ex.Message });
@@ -250,21 +222,19 @@ public class EntityTemplatesController : ControllerBase
         CancellationToken cancellationToken = default)
     {
         var userId = GetCurrentUserId();
+        var isAdmin = IsCurrentUserAdmin();
         
         var command = new ConfirmTemplateCommand(
             templateId,
             gameSystemId,
             userId, 
-            request?.Notes);
+            request?.Notes,
+            isAdmin);
         
         try
         {
             var result = await _mediator.Send(command, cancellationToken);
             return Ok(result);
-        }
-        catch (ArgumentException ex)
-        {
-            return NotFound(ex.Message);
         }
         catch (InvalidOperationException ex)
         {
@@ -302,14 +272,6 @@ public class EntityTemplatesController : ControllerBase
         {
             await _mediator.Send(command, cancellationToken);
             return Ok(new { message = "Template reverted to draft successfully" });
-        }
-        catch (ArgumentException ex)
-        {
-            return NotFound(new { error = ex.Message });
-        }
-        catch (UnauthorizedAccessException ex)
-        {
-            return StatusCode(StatusCodes.Status403Forbidden, new { error = ex.Message });
         }
         catch (InvalidOperationException ex)
         {
@@ -354,13 +316,17 @@ public class EntityTemplatesController : ControllerBase
                 new { gameSystemId, templateId = result.TemplateId },
                 result);
         }
-        catch (ArgumentException ex)
+        catch (KeyNotFoundException ex)
         {
-            return BadRequest(ex.Message);
+            return NotFound(new { error = ex.Message });
         }
         catch (UnauthorizedAccessException ex)
         {
-            return Forbid(ex.Message);
+            return StatusCode(StatusCodes.Status403Forbidden, new { error = ex.Message });
+        }
+        catch (InvalidOperationException ex)
+        {
+            return BadRequest(new { error = ex.Message });
         }
     }
 
@@ -393,44 +359,10 @@ public class EntityTemplatesController : ControllerBase
             var result = await _mediator.Send(command, cancellationToken);
             return Ok(result);
         }
-        catch (ArgumentException ex)
-        {
-            return NotFound(ex.Message);
-        }
-        catch (UnauthorizedAccessException ex)
-        {
-            return Forbid(ex.Message);
-        }
         catch (InvalidOperationException ex)
         {
             return BadRequest(ex.Message);
         }
-    }
-
-    private Guid GetCurrentUserId()
-    {
-        // Try JWT standard claim "sub" first (when MapInboundClaims = false)
-        // Fall back to ClaimTypes.NameIdentifier for compatibility
-        var userIdClaim = User.FindFirst("sub")?.Value
-            ?? User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
-        
-        if (string.IsNullOrEmpty(userIdClaim) || !Guid.TryParse(userIdClaim, out var userId))
-        {
-            throw new UnauthorizedAccessException("Invalid user token");
-        }
-
-        return userId;
-    }
-
-    /// <summary>
-    /// Checks if the current user has the Admin role.
-    /// </summary>
-    private bool IsCurrentUserAdmin()
-    {
-        var roleClaim = User.FindFirst("role")?.Value
-            ?? User.FindFirst(ClaimTypes.Role)?.Value;
-        
-        return roleClaim == "Admin";
     }
 }
 

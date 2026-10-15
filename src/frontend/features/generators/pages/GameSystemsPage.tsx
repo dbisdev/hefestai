@@ -12,6 +12,7 @@ import { ManualUploadModal, GameSystemDetailModal } from '@shared/components/mod
 import { useAuth } from '@core/context';
 import { useTerminalLog, useList, useConfirmDialog } from '@core/hooks';
 import { gameSystemService, entityTemplateService, campaignService, documentService } from '@core/services/api';
+import { logger } from '@core/utils';
 import { 
   useGameSystems 
 } from '@features/generators/hooks';
@@ -22,17 +23,18 @@ import {
 } from '@features/generators/components/game-systems';
 import type { 
   GameSystem, 
-  CreateGameSystemRequest, 
-  UpdateGameSystemRequest, 
+  CreateGameSystemInput, 
+  UpdateGameSystemInput, 
   EntityTemplateSummary, 
   Campaign 
 } from '@core/types';
+import { TERMINAL_LOG_LARGE } from '@core/config/constants';
 
 export const GameSystemsPage: React.FC = () => {
   const navigate = useNavigate();
   const { user } = useAuth();
   const { logs, addLog } = useTerminalLog({
-    maxLogs: 10,
+    maxLogs: TERMINAL_LOG_LARGE,
     initialLogs: [
       '> Game systems management online...',
       '> [SUCCESS] Repository connection established.',
@@ -137,7 +139,7 @@ export const GameSystemsPage: React.FC = () => {
         setHasDocuments(docAvailability.hasDocuments);
       } catch (error) {
         if (error instanceof Error) {
-          console.warn('[GameSystems] Could not load system data:', error.message);
+          logger.warn('[GameSystems] Could not load system data:', error.message);
           addLog(`WARN: No se pudo cargar datos del sistema`);
         }
         setConfirmedTemplates([]);
@@ -151,7 +153,7 @@ export const GameSystemsPage: React.FC = () => {
     loadSystemData();
   }, [selectedSystem, addLog]);
 
-  const handleCreate = async (data: CreateGameSystemRequest) => {
+  const handleCreate = async (data: CreateGameSystemInput) => {
     const result = await create(data);
     if (result) {
       addLog(`[SUCCESS] Sistema creado: ${result.name.toUpperCase()}`);
@@ -162,7 +164,7 @@ export const GameSystemsPage: React.FC = () => {
     return result;
   };
 
-  const handleUpdate = async (id: string, data: UpdateGameSystemRequest) => {
+  const handleUpdate = async (id: string, data: UpdateGameSystemInput) => {
     const result = await update(id, data);
     if (result) {
       addLog(`[SUCCESS] Sistema actualizado: ${result.name.toUpperCase()}`);
@@ -190,11 +192,11 @@ export const GameSystemsPage: React.FC = () => {
     }
   };
 
-  const handleFormSubmit = async (data: CreateGameSystemRequest | UpdateGameSystemRequest) => {
+  const handleFormSubmit = async (data: CreateGameSystemInput | UpdateGameSystemInput) => {
     if (formMode === 'create') {
-      return handleCreate(data as CreateGameSystemRequest);
+      return handleCreate(data as CreateGameSystemInput);
     } else if (selectedSystem) {
-      return handleUpdate(selectedSystem.id, data as UpdateGameSystemRequest);
+      return handleUpdate(selectedSystem.id, data as UpdateGameSystemInput);
     }
     return null;
   };
@@ -308,7 +310,7 @@ export const GameSystemsPage: React.FC = () => {
           <span className="material-icons text-sm">terminal</span>
           System Log
         </div>
-        <TerminalLog logs={logs} maxLogs={10} className="h-24 md:h-32" />
+        <TerminalLog logs={logs} maxLogs={TERMINAL_LOG_LARGE} className="h-24 md:h-32" />
       </div>
     </div>
   );

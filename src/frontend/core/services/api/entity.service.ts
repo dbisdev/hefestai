@@ -150,28 +150,4 @@ export const entityService = {
       input
     );
   },
-
-  // ============================================
-  // Legacy methods for backwards compatibility
-  // These will fail without a campaign context
-  // TODO: Remove after migration is complete
-  // ============================================
-
-  /**
-   * @deprecated Use getByCampaign instead
-   * This method will fail - entities require campaign context
-   */
-  async getAll(): Promise<LoreEntity[]> {
-    console.warn('entityService.getAll() is deprecated. Use getByCampaign(campaignId) instead.');
-    // Return empty array to prevent crashes during migration
-    return [];
-  },
-
-  /**
-   * @deprecated Use getById(campaignId, entityId) instead
-   */
-  async getByIdLegacy(id: string): Promise<LoreEntity> {
-    console.warn('entityService.getByIdLegacy() is deprecated. Use getById(campaignId, entityId) instead.');
-    throw new Error('Entity operations require a campaign context. Please select a campaign first.');
-  },
 };

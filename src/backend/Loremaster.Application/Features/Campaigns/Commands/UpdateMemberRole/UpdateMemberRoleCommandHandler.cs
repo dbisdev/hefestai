@@ -2,7 +2,6 @@ using Loremaster.Application.Common.Interfaces;
 using Loremaster.Application.Features.Campaigns.DTOs;
 using Loremaster.Domain.Exceptions;
 using MediatR;
-using Microsoft.EntityFrameworkCore;
 
 namespace Loremaster.Application.Features.Campaigns.Commands.UpdateMemberRole;
 
@@ -11,20 +10,20 @@ namespace Loremaster.Application.Features.Campaigns.Commands.UpdateMemberRole;
 /// </summary>
 public class UpdateMemberRoleCommandHandler : IRequestHandler<UpdateMemberRoleCommand, CampaignMemberDto>
 {
-    private readonly IApplicationDbContext _dbContext;
+    private readonly IUserRepository _userRepository;
     private readonly ICampaignRepository _campaignRepository;
     private readonly ICampaignMemberRepository _campaignMemberRepository;
     private readonly ICurrentUserService _currentUserService;
     private readonly IUnitOfWork _unitOfWork;
 
     public UpdateMemberRoleCommandHandler(
-        IApplicationDbContext dbContext,
+        IUserRepository userRepository,
         ICampaignRepository campaignRepository,
         ICampaignMemberRepository campaignMemberRepository,
         ICurrentUserService currentUserService,
         IUnitOfWork unitOfWork)
     {
-        _dbContext = dbContext;
+        _userRepository = userRepository;
         _campaignRepository = campaignRepository;
         _campaignMemberRepository = campaignMemberRepository;
         _currentUserService = currentUserService;
@@ -78,7 +77,7 @@ public class UpdateMemberRoleCommandHandler : IRequestHandler<UpdateMemberRoleCo
         await _unitOfWork.SaveChangesAsync(cancellationToken);
 
         // Load user info for the DTO
-        var user = await _dbContext.Users.FirstOrDefaultAsync(u => u.Id == member.UserId, cancellationToken);
+        var user = await _userRepository.GetByIdAsync(member.UserId, cancellationToken);
 
         return new CampaignMemberDto
         {

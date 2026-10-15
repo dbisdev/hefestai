@@ -5,7 +5,8 @@
  * OCP: Extends useApi without modifying it
  */
 
-import { useState, useEffect, useCallback, useMemo } from 'react';
+import { useState, useEffect, useCallback, useMemo, useRef } from 'react';
+import { extractErrorMessage } from '@core/utils/error';
 
 interface UseListConfig<T> {
   fetchFn: () => Promise<T[]>;
@@ -38,6 +39,16 @@ export function useList<T>({
   const [sortBy, setSortBy] = useState<keyof T | null>(null);
   const [sortDirection, setSortDirection] = useState<'asc' | 'desc'>('asc');
 
+  /** Ref to track whether the component is still mounted during async operations */
+  const isMountedRef = useRef(true);
+
+  useEffect(() => {
+    isMountedRef.current = true;
+    return () => {
+      isMountedRef.current = false;
+    };
+  }, []);
+
   const refresh = useCallback(async () => {
     if (!enabled) {
       setItems([]);
@@ -49,13 +60,19 @@ export function useList<T>({
 
     try {
       const data = await fetchFn();
-      setItems(data);
+      if (isMountedRef.current) {
+        setItems(data);
+      }
     } catch (err) {
-      const message = err instanceof Error ? err.message : 'Error loading data';
-      setError(message);
-      setItems([]);
+      if (isMountedRef.current) {
+        const message = extractErrorMessage(err, 'Error loading data');
+        setError(message);
+        setItems([]);
+      }
     } finally {
-      setIsLoading(false);
+      if (isMountedRef.current) {
+        setIsLoading(false);
+      }
     }
   }, [fetchFn, enabled]);
 

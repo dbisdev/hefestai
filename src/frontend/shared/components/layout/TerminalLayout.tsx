@@ -13,6 +13,7 @@ import DiceRoller from '@components/DiceRoller';
 import RuleQuery from '@components/RuleQuery';
 import { useAuth, useCampaign } from '@core/context';
 import { CampaignRole } from '@core/types/campaign.types';
+import { userRoleToLabel } from '@core/utils/role';
 
 /**
  * Props for the TerminalLayout component
@@ -69,7 +70,6 @@ export const TerminalLayout: React.FC<TerminalLayoutProps> = ({
   const navigate = useNavigate();
   const location = useLocation();
   const isHubPage = location.pathname === '/hub';
-  //console.log('Current location:', location.pathname);
   const { user, logout } = useAuth();
   const { campaigns, activeCampaign, selectCampaign, isLoading: campaignsLoading } = useCampaign();
 
@@ -103,17 +103,10 @@ export const TerminalLayout: React.FC<TerminalLayoutProps> = ({
   }, [navigate]);
 
   /**
-   * Get display text for user role
+   * Get display text for user role.
+   * Delegates to centralised `userRoleToLabel` utility (DRY).
    */
-  const getUserRoleDisplay = (): string => {
-    if (!user) return 'INVITADO';
-    switch (user.role) {
-      case 'ADMIN': return 'ADMINISTRADOR';
-      case 'MASTER': return 'MAESTRO DE JUEGO';
-      case 'PLAYER': return 'JUGADOR';
-      default: return 'USUARIO';
-    }
-  };
+  const getUserRoleDisplay = (): string => userRoleToLabel(user?.role);
 
   /**
    * Check if campaign selector should be shown
@@ -381,6 +374,7 @@ export const TerminalLayout: React.FC<TerminalLayoutProps> = ({
           gameSystemId={gameSystemId || activeCampaign?.gameSystemId}
           gameSystemName={gameSystemName}
           campaignOwnerId={activeCampaign?.ownerId}
+          campaigns={campaigns}
         />
       )}
     </div>

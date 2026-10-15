@@ -9,6 +9,13 @@ namespace Loremaster.Application.Features.Auth.Commands.Register;
 /// <summary>
 /// Handler for user registration.
 /// Users can register without an invitation code and optionally join a campaign during registration.
+/// <para>
+/// ACID ordering: all validation is performed before any entities are staged in the EF change
+/// tracker. Once validation passes, <c>AddAsync</c> calls stage both the user and (optionally)
+/// the campaign membership, and a single <c>SaveChangesAsync</c> commits them atomically.
+/// This prevents partial state where a campaign lookup failure would occur after user staging,
+/// making the intent explicit and the flow easier to reason about.
+/// </para>
 /// </summary>
 public class RegisterCommandHandler : IRequestHandler<RegisterCommand, RegisterResponse>
 {
@@ -35,23 +42,40 @@ public class RegisterCommandHandler : IRequestHandler<RegisterCommand, RegisterR
         _jwtTokenGenerator = jwtTokenGenerator;
     }
 
+    /// <summary>
+    /// Registers a new user and optionally enrolls them in a campaign.
+    /// All validation runs before any entity is staged to keep the EF change tracker clean
+    /// on failure paths.
+    /// </summary>
     public async Task<RegisterResponse> Handle(RegisterCommand request, CancellationToken cancellationToken)
     {
+        // --- Phase 1: Validate all inputs before staging any entities ---
+
         var emailExists = await _userRepository.ExistsByEmailAsync(request.Email, cancellationToken);
         if (emailExists)
-        {
             throw new DomainException("A user with this email already exists");
-        }
 
         // Parse role, default to Player
         var role = UserRole.Player;
         if (!string.IsNullOrEmpty(request.Role))
         {
             if (!Enum.TryParse<UserRole>(request.Role, true, out role))
-            {
                 throw new DomainException("Invalid role specified");
-            }
         }
+
+        // Validate campaign invite code up-front (before creating the user entity)
+        Campaign? campaignToJoin = null;
+        if (!string.IsNullOrEmpty(request.InviteCode))
+        {
+            campaignToJoin = await _campaignRepository.GetByJoinCodeAsync(request.InviteCode, cancellationToken);
+            if (campaignToJoin == null)
+                throw new NotFoundException("Campaign with join code", request.InviteCode);
+
+            if (!campaignToJoin.IsActive)
+                throw new DomainException("This campaign is no longer accepting new members");
+        }
+
+        // --- Phase 2: All validation passed — stage and persist ---
 
         var passwordHash = _passwordHasher.HashPassword(request.Password);
         var user = User.Create(request.Email, passwordHash, request.DisplayName, role);
@@ -63,12 +87,14 @@ public class RegisterCommandHandler : IRequestHandler<RegisterCommand, RegisterR
 
         await _userRepository.AddAsync(user, cancellationToken);
 
-        // If invite code is provided, join the user to the campaign
-        if (!string.IsNullOrEmpty(request.InviteCode))
+        // Stage campaign membership if an invite code was provided and validated
+        if (campaignToJoin != null)
         {
-            await JoinCampaignAsync(user, request.InviteCode, cancellationToken);
+            var membership = CampaignMember.Create(campaignToJoin.Id, user.Id, CampaignRole.Player);
+            await _campaignMemberRepository.AddAsync(membership, cancellationToken);
         }
 
+        // Atomic commit: user + optional membership in a single transaction
         await _unitOfWork.SaveChangesAsync(cancellationToken);
 
         var accessToken = _jwtTokenGenerator.GenerateAccessToken(user);
@@ -81,34 +107,5 @@ public class RegisterCommandHandler : IRequestHandler<RegisterCommand, RegisterR
             accessToken,
             refreshToken
         );
-    }
-
-    /// <summary>
-    /// Joins the user to a campaign using the provided join code.
-    /// </summary>
-    private async Task JoinCampaignAsync(User user, string joinCode, CancellationToken cancellationToken)
-    {
-        var campaign = await _campaignRepository.GetByJoinCodeAsync(joinCode, cancellationToken);
-        if (campaign == null)
-        {
-            throw new NotFoundException("Campaign with join code", joinCode);
-        }
-
-        if (!campaign.IsActive)
-        {
-            throw new DomainException("This campaign is no longer accepting new members");
-        }
-
-        // Check if already a member (should not happen for new users, but good to check)
-        var existingMembership = await _campaignMemberRepository
-            .GetByCampaignAndUserAsync(campaign.Id, user.Id, cancellationToken);
-        if (existingMembership != null)
-        {
-            throw new DomainException("You are already a member of this campaign");
-        }
-
-        // Join as Player
-        var membership = CampaignMember.Create(campaign.Id, user.Id, CampaignRole.Player);
-        await _campaignMemberRepository.AddAsync(membership, cancellationToken);
     }
 }

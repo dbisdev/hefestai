@@ -4,6 +4,7 @@
  */
 
 import { useState, useCallback } from 'react';
+import { extractErrorMessage } from '@core/utils/error';
 
 interface UseApiState<T> {
   data: T | null;
@@ -38,7 +39,7 @@ export function useApi<T, P extends unknown[] = []>(
       setState({ data: result, isLoading: false, error: null });
       return result;
     } catch (err) {
-      const message = err instanceof Error ? err.message : 'An error occurred';
+      const message = extractErrorMessage(err, 'An error occurred');
       setState(prev => ({ ...prev, isLoading: false, error: message }));
       return null;
     }
@@ -75,13 +76,13 @@ export function useMutation<T, P extends unknown[] = []>(
 
     try {
       const result = await mutationFunc(...params);
-      setIsLoading(false);
       return result;
     } catch (err) {
-      const message = err instanceof Error ? err.message : 'An error occurred';
+      const message = extractErrorMessage(err, 'An error occurred');
       setError(message);
-      setIsLoading(false);
       return null;
+    } finally {
+      setIsLoading(false);
     }
   }, [mutationFunc]);
 

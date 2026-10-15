@@ -5,6 +5,7 @@
  */
 
 import type { ComponentType } from 'react';
+import type { UserRole } from '@core/types';
 
 // Import page components
 import Home from '@features/auth/pages/Home';
@@ -31,7 +32,7 @@ import { AdminUsersPage } from '@features/admin/pages/AdminUsersPage';
 import { AdminCampaignsPage } from '@features/admin/pages/AdminCampaignsPage';
 import { AdminSystemPage } from '@features/admin/pages/AdminSystemPage';
 
-export type UserRole = 'ADMIN' | 'MASTER' | 'PLAYER';
+export type { UserRole } from '@core/types';
 
 export interface RouteConfig {
   path: string;
@@ -39,7 +40,6 @@ export interface RouteConfig {
   requiresAuth?: boolean;
   requiredRoles?: UserRole[];
   publicOnly?: boolean;
-  props?: Record<string, unknown>;
 }
 
 /**

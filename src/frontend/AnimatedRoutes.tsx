@@ -8,6 +8,7 @@ import React, { useEffect, useState } from 'react';
 import { useLocation, Routes, Route, Navigate, useNavigate } from 'react-router-dom';
 import { ProtectedRoute } from '@shared/components/routing';
 import { routeConfig, getDefaultRoute } from '@core/config/routes';
+import { TRANSITION_OUT_DURATION, TRANSITION_IN_DURATION } from '@core/config/constants';
 import type { UserRole } from '@core/config/routes';
 
 interface AnimatedRoutesProps {
@@ -29,8 +30,8 @@ export const AnimatedRoutes: React.FC<AnimatedRoutesProps> = ({ isAuthenticated,
       const timer = setTimeout(() => {
         setDisplayLocation(location);
         setTransitionStage('in');
-        setTimeout(() => setTransitionStage('idle'), 500);
-      }, 400);
+        setTimeout(() => setTransitionStage('idle'), TRANSITION_IN_DURATION);
+      }, TRANSITION_OUT_DURATION);
       return () => clearTimeout(timer);
     }
   }, [location, displayLocation.pathname]);

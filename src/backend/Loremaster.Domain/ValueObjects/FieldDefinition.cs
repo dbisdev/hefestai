@@ -1,3 +1,4 @@
+using System.Globalization;
 using System.Text.Json;
 using Loremaster.Domain.Enums;
 
@@ -301,7 +302,11 @@ public sealed class FieldDefinition : IEquatable<FieldDefinition>
 
     private bool ValidateNumberValue(object value)
     {
-        if (!decimal.TryParse(value.ToString(), out var number))
+        if (!decimal.TryParse(
+                value.ToString(),
+                NumberStyles.Any,
+                CultureInfo.InvariantCulture,
+                out var number))
             return false;
         
         if (MinValue.HasValue && number < MinValue.Value)

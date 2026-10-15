@@ -1,12 +1,12 @@
 import { ai, geminiModel } from '../../config/index.js';
 import { mapUsage, stripMarkdownCodeFences } from '../../common/index.js';
-import type { RagGenerateRequest, RagGenerateResponse } from './rag-generate.schema.js';
+import { RagGenerateRequestSchema, RagGenerateResponseSchema, type RagGenerateRequest, type RagGenerateResponse } from './rag-generate.schema.js';
 
 export const ragGenerateFlow = ai.defineFlow(
   {
     name: 'ragGenerate',
-    inputSchema: null as any,
-    outputSchema: null as any,
+    inputSchema: RagGenerateRequestSchema,
+    outputSchema: RagGenerateResponseSchema,
   },
   async (input: RagGenerateRequest): Promise<RagGenerateResponse> => {
     const contextText = input.context

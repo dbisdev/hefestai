@@ -203,25 +203,4 @@ describe('Entity Service', () => {
       expect(result).toEqual(mockEntity);
     });
   });
-
-  describe('deprecated methods', () => {
-    it('getAll returns empty array with warning', async () => {
-      const consoleSpy = vi.spyOn(console, 'warn').mockImplementation(() => {});
-      
-      const result = await entityService.getAll();
-      
-      expect(result).toEqual([]);
-      expect(consoleSpy).toHaveBeenCalledWith(
-        'entityService.getAll() is deprecated. Use getByCampaign(campaignId) instead.'
-      );
-      
-      consoleSpy.mockRestore();
-    });
-
-    it('getByIdLegacy throws error', async () => {
-      await expect(entityService.getByIdLegacy('entity-1')).rejects.toThrow(
-        'Entity operations require a campaign context'
-      );
-    });
-  });
 });

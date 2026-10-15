@@ -1,5 +1,6 @@
 using Loremaster.Application.Common.Interfaces;
 using Loremaster.Domain.Entities;
+using Loremaster.Domain.Exceptions;
 using Loremaster.Domain.ValueObjects;
 using MediatR;
 using Microsoft.Extensions.Logging;
@@ -48,7 +49,7 @@ public class CreateTemplateCommandHandler : IRequestHandler<CreateTemplateComman
         var gameSystem = await _gameSystemRepository.GetByIdAsync(request.GameSystemId, cancellationToken);
         if (gameSystem == null)
         {
-            throw new ArgumentException($"Game system with ID {request.GameSystemId} not found");
+            throw new NotFoundException(nameof(GameSystem), request.GameSystemId);
         }
 
         // Check for duplicate entity type name in this game system for this owner

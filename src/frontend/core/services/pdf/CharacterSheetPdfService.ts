@@ -6,7 +6,9 @@
  */
 
 import { jsPDF } from 'jspdf';
-import type { LoreEntity, CharacterData, NpcData, EnemyData, FieldDefinition } from '@core/types';
+import type { LoreEntity, CharacterData, NpcData, EnemyData, FieldDefinition, DynamicStats, EntityMetadata } from '@core/types';
+import { isNestedObject } from '@core/utils/entity';
+import { logger } from '@core/utils';
 
 /**
  * Map of field identifier (name) to display name.
@@ -38,8 +40,8 @@ interface CharacterSheetData {
     name: string;
     description?: string;
     entityType: string;
-    attributes: Record<string, unknown>;
-    metadata?: Record<string, unknown>;
+    attributes: DynamicStats;
+    metadata?: EntityMetadata;
   };
 }
 
@@ -53,15 +55,6 @@ const COLORS = {
   text: [255, 255, 255] as [number, number, number],        // white
   textMuted: [150, 150, 160] as [number, number, number],   // muted text
   accent: [100, 200, 255] as [number, number, number],      // cyan accent
-};
-
-/**
- * Check if a value is a nested object (like SKILLS)
- * @param value - Value to check
- * @returns True if value is a non-array object
- */
-const isNestedObject = (value: unknown): value is Record<string, unknown> => {
-  return typeof value === 'object' && value !== null && !Array.isArray(value);
 };
 
 /**
@@ -365,7 +358,7 @@ export class CharacterSheetPdfService {
       
       return y + imgHeight + 8;
     } catch (error) {
-      console.warn('Failed to load image for PDF:', error);
+      logger.warn('Failed to load image for PDF:', error);
       // Draw placeholder
       doc.setFillColor(...COLORS.surface);
       doc.rect(x, y, maxWidth, maxWidth * 0.75, 'F');
@@ -423,7 +416,7 @@ export class CharacterSheetPdfService {
    */
   private static drawStatsGrid(
     doc: jsPDF,
-    attributes: Record<string, unknown>,
+    attributes: DynamicStats,
     x: number,
     y: number,
     width: number,
@@ -503,7 +496,7 @@ export class CharacterSheetPdfService {
    */
   private static drawStringAttributes(
     doc: jsPDF,
-    attributes: Record<string, unknown>,
+    attributes: DynamicStats,
     x: number,
     y: number,
     width: number,
@@ -577,7 +570,7 @@ export class CharacterSheetPdfService {
    */
   private static drawNestedAttributes(
     doc: jsPDF,
-    attributes: Record<string, unknown>,
+    attributes: DynamicStats,
     x: number,
     y: number,
     width: number,
@@ -669,7 +662,7 @@ export class CharacterSheetPdfService {
    */
   private static drawMetadata(
     doc: jsPDF,
-    metadata: Record<string, unknown>,
+    metadata: EntityMetadata,
     x: number,
     y: number,
     width: number
@@ -761,7 +754,7 @@ export class CharacterSheetPdfService {
       const endIndex = text.indexOf(endMarker);
       
       if (startIndex === -1 || endIndex === -1) {
-        console.warn('No embedded Hefestai data found in PDF');
+        logger.warn('No embedded Hefestai data found in PDF');
         return null;
       }
       
@@ -775,7 +768,7 @@ export class CharacterSheetPdfService {
       
       return data;
     } catch (error) {
-      console.error('Failed to import PDF:', error);
+      logger.error('Failed to import PDF:', error);
       return null;
     }
   }

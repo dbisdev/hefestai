@@ -3,6 +3,7 @@ using Loremaster.Application.Common.Interfaces;
 using Loremaster.Application.Features.Documents.Commands.UploadManual;
 using Loremaster.Domain.Entities;
 using Loremaster.Domain.Enums;
+using Loremaster.Domain.Exceptions;
 using Microsoft.Extensions.Logging;
 using Moq;
 
@@ -20,6 +21,7 @@ public class UploadManualCommandHandlerTests
     private readonly Mock<IGameSystemRepository> _gameSystemRepositoryMock;
     private readonly Mock<IEmbeddingService> _embeddingServiceMock;
     private readonly Mock<IUnitOfWork> _unitOfWorkMock;
+    private readonly Mock<IDateTimeProvider> _dateTimeProviderMock;
     private readonly Mock<ILogger<UploadManualCommandHandler>> _loggerMock;
     private readonly UploadManualCommandHandler _handler;
 
@@ -34,7 +36,12 @@ public class UploadManualCommandHandlerTests
         _gameSystemRepositoryMock = new Mock<IGameSystemRepository>();
         _embeddingServiceMock = new Mock<IEmbeddingService>();
         _unitOfWorkMock = new Mock<IUnitOfWork>();
+        _dateTimeProviderMock = new Mock<IDateTimeProvider>();
         _loggerMock = new Mock<ILogger<UploadManualCommandHandler>>();
+
+        _dateTimeProviderMock
+            .Setup(x => x.UtcNow)
+            .Returns(DateTime.UtcNow);
 
         _handler = new UploadManualCommandHandler(
             _pdfParsingServiceMock.Object,
@@ -43,6 +50,7 @@ public class UploadManualCommandHandlerTests
             _gameSystemRepositoryMock.Object,
             _embeddingServiceMock.Object,
             _unitOfWorkMock.Object,
+            _dateTimeProviderMock.Object,
             _loggerMock.Object);
 
         // Default setup
@@ -256,7 +264,7 @@ public class UploadManualCommandHandlerTests
     #region Error Cases
 
     [Fact]
-    public async Task Handle_WhenGameSystemNotFound_ShouldThrowArgumentException()
+    public async Task Handle_WhenGameSystemNotFound_ShouldThrowNotFoundException()
     {
         // Arrange
         _gameSystemRepositoryMock
@@ -274,8 +282,7 @@ public class UploadManualCommandHandlerTests
         var act = () => _handler.Handle(command, CancellationToken.None);
 
         // Assert
-        await act.Should().ThrowAsync<ArgumentException>()
-            .WithMessage($"*{_gameSystemId}*not found*");
+        await act.Should().ThrowAsync<NotFoundException>();
     }
 
     [Fact]

@@ -8,6 +8,7 @@
 import React, { useRef, useCallback } from 'react';
 import { useCharacterSheetPdf } from '@core/hooks';
 import type { LoreEntity, CreateLoreEntityInput } from '@core/types';
+import { logger } from '@core/utils';
 
 interface CharacterSheetActionsProps {
   /** Entity to export (for export button) */
@@ -57,7 +58,7 @@ export const CharacterSheetActions: React.FC<CharacterSheetActionsProps> = ({
     try {
       await exportToPdf(entity);
     } catch (error) {
-      console.error('Export failed:', error);
+      logger.error('Export failed:', error);
     }
   }, [entity, exportToPdf]);
 

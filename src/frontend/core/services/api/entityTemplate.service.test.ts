@@ -46,7 +46,7 @@ describe('Entity Template Service', () => {
       await entityTemplateService.getByGameSystem('system-1', TemplateStatus.Confirmed);
       
       const callUrl = vi.mocked(httpClient.get).mock.calls[0][0];
-      expect(callUrl).toContain('status=2');
+      expect(callUrl).toContain('status=Confirmed');
     });
 
     it('includes confirmedOnly filter', async () => {
@@ -123,11 +123,13 @@ describe('Entity Template Service', () => {
     });
 
     it('returns null on error', async () => {
+      // getConfirmedByEntityType calls getByGameSystem first, which lets errors propagate.
+      // Only a 404 on the *detail* request is swallowed — a list-level error throws.
       vi.mocked(httpClient.get).mockRejectedValueOnce(new Error('Failed'));
       
-      const result = await entityTemplateService.getConfirmedByEntityType('system-1', 'character');
-      
-      expect(result).toBeNull();
+      await expect(
+        entityTemplateService.getConfirmedByEntityType('system-1', 'character')
+      ).rejects.toThrow('Failed');
     });
   });
 
@@ -284,7 +286,8 @@ describe('Entity Template Service', () => {
       
       const result = await entityTemplateService.confirmAll('system-1');
       
-      expect(result).toEqual({ confirmed: 2, failed: 0 });
+      // confirmAll returns { confirmed, failed, failedIds } — include failedIds in assertion
+      expect(result).toEqual({ confirmed: 2, failed: 0, failedIds: [] });
     });
 
     it('counts failures', async () => {
@@ -302,7 +305,8 @@ describe('Entity Template Service', () => {
       
       const result = await entityTemplateService.confirmAll('system-1');
       
-      expect(result).toEqual({ confirmed: 1, failed: 1 });
+      // confirmAll returns { confirmed, failed, failedIds } — include failedIds in assertion
+      expect(result).toEqual({ confirmed: 1, failed: 1, failedIds: ['t2'] });
     });
   });
 });

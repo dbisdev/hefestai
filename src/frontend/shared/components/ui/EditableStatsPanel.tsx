@@ -9,6 +9,7 @@ import React from 'react';
 import type { DynamicStats } from '@core/types';
 import type { FieldDefinition } from '@core/types/template.types';
 import { EditableField, EditableFieldVariant } from './EditableField';
+import { isNestedObject } from '@core/utils/entity';
 
 /**
  * Map of field identifier (name) to display name.
@@ -40,13 +41,6 @@ const variantColors: Record<'primary' | 'danger' | 'warning', EditableFieldVaria
   primary: 'primary',
   danger: 'danger',
   warning: 'warning'
-};
-
-/**
- * Checks if a value is a nested object (like SKILLS)
- */
-const isNestedObject = (value: unknown): value is Record<string, unknown> => {
-  return typeof value === 'object' && value !== null && !Array.isArray(value);
 };
 
 /**
@@ -188,7 +182,7 @@ const StatCard: React.FC<{
 const NestedStatsSection: React.FC<{
   fieldKey: string;
   label: string;
-  data: Record<string, unknown>;
+  data: Record<string, number | string>;
   colors: ReturnType<typeof getVariantColors>;
   labelMap?: LabelMap;
   variant: EditableStatsPanelProps['variant'];
@@ -306,7 +300,7 @@ export const EditableStatsPanel: React.FC<EditableStatsPanelProps> = ({
 
   const numericStats: [string, string, number][] = [];
   const stringStats: [string, string, string][] = [];
-  const nestedStats: [string, string, Record<string, unknown>][] = [];
+  const nestedStats: [string, string, Record<string, number | string>][] = [];
 
   Object.entries(stats).forEach(([key, value]) => {
     const displayLabel = getDisplayLabel(key, labelMap);

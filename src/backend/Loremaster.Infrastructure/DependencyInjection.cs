@@ -103,6 +103,9 @@ public static class DependencyInjection
         services.AddScoped<IPdfParsingService, PdfParsingService>();
         services.AddSingleton<ITextChunkingService, TextChunkingService>();
         
+        // Image compression service
+        services.AddScoped<IImageCompressionService, ImageSharpCompressionService>();
+        
         // Entity generation services (RAG-assisted)
         services.AddScoped<IRagContextProvider, RagContextProvider>();
         services.AddScoped<IEntityGenerationService, EntityGenerationService>();
@@ -112,20 +115,14 @@ public static class DependencyInjection
             ? configuration["GenkitService:BaseUrl"] ?? "http://localhost:3000"
             : configuration["GenkitService:ProductionUrl"] ?? configuration["GenkitService:BaseUrl"] ?? "http://genkit:3000";
         
-        var genkitTimeout = int.Parse(configuration["GenkitService:TimeoutSeconds"] ?? "30");
+        var genkitTimeout = configuration.GetValue<int>("GenkitService:TimeoutSeconds", 30);
 
         // Genkit AI Service with Polly retry policies
-        services.AddHttpClient<IAiService, GenkitAiService>(client =>
-        {
-            client.BaseAddress = new Uri(genkitBaseUrl);
-            client.Timeout = TimeSpan.FromSeconds(genkitTimeout);
-        })
-        .SetHandlerLifetime(TimeSpan.FromMinutes(5))
-        .AddPolicyHandler(GetRetryPolicy())
-        .AddPolicyHandler(GetCircuitBreakerPolicy());
+        AddGenkitClient<IAiService, GenkitAiService>(services, genkitBaseUrl, genkitTimeout);
 
-        // Genkit Embedding Service (separate client for embeddings)
-        services.AddHttpClient<IEmbeddingService, GenkitEmbeddingService>(client =>
+        // Genkit Embedding Service (separate typed client; registered for both IEmbeddingService
+        // and IRagGenerationService so that the same singleton HttpClient instance is reused).
+        services.AddHttpClient<GenkitEmbeddingService>(client =>
         {
             client.BaseAddress = new Uri(genkitBaseUrl);
             client.Timeout = TimeSpan.FromSeconds(genkitTimeout * 2); // Embeddings may take longer
@@ -133,6 +130,9 @@ public static class DependencyInjection
         .SetHandlerLifetime(TimeSpan.FromMinutes(5))
         .AddPolicyHandler(GetRetryPolicy())
         .AddPolicyHandler(GetCircuitBreakerPolicy());
+
+        services.AddScoped<IEmbeddingService>(sp => sp.GetRequiredService<GenkitEmbeddingService>());
+        services.AddScoped<IRagGenerationService>(sp => sp.GetRequiredService<GenkitEmbeddingService>());
 
         // JWT Authentication
         services.AddAuthentication(options =>
@@ -171,6 +171,29 @@ public static class DependencyInjection
                 policy.RequireRole("Player", "Master", "Admin"));
 
         return services;
+    }
+
+    /// <summary>
+    /// Registers a typed Genkit HTTP client with the standard Polly retry + circuit-breaker
+    /// policies. Extracted to avoid repetition for each Genkit service registration.
+    /// </summary>
+    /// <typeparam name="TService">The service interface type.</typeparam>
+    /// <typeparam name="TImpl">The concrete implementation type.</typeparam>
+    private static void AddGenkitClient<TService, TImpl>(
+        IServiceCollection services,
+        string baseUrl,
+        int timeoutSeconds)
+        where TService : class
+        where TImpl : class, TService
+    {
+        services.AddHttpClient<TService, TImpl>(client =>
+        {
+            client.BaseAddress = new Uri(baseUrl);
+            client.Timeout = TimeSpan.FromSeconds(timeoutSeconds);
+        })
+        .SetHandlerLifetime(TimeSpan.FromMinutes(5))
+        .AddPolicyHandler(GetRetryPolicy())
+        .AddPolicyHandler(GetCircuitBreakerPolicy());
     }
 
     private static IAsyncPolicy<HttpResponseMessage> GetRetryPolicy()

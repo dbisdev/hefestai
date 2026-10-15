@@ -1,61 +1,23 @@
 /**
- * useTemplates Hook
- * Single Responsibility: Template fetching and management
- * Includes extraction comparison functionality
+ * useTemplates Hook — facade
+ *
+ * Composes three focused sub-hooks into a single unified interface so that
+ * existing consumers (TemplatesPage) require no changes:
+ *
+ *  • useTemplateList       — fetching, confirming, extracting (list state)
+ *  • useTemplateSelection  — selecting, refreshing, reverting a single template
+ *  • useTemplateComparison — comparison panel for skipped extractions
+ *
+ * This file is intentionally thin: it wires callbacks across sub-hooks and
+ * merges their return values into the public UseTemplatesReturn interface.
  */
 
-import { useState, useCallback, useEffect } from 'react';
-import { entityTemplateService } from '@core/services/api';
-import type { 
-  EntityTemplateSummary, 
-  EntityTemplate,
-  ExtractedTemplateInfo,
-  FieldDefinition 
-} from '@core/types';
-
-interface UseTemplatesConfig {
-  gameSystemId: string | null;
-  userId?: string;
-  userRole?: string;
-  isOwner: boolean;
-  onLog?: (message: string) => void;
-}
-
-interface TemplateCounts {
-  total: number;
-  confirmed: number;
-  pending: number;
-}
-
-interface UseTemplatesReturn {
-  templates: EntityTemplateSummary[];
-  selectedTemplate: EntityTemplate | null;
-  counts: TemplateCounts;
-  isLoading: boolean;
-  isConfirming: boolean;
-  isExtracting: boolean;
-  isSavingFields: boolean;
-  isReverting: boolean;
-  extractionResult: ExtractedTemplateInfo[] | null;
-  newlyExtractedIds: Set<string>;
-  comparisonExtractedFields: FieldDefinition[] | null;
-  comparisonTemplateName: string;
-  error: string | null;
-  selectTemplate: (templateId: string) => Promise<void>;
-  confirmTemplate: (templateId: string) => Promise<boolean>;
-  confirmAll: () => Promise<boolean>;
-  extractTemplates: () => Promise<ExtractedTemplateInfo[] | null>;
-  clearExtractionResult: () => void;
-  refresh: () => Promise<void>;
-  refreshSelectedTemplate: () => Promise<void>;
-  clearSelectedTemplate: () => void;
-  isNewlyExtracted: (templateId: string) => boolean;
-  viewSkippedExtraction: (info: ExtractedTemplateInfo) => Promise<void>;
-  addFieldFromComparison: (field: FieldDefinition) => Promise<boolean>;
-  addAllNewFieldsFromComparison: () => Promise<boolean>;
-  revertToDraft: () => Promise<boolean>;
-  closeComparison: () => void;
-}
+import { useCallback, useEffect } from 'react';
+import { useTemplateList } from './useTemplateList';
+import { useTemplateSelection } from './useTemplateSelection';
+import { useTemplateComparison } from './useTemplateComparison';
+import type { UseTemplatesConfig, UseTemplatesReturn } from './useTemplates.types';
+import type { ExtractedTemplateInfo, FieldDefinition } from '@core/types';
 
 export function useTemplates({
   gameSystemId,
@@ -64,377 +26,138 @@ export function useTemplates({
   isOwner,
   onLog,
 }: UseTemplatesConfig): UseTemplatesReturn {
-  const [templates, setTemplates] = useState<EntityTemplateSummary[]>([]);
-  const [selectedTemplate, setSelectedTemplate] = useState<EntityTemplate | null>(null);
-  const [counts, setCounts] = useState<TemplateCounts>({ total: 0, confirmed: 0, pending: 0 });
-  const [isLoading, setIsLoading] = useState(false);
-  const [isConfirming, setIsConfirming] = useState(false);
-  const [isExtracting, setIsExtracting] = useState(false);
-  const [isSavingFields, setIsSavingFields] = useState(false);
-  const [isReverting, setIsReverting] = useState(false);
-  const [extractionResult, setExtractionResult] = useState<ExtractedTemplateInfo[] | null>(null);
-  const [newlyExtractedIds, setNewlyExtractedIds] = useState<Set<string>>(new Set());
-  const [comparisonExtractedFields, setComparisonExtractedFields] = useState<FieldDefinition[] | null>(null);
-  const [comparisonTemplateName, setComparisonTemplateName] = useState<string>('');
-  const [error, setError] = useState<string | null>(null);
 
-  const log = useCallback((message: string) => {
-    onLog?.(message);
-  }, [onLog]);
+  // ── Sub-hooks ─────────────────────────────────────────────────────────────
 
-  const refresh = useCallback(async () => {
-    if (!gameSystemId) {
-      setTemplates([]);
-      setCounts({ total: 0, confirmed: 0, pending: 0 });
-      return;
-    }
+  const list = useTemplateList({ gameSystemId, userRole, isOwner, onLog });
+  const selection = useTemplateSelection({ gameSystemId, onLog });
+  const comparison = useTemplateComparison({ gameSystemId, onLog });
 
-    setIsLoading(true);
-    setError(null);
-
-    try {
-      const isAdmin = userRole === 'ADMIN';
-      const isMasterUser = userRole === 'MASTER';
-      
-      const result = await entityTemplateService.getByGameSystem(
-        gameSystemId,
-        undefined,
-        isMasterUser && !isOwner && !isAdmin,
-        isAdmin || (isMasterUser && isOwner)
-      );
-      
-      setTemplates(result.templates);
-      setCounts({
-        total: result.totalCount,
-        confirmed: result.confirmedCount,
-        pending: result.pendingCount,
-      });
-    } catch (err) {
-      const message = err instanceof Error ? err.message : 'Error loading templates';
-      setError(message);
-      setTemplates([]);
-    } finally {
-      setIsLoading(false);
-    }
-  }, [gameSystemId, userRole, isOwner]);
+  // ── Reset derived state when the game system changes ─────────────────────
 
   useEffect(() => {
-    refresh();
-    setNewlyExtractedIds(new Set());
-    setComparisonExtractedFields(null);
-    setComparisonTemplateName('');
+    list.clearAllNewlyExtracted();
+    comparison.closeComparison();
+    selection.clearSelectedTemplate();
+    void list.refresh(); // load templates on mount and when game system changes
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [gameSystemId]);
 
+  // ── Cross-sub-hook wiring ─────────────────────────────────────────────────
+
+  /**
+   * Selects a template and clears any active comparison panel.
+   */
   const selectTemplate = useCallback(async (templateId: string) => {
-    if (!gameSystemId) return;
+    comparison.closeComparison();
+    await selection.selectTemplate(templateId);
+  }, [comparison, selection]);
 
-    try {
-      const template = await entityTemplateService.getById(gameSystemId, templateId);
-      setSelectedTemplate(template);
-      setComparisonExtractedFields(null);
-      setComparisonTemplateName('');
-    } catch (err) {
-      const message = err instanceof Error ? err.message : 'Error loading template';
-      setError(message);
-    }
-  }, [gameSystemId]);
-
-  const refreshSelectedTemplate = useCallback(async () => {
-    if (!gameSystemId || !selectedTemplate) return;
-
-    try {
-      const template = await entityTemplateService.getById(gameSystemId, selectedTemplate.id);
-      setSelectedTemplate(template);
-    } catch (err) {
-      const message = err instanceof Error ? err.message : 'Error refreshing template';
-      setError(message);
-    }
-  }, [gameSystemId, selectedTemplate]);
-
+  /**
+   * Confirms a single template and refreshes the selected template if needed.
+   */
   const confirmTemplate = useCallback(async (templateId: string): Promise<boolean> => {
-    if (!gameSystemId) return false;
-
-    setIsConfirming(true);
-    setError(null);
-
-    try {
-      await entityTemplateService.confirm(gameSystemId, templateId, { notes: 'Confirmed from UI' });
-      log(`[SUCCESS] Plantilla confirmada`);
-      await refresh();
-      
-      if (selectedTemplate?.id === templateId) {
-        const updated = await entityTemplateService.getById(gameSystemId, templateId);
-        setSelectedTemplate(updated);
+    return list.confirmTemplate(templateId, async (id) => {
+      if (selection.selectedTemplate?.id === id) {
+        await selection.refreshSelectedTemplate();
       }
-      
-      setNewlyExtractedIds(prev => {
-        const next = new Set(prev);
-        next.delete(templateId);
-        return next;
-      });
-      
-      return true;
-    } catch (err) {
-      const message = err instanceof Error ? err.message : 'Error confirming template';
-      setError(message);
-      return false;
-    } finally {
-      setIsConfirming(false);
-    }
-  }, [gameSystemId, refresh, selectedTemplate?.id, log]);
+    });
+  }, [list, selection]);
 
-  const confirmAll = useCallback(async (): Promise<boolean> => {
-    if (!gameSystemId) return false;
-
-    setIsConfirming(true);
-    setError(null);
-
-    try {
-      await entityTemplateService.confirmAll(gameSystemId);
-      log(`[SUCCESS] Todas las plantillas confirmadas`);
-      await refresh();
-      setNewlyExtractedIds(new Set());
-      setExtractionResult(null);
-      return true;
-    } catch (err) {
-      const message = err instanceof Error ? err.message : 'Error confirming all templates';
-      setError(message);
-      return false;
-    } finally {
-      setIsConfirming(false);
-    }
-  }, [gameSystemId, refresh, log]);
-
-  const extractTemplates = useCallback(async (): Promise<ExtractedTemplateInfo[] | null> => {
-    if (!gameSystemId) return null;
-
-    setIsExtracting(true);
-    setError(null);
-
-    try {
-      const result = await entityTemplateService.extractFromManual(gameSystemId);
-      
-      if (result.errorMessage) {
-        log(`ERROR: ${result.errorMessage}`);
-        return null;
-      }
-      
-      setExtractionResult(result.templates);
-      
-      const newIds = new Set(
-        result.templates
-          .filter(t => t.templateId && t.templateId !== '00000000-0000-0000-0000-000000000000')
-          .map(t => t.templateId as string)
-      );
-      setNewlyExtractedIds(newIds);
-      
-      log(`[SUCCESS] Extracción completada:`);
-      log(`  - Creadas: ${result.templatesCreated}`);
-      log(`  - Actualizadas: ${result.templatesUpdated}`);
-      log(`  - Omitidas: ${result.templatesSkipped}`);
-      
-      await refresh();
-      return result.templates;
-    } catch (err) {
-      const message = err instanceof Error ? err.message : 'Error extracting templates';
-      setError(message);
-      log(`ERROR_CRITICO: ${message}`);
-      return null;
-    } finally {
-      setIsExtracting(false);
-    }
-  }, [gameSystemId, refresh, log]);
-
-  const isNewlyExtracted = useCallback((templateId: string): boolean => {
-    return newlyExtractedIds.has(templateId);
-  }, [newlyExtractedIds]);
-
+  /**
+   * Opens the comparison panel for a skipped extraction and updates the
+   * selected template simultaneously.
+   */
   const viewSkippedExtraction = useCallback(async (info: ExtractedTemplateInfo) => {
-    if (!gameSystemId || !info.extractedFields || !info.templateId) return;
-
-    try {
-      const template = await entityTemplateService.getById(gameSystemId, info.templateId);
-      setSelectedTemplate(template);
-      setComparisonExtractedFields(info.extractedFields);
-      setComparisonTemplateName(info.displayName);
-      log(`Comparando extracción: ${info.displayName}`);
-      log(`  - Existente: ${template.fields.length} campos`);
-      log(`  - Extraído: ${info.extractedFields.length} campos`);
-    } catch (err) {
-      const message = err instanceof Error ? err.message : 'Error loading template for comparison';
-      setError(message);
+    const template = await comparison.viewSkippedExtraction(info);
+    if (template) {
+      // Sync selection layer so selectedTemplate reflects what the comparison panel is showing
+      await selection.selectTemplate(template.id);
     }
-  }, [gameSystemId, log]);
+  }, [comparison, selection]);
 
+  /**
+   * Adds a single field from the comparison panel, keeping selection in sync.
+   */
   const addFieldFromComparison = useCallback(async (field: FieldDefinition): Promise<boolean> => {
-    if (!gameSystemId || !selectedTemplate) return false;
-
-    if (selectedTemplate.fields.some(f => f.name === field.name)) {
-      log(`ERROR: El campo "${field.name}" ya existe en la plantilla`);
-      return false;
-    }
-
-    setIsSavingFields(true);
-    log(`Añadiendo campo: ${field.name}...`);
-
-    try {
-      const maxOrder = selectedTemplate.fields.length > 0
-        ? Math.max(...selectedTemplate.fields.map(f => f.order))
-        : 0;
-
-      const newField = { ...field, order: maxOrder + 1 };
-      const updatedFields = [...selectedTemplate.fields, newField];
-
-      await entityTemplateService.update(gameSystemId, selectedTemplate.id, {
-        displayName: selectedTemplate.displayName,
-        description: selectedTemplate.description,
-        iconHint: selectedTemplate.iconHint,
-        version: selectedTemplate.version,
-        fields: updatedFields,
-      });
-
-      log(`[SUCCESS] Campo añadido: ${field.displayName}`);
-
-      const updated = await entityTemplateService.getById(gameSystemId, selectedTemplate.id);
-      setSelectedTemplate(updated);
-
-      setComparisonExtractedFields(prev =>
-        prev ? prev.filter(f => f.name !== field.name) : null
-      );
-
-      await refresh();
-      return true;
-    } catch (err) {
-     
-      const message = err instanceof Error ? err.message : 'Error añadiendo campo';
-      log(`ERROR: ${message}`);
-      setError(message);
-      return false;
-    } finally {
-      setIsSavingFields(false);
-    }
-  }, [gameSystemId, selectedTemplate, refresh, log]);
-
-  const addAllNewFieldsFromComparison = useCallback(async (): Promise<boolean> => {
-    if (!gameSystemId || !selectedTemplate || !comparisonExtractedFields) return false;
-
-    const newFields = comparisonExtractedFields.filter(
-      cf => !selectedTemplate.fields.some(tf => tf.name === cf.name)
+    if (!selection.selectedTemplate) return false;
+    return comparison.addFieldFromComparison(
+      field,
+      selection.selectedTemplate,
+      (updated) => { /* selection already holds selectedTemplate; update via refreshSelectedTemplate */ void selection.refreshSelectedTemplate(); void updated; },
+      list.refresh,
     );
+  }, [comparison, selection, list.refresh]);
 
-    if (newFields.length === 0) {
-      log('No hay campos nuevos para añadir');
-      return false;
-    }
+  /**
+   * Adds all new fields from the comparison panel, keeping selection in sync.
+   */
+  const addAllNewFieldsFromComparison = useCallback(async (): Promise<boolean> => {
+    if (!selection.selectedTemplate) return false;
+    return comparison.addAllNewFieldsFromComparison(
+      selection.selectedTemplate,
+      () => { void selection.refreshSelectedTemplate(); },
+      list.refresh,
+    );
+  }, [comparison, selection, list.refresh]);
 
-    setIsSavingFields(true);
-    log(`Añadiendo ${newFields.length} campos nuevos...`);
-
-    try {
-      const maxOrder = selectedTemplate.fields.length > 0
-        ? Math.max(...selectedTemplate.fields.map(f => f.order))
-        : 0;
-
-      const fieldsWithOrder = newFields.map((field, index) => ({
-        ...field,
-        order: maxOrder + 1 + index
-      }));
-
-      const updatedFields = [...selectedTemplate.fields, ...fieldsWithOrder];
-
-      await entityTemplateService.update(gameSystemId, selectedTemplate.id, {
-        displayName: selectedTemplate.displayName,
-        description: selectedTemplate.description,
-        iconHint: selectedTemplate.iconHint,
-        version: selectedTemplate.version,
-        fields: updatedFields,
-      });
-
-      log(`[SUCCESS] ${newFields.length} campos añadidos`);
-
-      const updated = await entityTemplateService.getById(gameSystemId, selectedTemplate.id);
-      setSelectedTemplate(updated);
-
-      setComparisonExtractedFields(null);
-
-      await refresh();
-      return true;
-    } catch (err) {
-      const message = err instanceof Error ? err.message : 'Error adding fields';
-      setError(message);
-      return false;
-    } finally {
-      setIsSavingFields(false);
-    }
-  }, [gameSystemId, selectedTemplate, comparisonExtractedFields, refresh, log]);
-
-  const closeComparison = useCallback(() => {
-    setComparisonExtractedFields(null);
-    setComparisonTemplateName('');
-  }, []);
-
-  const clearExtractionResult = useCallback(() => {
-    setExtractionResult(null);
-  }, []);
-
-  const clearSelectedTemplate = useCallback(() => {
-    setSelectedTemplate(null);
-    setComparisonExtractedFields(null);
-    setComparisonTemplateName('');
-  }, []);
-
+  /**
+   * Reverts the selected template to draft and refreshes the list.
+   */
   const revertToDraft = useCallback(async (): Promise<boolean> => {
-    if (!gameSystemId || !selectedTemplate) return false;
+    return selection.revertToDraft(list.refresh);
+  }, [selection, list.refresh]);
 
-    setIsReverting(true);
-    log('Revirtiendo plantilla a borrador...');
+  /**
+   * Clears the selected template and any comparison state.
+   */
+  const clearSelectedTemplate = useCallback(() => {
+    selection.clearSelectedTemplate();
+    comparison.closeComparison();
+  }, [selection, comparison]);
 
-    try {
-      await entityTemplateService.revertToDraft(gameSystemId, selectedTemplate.id);
-      log('[SUCCESS] Plantilla revertida a borrador');
-
-      const updated = await entityTemplateService.getById(gameSystemId, selectedTemplate.id);
-      setSelectedTemplate(updated);
-
-      await refresh();
-      return true;
-    } catch (err) {
-      const message = err instanceof Error ? err.message : 'Error al revertir plantilla';
-      log(`ERROR: ${message}`);
-      setError(message);
-      return false;
-    } finally {
-      setIsReverting(false);
-    }
-  }, [gameSystemId, selectedTemplate, refresh, log]);
+  // ── Merge and expose ──────────────────────────────────────────────────────
 
   return {
-    templates,
-    selectedTemplate,
-    counts,
-    isLoading,
-    isConfirming,
-    isExtracting,
-    isSavingFields,
-    isReverting,
-    extractionResult,
-    newlyExtractedIds,
-    comparisonExtractedFields,
-    comparisonTemplateName,
-    error,
+    // List state
+    templates: list.templates,
+    counts: list.counts,
+    isLoading: list.isLoading,
+    isConfirming: list.isConfirming,
+    isExtracting: list.isExtracting,
+    extractionResult: list.extractionResult,
+    newlyExtractedIds: list.newlyExtractedIds,
+    error: list.error ?? selection.error ?? comparison.error,
+
+    // Selection state
+    selectedTemplate: selection.selectedTemplate,
+    isReverting: selection.isReverting,
+
+    // Comparison state
+    comparisonExtractedFields: comparison.comparisonExtractedFields,
+    comparisonTemplateName: comparison.comparisonTemplateName,
+    isSavingFields: comparison.isSavingFields,
+
+    // List actions
+    refresh: list.refresh,
+    confirmAll: list.confirmAll,
+    extractTemplates: list.extractTemplates,
+    clearExtractionResult: list.clearExtractionResult,
+    isNewlyExtracted: list.isNewlyExtracted,
+
+    // Wired actions (cross-sub-hook)
     selectTemplate,
     confirmTemplate,
-    confirmAll,
-    extractTemplates,
-    clearExtractionResult,
-    refresh,
-    refreshSelectedTemplate,
-    clearSelectedTemplate,
-    isNewlyExtracted,
     viewSkippedExtraction,
     addFieldFromComparison,
     addAllNewFieldsFromComparison,
     revertToDraft,
-    closeComparison,
+    clearSelectedTemplate,
+
+    // Selection actions (no wiring needed)
+    refreshSelectedTemplate: selection.refreshSelectedTemplate,
+
+    // Comparison actions (no wiring needed)
+    closeComparison: comparison.closeComparison,
   };
 }

@@ -11,6 +11,8 @@ import { Button } from '@shared/components/ui';
 import { TerminalLog } from '@shared/components/ui';
 import { useTerminalLog } from '@core/hooks/useTerminalLog';
 import { useCampaign } from '@core/context';
+import { extractErrorMessage } from '@core/utils/error';
+import { TERMINAL_LOG_STANDARD } from '@core/config/constants';
 
 interface CampaignSettingsPageProps {
   onBack: () => void;
@@ -34,7 +36,7 @@ export const CampaignSettingsPage: React.FC<CampaignSettingsPageProps> = ({ onBa
   } = useCampaign();
   
   const { logs, addLog } = useTerminalLog({
-    maxLogs: 8,
+    maxLogs: TERMINAL_LOG_STANDARD,
     initialLogs: [
       '> Campaign settings system online...',
       '> [SUCCESS] Configuration protocols established.',
@@ -86,7 +88,7 @@ export const CampaignSettingsPage: React.FC<CampaignSettingsPageProps> = ({ onBa
 
       addLog(`[SUCCESS] Campaña actualizada: ${editForm.name.toUpperCase()}`);
     } catch (error: unknown) {
-      const message = error instanceof Error ? error.message : 'ERROR AL GUARDAR';
+      const message = extractErrorMessage(error, 'ERROR AL GUARDAR');
       addLog(`ERROR_CRITICO: ${message}`);
     } finally {
       setIsSaving(false);
@@ -113,7 +115,7 @@ export const CampaignSettingsPage: React.FC<CampaignSettingsPageProps> = ({ onBa
       await updateCampaignStatus(activeCampaign.id, newStatus);
       addLog(`[SUCCESS] Campaña ${newStatus ? 'ACTIVADA' : 'DESACTIVADA'}`);
     } catch (error: unknown) {
-      const message = error instanceof Error ? error.message : 'ERROR AL CAMBIAR ESTADO';
+      const message = extractErrorMessage(error, 'ERROR AL CAMBIAR ESTADO');
       addLog(`ERROR_CRITICO: ${message}`);
     } finally {
       setIsTogglingStatus(false);
@@ -137,7 +139,7 @@ export const CampaignSettingsPage: React.FC<CampaignSettingsPageProps> = ({ onBa
       const newCode = await regenerateJoinCode(activeCampaign.id);
       addLog(`[SUCCESS] Nuevo código: ${newCode}`);
     } catch (error: unknown) {
-      const message = error instanceof Error ? error.message : 'ERROR AL REGENERAR';
+      const message = extractErrorMessage(error, 'ERROR AL REGENERAR');
       addLog(`ERROR_CRITICO: ${message}`);
     } finally {
       setIsRegenerating(false);
@@ -167,7 +169,7 @@ export const CampaignSettingsPage: React.FC<CampaignSettingsPageProps> = ({ onBa
       addLog('[SUCCESS] Campaña eliminada. Redirigiendo...');
       setTimeout(onBack, 1500);
     } catch (error: unknown) {
-      const message = error instanceof Error ? error.message : 'ERROR AL ELIMINAR';
+      const message = extractErrorMessage(error, 'ERROR AL ELIMINAR');
       addLog(`ERROR_CRITICO: ${message}`);
       setIsDeleting(false);
     }
@@ -399,7 +401,7 @@ export const CampaignSettingsPage: React.FC<CampaignSettingsPageProps> = ({ onBa
             <span className="material-icons text-sm">terminal</span>
             System Log
           </div>
-          <TerminalLog logs={logs} maxLogs={8} className="h-24 md:h-32" />
+          <TerminalLog logs={logs} maxLogs={TERMINAL_LOG_STANDARD} className="h-24 md:h-32" />
         </div>
       </div>
     </TerminalLayout>

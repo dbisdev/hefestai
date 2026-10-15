@@ -28,7 +28,7 @@ public class LogoutCommandHandler : IRequestHandler<LogoutCommand, Unit>
             if (user != null)
             {
                 user.RevokeRefreshToken();
-                await _userRepository.UpdateAsync(user, cancellationToken);
+                _userRepository.Update(user);
                 await _unitOfWork.SaveChangesAsync(cancellationToken);
             }
         }

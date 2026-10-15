@@ -4,6 +4,7 @@
  */
 
 import { useState, useCallback } from 'react';
+import { TERMINAL_LOG_DEFAULT } from '@core/config/constants';
 
 interface UseTerminalLogOptions {
   maxLogs?: number;
@@ -18,7 +19,7 @@ interface UseTerminalLogReturn {
 }
 
 export const useTerminalLog = (options: UseTerminalLogOptions = {}): UseTerminalLogReturn => {
-  const { maxLogs = 12, initialLogs = [] } = options;
+  const { maxLogs = TERMINAL_LOG_DEFAULT, initialLogs = [] } = options;
   
   const [logs, setLogsState] = useState<string[]>(initialLogs);
 

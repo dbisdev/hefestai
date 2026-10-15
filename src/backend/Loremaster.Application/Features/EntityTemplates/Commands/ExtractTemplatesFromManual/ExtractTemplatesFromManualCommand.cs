@@ -6,20 +6,17 @@ namespace Loremaster.Application.Features.EntityTemplates.Commands.ExtractTempla
 /// <summary>
 /// Command to extract entity templates from a game system's manuals using RAG.
 /// Analyzes uploaded manuals to detect entity types and their field schemas.
+/// The handler is responsible for verifying ownership and resolving the template owner ID.
 /// </summary>
 /// <param name="GameSystemId">The game system to extract templates for.</param>
-/// <param name="OwnerId">The owner ID for the templates (system owner).</param>
-/// <param name="CurrentUserId">The current user ID making the request (for document search).</param>
+/// <param name="UserId">The ID of the user making the request (used for ownership check and document search).</param>
 /// <param name="SourceDocumentId">Optional specific document to analyze (null = all manuals).</param>
-/// <param name="IsAdmin">Whether the requesting user is an admin (allows searching all owners' documents).</param>
-/// <param name="IsSystemOwner">Whether the requesting user owns the game system (allows searching all documents in the system).</param>
+/// <param name="IsAdmin">Whether the requesting user is an admin (bypasses ownership check and allows searching all owners' documents).</param>
 public record ExtractTemplatesFromManualCommand(
     Guid GameSystemId,
-    Guid OwnerId,
-    Guid CurrentUserId,
+    Guid UserId,
     Guid? SourceDocumentId = null,
-    bool IsAdmin = false,
-    bool IsSystemOwner = false) : IRequest<ExtractTemplatesResult>;
+    bool IsAdmin = false) : IRequest<ExtractTemplatesResult>;
 
 /// <summary>
 /// Result of template extraction from manuals.

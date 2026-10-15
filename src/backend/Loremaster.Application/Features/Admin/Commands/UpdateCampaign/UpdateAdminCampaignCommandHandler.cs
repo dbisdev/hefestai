@@ -59,7 +59,8 @@ public class UpdateAdminCampaignCommandHandler : IRequestHandler<UpdateAdminCamp
         // Transfer ownership if new owner ID provided
         if (request.OwnerId.HasValue && request.OwnerId.Value != campaign.OwnerId)
         {
-            var newOwner = await _userRepository.GetByIdAsync(request.OwnerId.Value, cancellationToken)
+            // Verify the target user exists before transferring ownership
+            _ = await _userRepository.GetByIdAsync(request.OwnerId.Value, cancellationToken)
                 ?? throw new NotFoundException("User", request.OwnerId.Value);
             
             campaign.TransferOwnership(request.OwnerId.Value);

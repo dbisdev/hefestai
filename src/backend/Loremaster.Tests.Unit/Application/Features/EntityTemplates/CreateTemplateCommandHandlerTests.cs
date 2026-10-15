@@ -3,6 +3,7 @@ using Loremaster.Application.Features.EntityTemplates.Commands.CreateTemplate;
 using Loremaster.Application.Features.EntityTemplates.DTOs;
 using Loremaster.Domain.Entities;
 using Loremaster.Domain.Enums;
+using Loremaster.Domain.Exceptions;
 using Loremaster.Domain.ValueObjects;
 using Microsoft.Extensions.Logging;
 
@@ -179,8 +180,7 @@ public class CreateTemplateCommandHandlerTests
         var act = () => _handler.Handle(command, CancellationToken.None);
 
         // Assert
-        await act.Should().ThrowAsync<ArgumentException>()
-            .WithMessage($"*Game system with ID {_gameSystemId} not found*");
+        await act.Should().ThrowAsync<NotFoundException>();
 
         _templateRepositoryMock.Verify(
             x => x.AddAsync(It.IsAny<EntityTemplate>(), It.IsAny<CancellationToken>()),

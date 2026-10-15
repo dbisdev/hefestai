@@ -9,6 +9,7 @@ public interface IUserRepository
     Task<User?> GetByExternalIdAsync(string externalId, CancellationToken cancellationToken = default);
     Task<User?> GetByEmailAsync(string email, CancellationToken cancellationToken = default);
     Task<User?> GetByInvitationCodeAsync(string invitationCode, CancellationToken cancellationToken = default);
+    Task<User?> GetByRefreshTokenAsync(string refreshToken, CancellationToken cancellationToken = default);
     Task<IEnumerable<User>> GetByRoleAsync(UserRole role, CancellationToken cancellationToken = default);
     Task<IEnumerable<User>> GetAllActiveAsync(CancellationToken cancellationToken = default);
     
@@ -21,7 +22,10 @@ public interface IUserRepository
     Task<bool> ExistsByEmailAsync(string email, CancellationToken cancellationToken = default);
     Task<bool> ExistsByExternalIdAsync(string externalId, CancellationToken cancellationToken = default);
     Task AddAsync(User user, CancellationToken cancellationToken = default);
-    Task UpdateAsync(User user, CancellationToken cancellationToken = default);
+    /// <summary>
+    /// Marks the user entity as modified in the change tracker.
+    /// Changes are persisted when <see cref="IUnitOfWork.SaveChangesAsync"/> is called.
+    /// </summary>
     void Update(User user);
     void Delete(User user);
 }

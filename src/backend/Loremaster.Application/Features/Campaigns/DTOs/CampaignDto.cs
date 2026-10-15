@@ -36,6 +36,12 @@ public record CampaignDto
     public Guid Id { get; init; }
     public string Name { get; init; } = null!;
     public string? Description { get; init; }
+    /// <summary>
+    /// The user ID of the campaign owner (Master who created it).
+    /// Included in the list DTO so clients can resolve the correct masterId
+    /// for document visibility without fetching the full detail for each campaign.
+    /// </summary>
+    public Guid OwnerId { get; init; }
     public Guid GameSystemId { get; init; }
     /// <summary>
     /// Game system details (when included in response).
@@ -58,6 +64,7 @@ public record CampaignDto
             Id = campaign.Id,
             Name = campaign.Name,
             Description = campaign.Description,
+            OwnerId = campaign.OwnerId,
             GameSystemId = campaign.GameSystemId,
             GameSystem = GameSystemSummaryDto.FromEntity(campaign.GameSystem),
             IsActive = campaign.IsActive,

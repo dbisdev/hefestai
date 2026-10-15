@@ -37,14 +37,14 @@ public class CreateGameSystemCommandHandler : IRequestHandler<CreateGameSystemCo
     /// <param name="cancellationToken">Cancellation token.</param>
     /// <returns>The created game system as a DTO.</returns>
     /// <exception cref="DomainException">Thrown when a game system with the same code already exists.</exception>
-    /// <exception cref="UnauthorizedAccessException">Thrown when user is not authenticated.</exception>
+    /// <exception cref="ForbiddenAccessException">Thrown when user is not authenticated.</exception>
     public async Task<GameSystemDto> Handle(
         CreateGameSystemCommand request, 
         CancellationToken cancellationToken)
     {
         // Get current user ID for ownership
         var currentUserId = _currentUserService.UserId 
-            ?? throw new UnauthorizedAccessException("User must be authenticated to create a game system");
+            ?? throw new ForbiddenAccessException("User must be authenticated to create a game system");
 
         // Check if code already exists
         var exists = await _gameSystemRepository.ExistsByCodeAsync(request.Code, cancellationToken);

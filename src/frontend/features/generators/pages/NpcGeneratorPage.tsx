@@ -4,14 +4,22 @@
  * Uses useEntityGeneration hook for generation orchestration
  */
 
-import React, { useState, useCallback, useEffect } from 'react';
+import React, { useState, useCallback } from 'react';
 import { TerminalLayout } from '@shared/components/layout';
-import { Button, ImageSourceSelector, TerminalLog, EditableField, EditableStatsPanel } from '@shared/components/ui';
+import {
+  ImageSourceSelector,
+  TerminalLog,
+  EditableField,
+  EditableStatsPanel,
+  GeneratorPortrait,
+  GeneratorActionButtons,
+} from '@shared/components/ui';
 import { aiService, entityService, entityTemplateService } from '@core/services/api';
 import { useCampaign } from '@core/context';
 import { parseJsonResponse } from '@core/utils';
-import { useEntityGeneration } from '@core/hooks';
+import { useEntityGeneration, useGeneratorForm, type SaveEntityParams } from '@core/hooks';
 import type { NpcData } from '@core/types';
+import { TERMINAL_LOG_COMPACT } from '@core/config/constants';
 
 const UNKNOWN_NPC_IMAGE = "https://images.unsplash.com/photo-1683322001857-f4d932a40672?q=80&w=400&auto=format&fit=crop";
 
@@ -81,16 +89,9 @@ export const NpcGeneratorPage: React.FC<NpcGeneratorPageProps> = ({ onBack }) =>
     };
   }, [activeCampaign?.gameSystemId]);
 
-  const saveNpc = useCallback(async (params: {
-    name: string;
-    description?: string;
-    imageUrl?: string;
-    attributes: Record<string, unknown>;
-    metadata?: Record<string, unknown>;
-    generationRequestId?: string;
-  }) => {
+  const saveNpc = useCallback(async (params: SaveEntityParams) => {
     if (!activeCampaignId) return;
-    
+
     const occupation = params.metadata?.occupation as string | undefined;
 
     await entityService.create(activeCampaignId, {
@@ -141,7 +142,7 @@ export const NpcGeneratorPage: React.FC<NpcGeneratorPageProps> = ({ onBack }) =>
       '> [SUCCESS] Social profiling module loaded.',
       '> Awaiting actor parameters...'
     ],
-    maxLogs: 6,
+    maxLogs: TERMINAL_LOG_COMPACT,
     generateFn: generateNpc,
     saveFn: saveNpc,
     getFieldDefinitions,
@@ -150,9 +151,21 @@ export const NpcGeneratorPage: React.FC<NpcGeneratorPageProps> = ({ onBack }) =>
     }
   });
 
-  useEffect(() => {
-    loadFieldDefinitions(activeCampaign?.gameSystemId);
-  }, [activeCampaign?.gameSystemId, loadFieldDefinitions]);
+  const { handleNameChange, handleDescriptionChange, handleStatsChange } =
+    useGeneratorForm<NpcData>({
+      editableData,
+      setEditableData,
+      loadFieldDefinitions,
+      gameSystemId: activeCampaign?.gameSystemId,
+    });
+
+  /** NPC-specific: updates the occupation field */
+  const handleOccupationChange = useCallback(
+    (value: string | number) => {
+      if (editableData) setEditableData({ ...editableData, occupation: String(value) });
+    },
+    [editableData, setEditableData],
+  );
 
   const handleGenerate = async () => {
     if (!form.occupation || !form.personality) {
@@ -168,34 +181,8 @@ export const NpcGeneratorPage: React.FC<NpcGeneratorPageProps> = ({ onBack }) =>
       name: editableData.name,
       description: editableData.description,
       attributes: { ...editableData.stats },
-      metadata: {
-        occupation: editableData.occupation
-      }
+      metadata: { occupation: editableData.occupation }
     });
-  };
-
-  const handleStatsChange = (newStats: Record<string, unknown>) => {
-    if (editableData) {
-      setEditableData({ ...editableData, stats: newStats });
-    }
-  };
-
-  const handleNameChange = (value: string | number) => {
-    if (editableData) {
-      setEditableData({ ...editableData, name: String(value) });
-    }
-  };
-
-  const handleOccupationChange = (value: string | number) => {
-    if (editableData) {
-      setEditableData({ ...editableData, occupation: String(value) });
-    }
-  };
-
-  const handleDescriptionChange = (value: string | number) => {
-    if (editableData) {
-      setEditableData({ ...editableData, description: String(value) });
-    }
   };
 
   return (
@@ -207,6 +194,7 @@ export const NpcGeneratorPage: React.FC<NpcGeneratorPageProps> = ({ onBack }) =>
       hideCampaignSelector={false}
     >
       <div className="flex flex-col md:flex-row gap-8 md:h-full font-mono">
+        {/* Left panel — form controls */}
         <div className="flex-1 flex flex-col gap-6 overflow-y-auto pr-2">
           <div className="space-y-6">
             <div>
@@ -268,65 +256,29 @@ export const NpcGeneratorPage: React.FC<NpcGeneratorPageProps> = ({ onBack }) =>
             />
           </div>
 
-          <div className="mt-auto pt-6 border-t border-primary/30 grid grid-cols-2 gap-4">
-            <Button
-              onClick={handleGenerate}
-              disabled={isGenerating}
-              variant="secondary"
-              size="lg"
-              isLoading={isGenerating}
-              icon="person_add"
-            >
-              GENERAR
-            </Button>
-            <Button
-              onClick={handleSave}
-              disabled={!editableData || isSaving || isGenerating || !activeCampaignId}
-              variant="primary"
-              size="lg"
-              isLoading={isSaving}
-              icon="save"
-            >
-              GUARDAR
-            </Button>
-          </div>
+          <GeneratorActionButtons
+            onGenerate={handleGenerate}
+            onSave={handleSave}
+            isGenerating={isGenerating}
+            isSaving={isSaving}
+            hasData={!!editableData}
+            hasCampaign={!!activeCampaignId}
+            generateIcon="person_add"
+          />
         </div>
 
+        {/* Right panel — preview */}
         <div className="flex-1 flex flex-col gap-4">
           <div className="flex-1 overflow-y-auto flex flex-col gap-4">
-            <div className="relative w-full h-64 md:h-[500px] border border-primary/30 bg-black p-1 flex flex-col clip-tech-br group">
-              <div className="relative flex-1 bg-black overflow-hidden flex items-center justify-center">
-                <img
-                  className={`w-full h-full object-cover object-[center_25%] transition-all duration-1000 ${isGenerating ? 'opacity-10 scale-110 blur-sm' : 'opacity-80 scale-100'} grayscale brightness-90`}
-                  src={image}
-                  alt="NPC Preview"
-                />
-                {isGenerating && (
-                  <div className="absolute inset-0 flex flex-col items-center justify-center bg-black/40 z-20">
-                    <div className="w-1/2 h-1 bg-primary/20 relative overflow-hidden mb-2">
-                      <div className="absolute inset-0 bg-primary animate-[scan_2s_linear_infinite]"></div>
-                    </div>
-                    <span className="text-primary text-[10px] animate-pulse">PROCESANDO_IDENTIDAD...</span>
-                  </div>
-                )}
-                <div className="absolute inset-0 pointer-events-none border border-primary/5 opacity-30"></div>
-              </div>
-              <div className={`absolute bottom-0 left-0 right-0 z-10 bg-black/80 p-3 border-t border-primary/40 backdrop-blur-sm transition-transform duration-500 ${editableData ? 'translate-y-0' : 'translate-y-full'}`}>
-                <EditableField
-                  value={editableData?.name || ''}
-                  label="Nombre"
-                  variant="primary"
-                  onChange={handleNameChange}
-                  disabled={!editableData}
-                  className="font-bold"
-                />
-              </div>
-              {!editableData && !isGenerating && (
-                <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
-                  <span className="text-primary/20 text-[10px] tracking-[0.5em] uppercase font-bold">Sin Datos</span>
-                </div>
-              )}
-            </div>
+            <GeneratorPortrait
+              src={image}
+              alt="NPC Preview"
+              name={editableData?.name || ''}
+              isGenerating={isGenerating}
+              hasData={!!editableData}
+              onNameChange={handleNameChange}
+              generatingLabel="PROCESANDO_IDENTIDAD..."
+            />
 
             {editableData && (
               <div className="space-y-2">
@@ -369,7 +321,7 @@ export const NpcGeneratorPage: React.FC<NpcGeneratorPageProps> = ({ onBack }) =>
             />
           </div>
 
-          <TerminalLog logs={logs} maxLogs={6} className="h-24 shrink-0" />
+          <TerminalLog logs={logs} maxLogs={TERMINAL_LOG_COMPACT} className="h-24 shrink-0" />
         </div>
       </div>
     </TerminalLayout>

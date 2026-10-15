@@ -5,6 +5,7 @@
  */
 
 import React, { useRef, useEffect } from 'react';
+import { TERMINAL_LOG_DEFAULT } from '@core/config/constants';
 
 interface TerminalLogProps {
   logs: string[];
@@ -28,7 +29,7 @@ const getLogColor = (log: string): string => {
 
 export const TerminalLog: React.FC<TerminalLogProps> = ({ 
   logs, 
-  maxLogs = 12,
+  maxLogs = TERMINAL_LOG_DEFAULT,
   className = '',
   highlightLast = true
 }) => {

@@ -7,9 +7,9 @@
 import { httpClient } from './client';
 import type { 
   GameSystem, 
-  CreateGameSystemRequest, 
-  UpdateGameSystemRequest,
-  UpdateGameSystemStatusRequest 
+  CreateGameSystemInput, 
+  UpdateGameSystemInput,
+  UpdateGameSystemStatusInput 
 } from '@core/types';
 
 export const gameSystemService = {
@@ -41,7 +41,7 @@ export const gameSystemService = {
    * Create a new game system (requires Master or Admin role)
    * Backend endpoint: POST /api/GameSystems
    */
-  async create(request: CreateGameSystemRequest): Promise<GameSystem> {
+  async create(request: CreateGameSystemInput): Promise<GameSystem> {
     return httpClient.post<GameSystem>('/gamesystems', request);
   },
 
@@ -49,7 +49,7 @@ export const gameSystemService = {
    * Update an existing game system (requires Master or Admin role)
    * Backend endpoint: PUT /api/GameSystems/{id}
    */
-  async update(id: string, request: UpdateGameSystemRequest): Promise<GameSystem> {
+  async update(id: string, request: UpdateGameSystemInput): Promise<GameSystem> {
     return httpClient.put<GameSystem>(`/gamesystems/${id}`, request);
   },
 
@@ -57,7 +57,7 @@ export const gameSystemService = {
    * Activate or deactivate a game system (requires Master or Admin role)
    * Backend endpoint: PATCH /api/GameSystems/{id}/status
    */
-  async updateStatus(id: string, request: UpdateGameSystemStatusRequest): Promise<GameSystem> {
+  async updateStatus(id: string, request: UpdateGameSystemStatusInput): Promise<GameSystem> {
     return httpClient.patch<GameSystem>(`/gamesystems/${id}/status`, request);
   },
 };

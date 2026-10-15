@@ -3,7 +3,7 @@
  * Follows SOLID principles with dependency injection for flexibility
  */
 
-import type { FieldDefinition, EntityCategory } from '@core/types';
+import type { FieldDefinition, EntityCategory, DynamicStats, EntityMetadata } from '@core/types';
 import type { ImageSourceMode } from '@shared/components/ui';
 
 /**
@@ -23,8 +23,8 @@ export interface SaveEntityParams {
   name: string;
   description?: string;
   imageUrl?: string;
-  attributes: Record<string, unknown>;
-  metadata?: Record<string, unknown>;
+  attributes: DynamicStats;
+  metadata?: EntityMetadata;
   generationRequestId?: string;
 }
 
@@ -56,6 +56,8 @@ export interface UseEntityGenerationConfig<T> {
 export interface UseEntityGenerationReturn<T> {
   isGenerating: boolean;
   isSaving: boolean;
+  /** Last error message from either generation or save, null when no error */
+  error: string | null;
   generatedData: T | null;
   editableData: T | null;
   image: string;

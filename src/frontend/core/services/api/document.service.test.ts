@@ -4,19 +4,14 @@
  */
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { documentService } from './document.service';
+import { adminDocumentService } from './adminDocument.service';
 import { httpClient } from './client';
-import { tokenService } from '@core/services/storage/token.service';
 
 vi.mock('./client', () => ({
   httpClient: {
     get: vi.fn(),
     post: vi.fn(),
-  },
-}));
-
-vi.mock('@core/services/storage/token.service', () => ({
-  tokenService: {
-    getAccessToken: vi.fn(),
+    postForm: vi.fn(),
   },
 }));
 
@@ -123,21 +118,16 @@ describe('Document Service', () => {
   });
 
   describe('uploadManual', () => {
-    it('uploads a manual with FormData', async () => {
-      vi.mocked(tokenService.getAccessToken).mockReturnValue('test-token');
-      
-      const mockFetch = vi.fn().mockResolvedValueOnce({
-        ok: true,
-        json: async () => ({
-          manualId: 'new-manual',
-          title: 'Uploaded Manual',
-          pageCount: 10,
-          chunkCount: 50,
-          processingTimeMs: 1000,
-        }),
-      });
-      global.fetch = mockFetch;
-      
+    it('uploads a manual with FormData via httpClient.postForm', async () => {
+      const mockResult = {
+        manualId: 'new-manual',
+        title: 'Uploaded Manual',
+        pageCount: 10,
+        chunkCount: 50,
+        processingTimeMs: 1000,
+      };
+      vi.mocked(httpClient.postForm).mockResolvedValueOnce(mockResult);
+
       const file = new File(['content'], 'test.pdf', { type: 'application/pdf' });
       const result = await documentService.uploadManual({
         gameSystemId: 'system-1',
@@ -146,58 +136,49 @@ describe('Document Service', () => {
         sourceType: 'Rulebook',
         version: '1.0',
       });
-      
-      expect(mockFetch).toHaveBeenCalledWith(
-        expect.stringContaining('/documents/game-systems/system-1/manuals'),
-        expect.objectContaining({
-          method: 'POST',
-          headers: expect.objectContaining({
-            Authorization: 'Bearer test-token',
-          }),
-        })
+
+      expect(httpClient.postForm).toHaveBeenCalledWith(
+        '/documents/game-systems/system-1/manuals',
+        expect.any(FormData),
       );
-      expect(result.manualId).toBe('new-manual');
+
+      // Verify FormData fields were appended
+      const formData: FormData = vi.mocked(httpClient.postForm).mock.calls[0][1];
+      expect(formData.get('File')).toEqual(file);
+      expect(formData.get('Title')).toBe('Custom Title');
+      expect(formData.get('SourceType')).toBe('Rulebook');
+      expect(formData.get('Version')).toBe('1.0');
+
+      expect(result).toEqual(mockResult);
     });
 
-    it('uploads without auth token when not available', async () => {
-      vi.mocked(tokenService.getAccessToken).mockReturnValue(null);
-      
-      const mockFetch = vi.fn().mockResolvedValueOnce({
-        ok: true,
-        json: async () => ({ manualId: 'new-manual' }),
-      });
-      global.fetch = mockFetch;
-      
+    it('uploads with only required fields (no optional metadata)', async () => {
+      vi.mocked(httpClient.postForm).mockResolvedValueOnce({ manualId: 'new-manual' });
+
       const file = new File(['content'], 'test.pdf', { type: 'application/pdf' });
-      await documentService.uploadManual({
-        gameSystemId: 'system-1',
-        file,
-      });
-      
-      const callArgs = mockFetch.mock.calls[0][1];
-      expect(callArgs.headers).not.toHaveProperty('Authorization');
+      await documentService.uploadManual({ gameSystemId: 'system-1', file });
+
+      const formData: FormData = vi.mocked(httpClient.postForm).mock.calls[0][1];
+      expect(formData.get('File')).toEqual(file);
+      expect(formData.get('Title')).toBeNull();
+      expect(formData.get('SourceType')).toBeNull();
+      expect(formData.get('Version')).toBeNull();
     });
 
-    it('throws on upload failure', async () => {
-      vi.mocked(tokenService.getAccessToken).mockReturnValue('token');
-      
-      const mockFetch = vi.fn().mockResolvedValueOnce({
-        ok: false,
-        status: 400,
-        text: async () => 'Bad request',
-      });
-      global.fetch = mockFetch;
-      
+    it('propagates error when httpClient.postForm rejects', async () => {
+      vi.mocked(httpClient.postForm).mockRejectedValueOnce(new Error('Upload failed'));
+
       const file = new File(['content'], 'test.pdf', { type: 'application/pdf' });
-      
-      await expect(documentService.uploadManual({
-        gameSystemId: 'system-1',
-        file,
-      })).rejects.toThrow();
+
+      await expect(
+        documentService.uploadManual({ gameSystemId: 'system-1', file }),
+      ).rejects.toThrow('Upload failed');
     });
   });
 
   describe('generateMissingEmbeddings', () => {
+    // generateMissingEmbeddings was moved to adminDocumentService (admin-only operation).
+    // These tests target the correct service.
     it('generates missing embeddings with defaults', async () => {
       const mockResult = {
         totalProcessed: 10,
@@ -207,7 +188,7 @@ describe('Document Service', () => {
       };
       vi.mocked(httpClient.post).mockResolvedValueOnce(mockResult);
       
-      const result = await documentService.generateMissingEmbeddings();
+      const result = await adminDocumentService.generateMissingEmbeddings();
       
       expect(httpClient.post).toHaveBeenCalledWith('/documents/embeddings/generate', {
         batchSize: 10,
@@ -226,7 +207,7 @@ describe('Document Service', () => {
       };
       vi.mocked(httpClient.post).mockResolvedValueOnce(mockResult);
       
-      const result = await documentService.generateMissingEmbeddings({
+      const result = await adminDocumentService.generateMissingEmbeddings({
         batchSize: 5,
         maxDocuments: 50,
         gameSystemId: 'system-1',

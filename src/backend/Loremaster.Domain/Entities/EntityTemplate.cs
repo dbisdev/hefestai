@@ -35,8 +35,26 @@ public class EntityTemplate : AuditableEntity
     
     /// <summary>
     /// Field definitions stored as JSON.
+    /// Setting this property (by EF Core hydration or <see cref="SetFieldDefinitions"/>) 
+    /// invalidates the deserialization cache.
     /// </summary>
-    public string FieldDefinitionsJson { get; private set; } = "[]";
+    public string FieldDefinitionsJson
+    {
+        get => _fieldDefinitionsJson;
+        private set
+        {
+            _fieldDefinitionsJson = value;
+            _cachedFieldDefinitions = null; // invalidate cache on every write
+        }
+    }
+
+    private string _fieldDefinitionsJson = "[]";
+
+    /// <summary>
+    /// Lazy cache for deserialized field definitions.
+    /// Null means the cache is stale and must be rebuilt on the next <see cref="GetFieldDefinitions"/> call.
+    /// </summary>
+    private IReadOnlyList<FieldDefinition>? _cachedFieldDefinitions;
     
     /// <summary>
     /// Optional icon or category hint for UI display.
@@ -124,16 +142,28 @@ public class EntityTemplate : AuditableEntity
 
     /// <summary>
     /// Gets the field definitions as a list.
+    /// Result is cached per instance; the cache is invalidated whenever
+    /// <see cref="FieldDefinitionsJson"/> is written (including EF Core hydration).
     /// </summary>
     public IReadOnlyList<FieldDefinition> GetFieldDefinitions()
     {
+        if (_cachedFieldDefinitions != null)
+            return _cachedFieldDefinitions;
+
         if (string.IsNullOrEmpty(FieldDefinitionsJson) || FieldDefinitionsJson == "[]")
-            return Array.Empty<FieldDefinition>();
+        {
+            _cachedFieldDefinitions = Array.Empty<FieldDefinition>();
+            return _cachedFieldDefinitions;
+        }
 
-        var dtos = JsonSerializer.Deserialize<List<FieldDefinitionDto>>(FieldDefinitionsJson);
-        if (dtos == null) return Array.Empty<FieldDefinition>();
+        var dtos = JsonSerializer.Deserialize<List<FieldDefinitionSerializationRecord>>(FieldDefinitionsJson);
+        if (dtos == null)
+        {
+            _cachedFieldDefinitions = Array.Empty<FieldDefinition>();
+            return _cachedFieldDefinitions;
+        }
 
-        return dtos.Select(dto => FieldDefinition.Create(
+        _cachedFieldDefinitions = dtos.Select(dto => FieldDefinition.Create(
             dto.Name,
             dto.DisplayName,
             dto.FieldType,
@@ -146,6 +176,8 @@ public class EntityTemplate : AuditableEntity
             dto.MaxValue,
             dto.ValidationPattern
         )).OrderBy(f => f.Order).ToList();
+
+        return _cachedFieldDefinitions;
     }
 
     /// <summary>
@@ -174,20 +206,19 @@ public class EntityTemplate : AuditableEntity
         if (duplicates.Any())
             throw new ArgumentException($"Duplicate field names: {string.Join(", ", duplicates)}");
 
-        var dtos = fieldList.Select(f => new FieldDefinitionDto
-        {
-            Name = f.Name,
-            DisplayName = f.DisplayName,
-            FieldType = f.FieldType,
-            IsRequired = f.IsRequired,
-            DefaultValue = f.DefaultValue,
-            Description = f.Description,
-            Order = f.Order,
-            Options = f.GetOptions().ToList(),
-            MinValue = f.MinValue,
-            MaxValue = f.MaxValue,
-            ValidationPattern = f.ValidationPattern
-        }).ToList();
+        var dtos = fieldList.Select(f => new FieldDefinitionSerializationRecord(
+            f.Name,
+            f.DisplayName,
+            f.FieldType,
+            f.IsRequired,
+            f.DefaultValue,
+            f.Description,
+            f.Order,
+            f.GetOptions().ToList(),
+            f.MinValue,
+            f.MaxValue,
+            f.ValidationPattern
+        )).ToList();
 
         FieldDefinitionsJson = JsonSerializer.Serialize(dtos);
     }
@@ -390,22 +421,22 @@ public class EntityTemplate : AuditableEntity
     }
 
     /// <summary>
-    /// Internal DTO for JSON serialization of field definitions.
+    /// Internal record for JSON serialization/deserialization of field definitions.
+    /// Replaces the previous mutable class with an immutable positional record that
+    /// System.Text.Json can construct via its primary constructor.
     /// </summary>
-    private class FieldDefinitionDto
-    {
-        public string Name { get; set; } = null!;
-        public string DisplayName { get; set; } = null!;
-        public FieldType FieldType { get; set; }
-        public bool IsRequired { get; set; }
-        public string? DefaultValue { get; set; }
-        public string? Description { get; set; }
-        public int Order { get; set; }
-        public List<string>? Options { get; set; }
-        public decimal? MinValue { get; set; }
-        public decimal? MaxValue { get; set; }
-        public string? ValidationPattern { get; set; }
-    }
+    private sealed record FieldDefinitionSerializationRecord(
+        string Name,
+        string DisplayName,
+        FieldType FieldType,
+        bool IsRequired,
+        string? DefaultValue,
+        string? Description,
+        int Order,
+        List<string>? Options,
+        decimal? MinValue,
+        decimal? MaxValue,
+        string? ValidationPattern);
 }
 
 /// <summary>

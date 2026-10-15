@@ -8,6 +8,7 @@
 import React from 'react';
 import type { DynamicStats } from '@core/types';
 import type { FieldDefinition } from '@core/types/template.types';
+import { isNestedObject } from '@core/utils/entity';
 
 /**
  * Map of field identifier (name) to display name.
@@ -31,13 +32,6 @@ export interface DynamicStatsPanelProps {
   /** Optional field definitions from template (alternative to labelMap) */
   fieldDefinitions?: FieldDefinition[];
 }
-
-/**
- * Checks if a value is a nested object (like SKILLS)
- */
-const isNestedObject = (value: unknown): value is Record<string, unknown> => {
-  return typeof value === 'object' && value !== null && !Array.isArray(value);
-};
 
 /**
  * Builds a label map from field definitions.
@@ -178,7 +172,7 @@ const StatCard: React.FC<{
 const NestedStatsSection: React.FC<{
   fieldKey: string;
   label: string;
-  data: Record<string, unknown>;
+  data: Record<string, number | string>;
   colors: ReturnType<typeof getVariantColors>;
   labelMap?: LabelMap;
 }> = ({ fieldKey, label, data, colors, labelMap }) => {
@@ -258,7 +252,7 @@ export const DynamicStatsPanel: React.FC<DynamicStatsPanelProps> = ({
   // Separate stats by type for proper rendering
   const numericStats: [string, string, number][] = [];  // [key, displayLabel, value]
   const stringStats: [string, string, string][] = [];   // [key, displayLabel, value]
-  const nestedStats: [string, string, Record<string, unknown>][] = [];  // [key, displayLabel, value]
+  const nestedStats: [string, string, Record<string, number | string>][] = [];  // [key, displayLabel, value]
 
   Object.entries(stats).forEach(([key, value]) => {
     const displayLabel = getDisplayLabel(key, labelMap);

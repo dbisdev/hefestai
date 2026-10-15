@@ -7,7 +7,10 @@
 import React, { createContext, useContext, useState, useEffect, useCallback, useMemo } from 'react';
 import { campaignService } from '@core/services/api';
 import { useAuth } from './AuthContext';
-import type { Campaign, CampaignDetail, CampaignRole, UpdateCampaignInput, UpdateCampaignStatusInput } from '@core/types';
+import { extractErrorMessage } from '@core/utils/error';
+import { logger } from '@core/utils';
+import { CampaignRole } from '@core/types';
+import type { Campaign, CampaignDetail, UpdateCampaignInput, UpdateCampaignStatusInput } from '@core/types';
 
 interface CampaignState {
   /** List of all campaigns the user is a member of */
@@ -86,9 +89,9 @@ export const CampaignProvider: React.FC<CampaignProviderProps> = ({ children }) 
         setActiveCampaign(details);
       }
     } catch (err) {
-      const message = err instanceof Error ? err.message : 'Error al cargar campañas';
+      const message = extractErrorMessage(err, 'Error al cargar campañas');
       setError(message);
-      console.error('Failed to fetch campaigns:', err);
+      logger.error('Failed to fetch campaigns:', err);
     } finally {
       setIsLoading(false);
     }
@@ -104,7 +107,7 @@ export const CampaignProvider: React.FC<CampaignProviderProps> = ({ children }) 
       const details = await campaignService.getById(campaignId);
       setActiveCampaign(details);
     } catch (err) {
-      const message = err instanceof Error ? err.message : 'Error al seleccionar campaña';
+      const message = extractErrorMessage(err, 'Error al seleccionar campaña');
       setError(message);
       throw err;
     } finally {
@@ -143,7 +146,7 @@ export const CampaignProvider: React.FC<CampaignProviderProps> = ({ children }) 
       
       return newCampaign;
     } catch (err) {
-      const message = err instanceof Error ? err.message : 'Error al crear campaña';
+      const message = extractErrorMessage(err, 'Error al crear campaña');
       setError(message);
       throw err;
     } finally {
@@ -170,7 +173,7 @@ export const CampaignProvider: React.FC<CampaignProviderProps> = ({ children }) 
       
       return campaign;
     } catch (err) {
-      const message = err instanceof Error ? err.message : 'Error al unirse a la campaña';
+      const message = extractErrorMessage(err, 'Error al unirse a la campaña');
       setError(message);
       throw err;
     } finally {
@@ -202,7 +205,7 @@ export const CampaignProvider: React.FC<CampaignProviderProps> = ({ children }) 
         setActiveCampaign(details);
       }
     } catch (err) {
-      const message = err instanceof Error ? err.message : 'Error al abandonar campaña';
+      const message = extractErrorMessage(err, 'Error al abandonar campaña');
       setError(message);
       throw err;
     } finally {
@@ -234,7 +237,7 @@ export const CampaignProvider: React.FC<CampaignProviderProps> = ({ children }) 
         setActiveCampaign(details);
       }
     } catch (err) {
-      const message = err instanceof Error ? err.message : 'Error al eliminar campaña';
+      const message = extractErrorMessage(err, 'Error al eliminar campaña');
       setError(message);
       throw err;
     } finally {
@@ -265,7 +268,7 @@ export const CampaignProvider: React.FC<CampaignProviderProps> = ({ children }) 
       
       return updatedCampaign;
     } catch (err) {
-      const message = err instanceof Error ? err.message : 'Error al actualizar campaña';
+      const message = extractErrorMessage(err, 'Error al actualizar campaña');
       setError(message);
       throw err;
     } finally {
@@ -295,7 +298,7 @@ export const CampaignProvider: React.FC<CampaignProviderProps> = ({ children }) 
       const updatedCampaigns = await campaignService.getAll();
       setCampaigns(updatedCampaigns);
     } catch (err) {
-      const message = err instanceof Error ? err.message : 'Error al cambiar estado de campaña';
+      const message = extractErrorMessage(err, 'Error al cambiar estado de campaña');
       setError(message);
       throw err;
     } finally {
@@ -320,7 +323,7 @@ export const CampaignProvider: React.FC<CampaignProviderProps> = ({ children }) 
       
       return response.joinCode;
     } catch (err) {
-      const message = err instanceof Error ? err.message : 'Error al regenerar código';
+      const message = extractErrorMessage(err, 'Error al regenerar código');
       setError(message);
       throw err;
     } finally {
@@ -351,7 +354,7 @@ export const CampaignProvider: React.FC<CampaignProviderProps> = ({ children }) 
   }, [isAuthenticated, isAuthLoading]);
 
   // Derived values
-  const isActiveCampaignMaster = activeCampaign?.userRole === 1; // CampaignRole.Master = 1
+  const isActiveCampaignMaster = activeCampaign?.userRole === CampaignRole.Master;
   const activeCampaignId = activeCampaign?.id ?? null;
 
   const value = useMemo<CampaignContextValue>(() => ({

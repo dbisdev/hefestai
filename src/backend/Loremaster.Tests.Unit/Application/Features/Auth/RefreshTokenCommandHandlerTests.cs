@@ -3,7 +3,6 @@ using Loremaster.Application.Features.Auth.Commands.RefreshToken;
 using Loremaster.Domain.Entities;
 using Loremaster.Domain.Enums;
 using Loremaster.Domain.Exceptions;
-using Microsoft.EntityFrameworkCore;
 using Moq;
 
 namespace Loremaster.Tests.Unit.Application.Features.Auth;
@@ -14,27 +13,21 @@ namespace Loremaster.Tests.Unit.Application.Features.Auth;
 /// </summary>
 public class RefreshTokenCommandHandlerTests
 {
-    private readonly Mock<IApplicationDbContext> _contextMock;
+    private readonly Mock<IUserRepository> _userRepositoryMock;
     private readonly Mock<IUnitOfWork> _unitOfWorkMock;
     private readonly Mock<IJwtTokenGenerator> _jwtTokenGeneratorMock;
     private readonly Mock<IDateTimeProvider> _dateTimeProviderMock;
-    private readonly Mock<DbSet<User>> _usersDbSetMock;
     private readonly RefreshTokenCommandHandler _handler;
 
     public RefreshTokenCommandHandlerTests()
     {
-        _contextMock = new Mock<IApplicationDbContext>();
+        _userRepositoryMock = new Mock<IUserRepository>();
         _unitOfWorkMock = new Mock<IUnitOfWork>();
         _jwtTokenGeneratorMock = new Mock<IJwtTokenGenerator>();
         _dateTimeProviderMock = new Mock<IDateTimeProvider>();
-        _usersDbSetMock = new Mock<DbSet<User>>();
-
-        _contextMock
-            .Setup(x => x.Users)
-            .Returns(_usersDbSetMock.Object);
 
         _handler = new RefreshTokenCommandHandler(
-            _contextMock.Object,
+            _userRepositoryMock.Object,
             _unitOfWorkMock.Object,
             _jwtTokenGeneratorMock.Object,
             _dateTimeProviderMock.Object);
@@ -48,12 +41,8 @@ public class RefreshTokenCommandHandlerTests
         var refreshToken = "valid_refresh_token";
         user.SetRefreshToken(refreshToken, DateTime.UtcNow.AddDays(7));
 
-        var users = new List<User> { user }.AsQueryable();
-
-        _usersDbSetMock
-            .Setup(x => x.FirstOrDefaultAsync(
-                It.IsAny<System.Linq.Expressions.Expression<Func<User, bool>>>(),
-                It.IsAny<CancellationToken>()))
+        _userRepositoryMock
+            .Setup(x => x.GetByRefreshTokenAsync(refreshToken, It.IsAny<CancellationToken>()))
             .ReturnsAsync(user);
 
         _dateTimeProviderMock
@@ -91,10 +80,8 @@ public class RefreshTokenCommandHandlerTests
     public async Task Handle_WithInvalidRefreshToken_ShouldThrowDomainException()
     {
         // Arrange
-        _usersDbSetMock
-            .Setup(x => x.FirstOrDefaultAsync(
-                It.IsAny<System.Linq.Expressions.Expression<Func<User, bool>>>(),
-                It.IsAny<CancellationToken>()))
+        _userRepositoryMock
+            .Setup(x => x.GetByRefreshTokenAsync("invalid_token", It.IsAny<CancellationToken>()))
             .ReturnsAsync((User?)null);
 
         var command = new RefreshTokenCommand("invalid_token");
@@ -115,10 +102,8 @@ public class RefreshTokenCommandHandlerTests
         var expiredToken = "expired_token";
         user.SetRefreshToken(expiredToken, DateTime.UtcNow.AddDays(-1)); // Expired
 
-        _usersDbSetMock
-            .Setup(x => x.FirstOrDefaultAsync(
-                It.IsAny<System.Linq.Expressions.Expression<Func<User, bool>>>(),
-                It.IsAny<CancellationToken>()))
+        _userRepositoryMock
+            .Setup(x => x.GetByRefreshTokenAsync(expiredToken, It.IsAny<CancellationToken>()))
             .ReturnsAsync(user);
 
         _dateTimeProviderMock
@@ -144,10 +129,8 @@ public class RefreshTokenCommandHandlerTests
         user.SetRefreshToken(refreshToken, DateTime.UtcNow.AddDays(7));
         user.Deactivate();
 
-        _usersDbSetMock
-            .Setup(x => x.FirstOrDefaultAsync(
-                It.IsAny<System.Linq.Expressions.Expression<Func<User, bool>>>(),
-                It.IsAny<CancellationToken>()))
+        _userRepositoryMock
+            .Setup(x => x.GetByRefreshTokenAsync(refreshToken, It.IsAny<CancellationToken>()))
             .ReturnsAsync(user);
 
         _dateTimeProviderMock

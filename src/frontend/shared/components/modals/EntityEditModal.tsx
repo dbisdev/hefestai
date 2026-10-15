@@ -9,7 +9,7 @@
 import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { entityService, campaignService } from '@core/services/api';
 import { useCampaign } from '@core/context';
-import { buildLabelMapFromFields, getDisplayLabel, categorizeAttributes, isNestedObject } from '@core/utils';
+import { buildLabelMapFromFields, getDisplayLabel, categorizeAttributes, isNestedObject, extractErrorMessage, logger } from '@core/utils';
 import { ImageSourceSelector, type ImageSourceMode } from '@shared/components/ui';
 import type { LoreEntity, DynamicStats, FieldDefinition, CampaignMember } from '@core/types';
 import { VisibilityLevel, CampaignRole } from '@core/types';
@@ -107,7 +107,7 @@ export const EntityEditModal: React.FC<EntityEditModalProps> = ({
         const members = await campaignService.getMembers(activeCampaignId);
         setCampaignMembers(members);
       } catch (err) {
-        console.error('Failed to fetch campaign members:', err);
+        logger.error('Failed to fetch campaign members:', err);
         setCampaignMembers([]);
       } finally {
         setIsLoadingMembers(false);
@@ -223,7 +223,7 @@ export const EntityEditModal: React.FC<EntityEditModalProps> = ({
 
       onSave(updatedEntity);
     } catch (err) {
-      const message = err instanceof Error ? err.message : 'Error al guardar';
+      const message = extractErrorMessage(err, 'Error al guardar');
       setError(message);
     } finally {
       setIsSaving(false);

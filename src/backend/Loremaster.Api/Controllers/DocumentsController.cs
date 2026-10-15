@@ -1,3 +1,4 @@
+using Loremaster.Application.Features.Documents.Commands.BulkIngestDocuments;
 using Loremaster.Application.Features.Documents.Commands.GenerateMissingEmbeddings;
 using Loremaster.Application.Features.Documents.Commands.IngestDocument;
 using Loremaster.Application.Features.Documents.Commands.UploadManual;
@@ -11,7 +12,6 @@ using MediatR;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.RateLimiting;
-using System.Security.Claims;
 
 namespace Loremaster.Api.Controllers;
 
@@ -19,7 +19,7 @@ namespace Loremaster.Api.Controllers;
 [Route("api/[controller]")]
 [Authorize] // Base authorization - must be authenticated
 [EnableRateLimiting("api")]
-public class DocumentsController : ControllerBase
+public class DocumentsController : ApiControllerBase
 {
     private readonly IMediator _mediator;
 
@@ -52,7 +52,9 @@ public class DocumentsController : ControllerBase
 
         var result = await _mediator.Send(command, cancellationToken);
         
-        return CreatedAtAction(nameof(IngestDocument), new { id = result.DocumentId }, result);
+        // Return 201 Created. There is no dedicated GET-by-id endpoint for raw ingested documents,
+        // so we return the result directly without a Location header.
+        return StatusCode(StatusCodes.Status201Created, result);
     }
 
     /// <summary>
@@ -254,46 +256,29 @@ public class DocumentsController : ControllerBase
     }
 
     /// <summary>
-    /// Bulk ingest multiple documents
+    /// Bulk ingest multiple documents.
+    /// Each document is processed individually; failures are captured in the result
+    /// rather than aborting the whole batch.
     /// </summary>
     [HttpPost("ingest/bulk")]
     [Authorize(Policy = "RequireMasterRole")]
-    [ProducesResponseType(typeof(BulkIngestResult), StatusCodes.Status200OK)]
+    [ProducesResponseType(typeof(BulkIngestDocumentsResult), StatusCodes.Status200OK)]
     [ProducesResponseType(StatusCodes.Status400BadRequest)]
     [ProducesResponseType(StatusCodes.Status401Unauthorized)]
-    public async Task<ActionResult<BulkIngestResult>> BulkIngestDocuments(
+    public async Task<ActionResult<BulkIngestDocumentsResult>> BulkIngestDocuments(
         [FromBody] BulkIngestRequest request,
         CancellationToken cancellationToken)
     {
         var userId = GetCurrentUserId();
-        var results = new List<IngestDocumentResult>();
-        var errors = new List<string>();
 
-        foreach (var doc in request.Documents)
-        {
-            try
-            {
-                var command = new IngestDocumentCommand(
-                    doc.Title,
-                    doc.Content,
-                    userId,
-                    doc.Source,
-                    doc.Metadata,
-                    request.GenerateEmbeddings ?? true);
+        var command = new BulkIngestDocumentsCommand(
+            request.Documents,
+            userId,
+            request.GenerateEmbeddings ?? true);
 
-                var result = await _mediator.Send(command, cancellationToken);
-                results.Add(result);
-            }
-            catch (Exception ex)
-            {
-                errors.Add($"Failed to ingest '{doc.Title}': {ex.Message}");
-            }
-        }
+        var result = await _mediator.Send(command, cancellationToken);
 
-        return Ok(new BulkIngestResult(
-            results.Count,
-            results.Count(r => r.EmbeddingGenerated),
-            errors));
+        return Ok(result);
     }
 
     /// <summary>
@@ -326,48 +311,6 @@ public class DocumentsController : ControllerBase
 
         return Ok(result);
     }
-
-    private Guid GetCurrentUserId()
-    {
-        // Try JWT standard claim "sub" first (when MapInboundClaims = false)
-        // Fall back to ClaimTypes.NameIdentifier for compatibility
-        var userIdClaim = User.FindFirst("sub")?.Value
-            ?? User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
-        
-        if (string.IsNullOrEmpty(userIdClaim) || !Guid.TryParse(userIdClaim, out var userId))
-        {
-            throw new UnauthorizedAccessException("Invalid user token");
-        }
-
-        return userId;
-    }
-
-    /// <summary>
-    /// Checks if the current user has the Admin role.
-    /// </summary>
-    private bool IsCurrentUserAdmin()
-    {
-        var roleClaim = User.FindFirst("role")?.Value
-            ?? User.FindFirst(ClaimTypes.Role)?.Value;
-        
-        return roleClaim == "Admin";
-    }
-
-    /// <summary>
-    /// Gets the current user's role from JWT claims.
-    /// </summary>
-    private UserRole GetCurrentUserRole()
-    {
-        var roleClaim = User.FindFirst("role")?.Value
-            ?? User.FindFirst(ClaimTypes.Role)?.Value;
-        
-        return roleClaim switch
-        {
-            "Admin" => UserRole.Admin,
-            "Master" => UserRole.Master,
-            _ => UserRole.Player
-        };
-    }
 }
 
 // Request DTOs
@@ -377,6 +320,15 @@ public record IngestDocumentRequest(
     string? Source = null,
     string? Metadata = null,
     bool? GenerateEmbedding = true);
+
+/// <summary>
+/// API request DTO for bulk document ingestion.
+/// <see cref="BulkDocumentItem"/> is defined in the Application layer and re-used here
+/// to avoid duplication between layers.
+/// </summary>
+public record BulkIngestRequest(
+    List<BulkDocumentItem> Documents,
+    bool? GenerateEmbeddings = true);
 
 /// <summary>
 /// Request for semantic search across documents.
@@ -396,21 +348,6 @@ public record SemanticSearchRequest(
     bool? GenerateAnswer = false,
     string? SystemPrompt = null,
     Guid? MasterId = null);
-
-public record BulkIngestRequest(
-    List<BulkDocumentItem> Documents,
-    bool? GenerateEmbeddings = true);
-
-public record BulkDocumentItem(
-    string Title,
-    string Content,
-    string? Source = null,
-    string? Metadata = null);
-
-public record BulkIngestResult(
-    int TotalIngested,
-    int EmbeddingsGenerated,
-    List<string> Errors);
 
 /// <summary>
 /// Request for uploading a PDF manual.

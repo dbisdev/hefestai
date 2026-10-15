@@ -9,21 +9,11 @@ export { campaignService } from './campaign.service';
 export { gameSystemService } from './gameSystem.service';
 export { entityTemplateService } from './entityTemplate.service';
 export { adminUserService, adminCampaignService } from './admin.service';
+export { adminDocumentService } from './adminDocument.service';
 export { aiService } from './ai.service';
 export { documentService } from './document.service';
 export type { GeneratedCharacter, GeneratedSolarSystem, GeneratedVehicle } from './ai.service';
-export type { 
-  DocumentDto, 
-  DocumentSearchResult, 
-  SemanticSearchParams, 
-  SemanticSearchResult,
-  ManualDto,
-  ManualSummaryDto,
-  UploadManualResult,
-  RagSourceType,
-  DocumentAvailabilityResult
-} from './document.service';
-export type { 
-  PaginatedEntitiesResult, 
-  GetEntitiesOptions 
+export type {
+  PaginatedEntitiesResult,
+  GetEntitiesOptions,
 } from './entity.service';
