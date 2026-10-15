@@ -1,5 +1,5 @@
 {
-  "installCommand": "npm ci",
+  "installCommand": "npm ci --include=optional",
   "buildCommand": "npm run build --workspace=@hefestai/frontend",
   "outputDirectory": "src/frontend/dist",
   "framework": "vite",
