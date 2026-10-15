@@ -1,6 +1,7 @@
 {
-  "buildCommand": "npm run build",
-  "outputDirectory": "dist",
+  "installCommand": "npm ci",
+  "buildCommand": "npm run build --workspace=@hefestai/frontend",
+  "outputDirectory": "src/frontend/dist",
   "framework": "vite",
   "rewrites": [
     {

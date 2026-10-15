@@ -8,6 +8,10 @@
   "workspaces": [
     "src/frontend"
   ],
+  "engines": {
+    "node": "24.x",
+    "npm": "11.x"
+  },
   "scripts": {
     "dev:frontend": "npm run dev --workspace=src/frontend",
     "dev:genkit": "npm --prefix src/genkit-service run dev",
