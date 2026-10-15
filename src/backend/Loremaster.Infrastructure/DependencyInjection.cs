@@ -104,7 +104,7 @@ public static class DependencyInjection
         services.AddSingleton<ITextChunkingService, TextChunkingService>();
         
         // Image compression service
-        services.AddScoped<IImageCompressionService, ImageSharpCompressionService>();
+        services.AddScoped<IImageCompressionService, SkiaSharpCompressionService>();
         
         // Entity generation services (RAG-assisted)
         services.AddScoped<IRagContextProvider, RagContextProvider>();
